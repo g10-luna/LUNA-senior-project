@@ -1,7 +1,7 @@
 # Technical Debt & Risk Assessment - LUNA Senior Project
 ## Comprehensive Consolidated Report
 
-**Generated:** 2025-01-27  
+**Generated:** 2025-02-03  
 **Repository:** LUNA-senior-project  
 **Projects:** `luna-book-bot` (Student App) & `Senior-Project-LUNA` (Librarian Dashboard)
 
