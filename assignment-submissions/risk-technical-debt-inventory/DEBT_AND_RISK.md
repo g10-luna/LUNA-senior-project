@@ -10,7 +10,9 @@
 
 ## Part 1: The Technical Debt Audit
 
-This section identifies significant areas of technical debt in the LUNA codebase, classified by category with detailed descriptions and remediation plans.
+This section identifies significant areas of technical debt in the LUNA codebase, classified by category with detailed descriptions and remediation plans. The audit was performed using Cursor to scan the repository and verify AI-generated code against production standards (VIBE Coding Principles: **Verify**).
+
+**Analysis Method:** Used Cursor AI to analyze the codebase, identify patterns, and verify AI-generated code for structural issues, security vulnerabilities, and maintainability concerns.
 
 ### Technical Debt Item 1: Missing Backend Architecture
 
@@ -193,7 +195,7 @@ The system lacks comprehensive input validation, with no form validation, no sea
 
 ## Part 2: AI & System Risk Assessment
 
-This section identifies critical risks associated with AI-augmented development and agentic workflows in the LUNA system.
+This section identifies critical risks associated with AI-augmented development and agentic workflows in the LUNA system. These risks go beyond standard software risks and specifically address vulnerabilities introduced by AI-augmented development workflows.
 
 ### Risk 1: AI Hallucination in Edge Function Security Implementation
 
@@ -361,7 +363,8 @@ The top technical debt items have been converted into GitHub Issues and integrat
 
 #### Issue #77: Missing Backend Architecture (Item 1)
 - **Status:** Created and assigned for review
-- **Labels:** `critical`, `architecture`, `needs-breakdown`
+- **Labels:** `technical-debt`, `refactor`, `critical`, `architecture`, `needs-breakdown`
+- **GitHub Issue:** https://github.com/kelejohn/LUNA-senior-project/issues/77
 - **Acceptance Criteria:** (AI-assisted refinement)
   - [ ] API structure created with versioning (`/api/v1/*`)
   - [ ] Middleware pipeline implemented (auth, validation, error handling, logging, rate limiting)
@@ -372,7 +375,8 @@ The top technical debt items have been converted into GitHub Issues and integrat
 
 #### Issue #76: No Test Infrastructure (Item 2)
 - **Status:** Created and assigned for review
-- **Labels:** `critical`, `testing`, `needs-breakdown`
+- **Labels:** `technical-debt`, `refactor`, `critical`, `testing`, `needs-breakdown`
+- **GitHub Issue:** https://github.com/kelejohn/LUNA-senior-project/issues/76
 - **Acceptance Criteria:** (AI-assisted refinement)
   - [ ] Vitest + React Testing Library installed and configured
   - [ ] Test scripts added to `package.json`
@@ -384,7 +388,8 @@ The top technical debt items have been converted into GitHub Issues and integrat
 
 #### Issue #79: Duplicate Projects Without Shared Core (Item 3)
 - **Status:** Created and assigned for review
-- **Labels:** `critical`, `architecture`, `needs-breakdown`
+- **Labels:** `technical-debt`, `refactor`, `critical`, `architecture`, `needs-breakdown`
+- **GitHub Issue:** https://github.com/kelejohn/LUNA-senior-project/issues/79
 - **Acceptance Criteria:** (AI-assisted refinement)
   - [ ] Monorepo structure set up (Turborepo/Nx/pnpm workspaces)
   - [ ] Shared packages created (`shared-ui`, `shared-utils`, `shared-supabase`, `shared-types`)
@@ -398,8 +403,10 @@ The top technical debt items have been converted into GitHub Issues and integrat
 **GitHub Issues Created:**
 - Total issues created from technical debt: 22 issues (#72-#93)
 - Top 3 technical debt items converted to issues: #76, #77, #79
-- All issues tagged with appropriate labels (`critical`, `architecture`, `testing`, etc.)
+- All issues tagged with required labels: `technical-debt` and `refactor` (as per assignment requirements)
+- Additional labels applied: `critical`, `architecture`, `testing`, `needs-breakdown`
 - Issues include detailed descriptions, acceptance criteria, and remediation plans
+- All issues are accessible in the GitHub Project Board
 
 **AI-Aware Refinement:**
 - Acceptance criteria for each issue were refined using LLM assistance
