@@ -5,7 +5,7 @@
 - Isaac Adjei - Scrum Master
 - Sarah Cole
 - Kelynn Johnson
-- Naajat Sampong
+- Najaat Sampong
 - Kritika Pant
 
 **Date:** February 3, 2025  
