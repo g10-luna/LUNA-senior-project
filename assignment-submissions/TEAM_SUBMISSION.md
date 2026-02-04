@@ -1,7 +1,13 @@
 # Team Submission: Technical Debt Assessment & System Architecture Analysis
 ## LUNA Senior Project
 
-**Team Members:** 5 Developers  
+**Team Members:**
+- Isaac Adjei - Scrum Master
+- Sarah Cole
+- Kelynn Johnson
+- Naajat Sampong
+- Kritika Pant
+
 **Date:** February 3, 2025  
 **Project:** LUNA (Library User Navigation Assistant)
 
@@ -1390,4 +1396,4 @@ This section identifies and analyzes all technical debt items found in the LUNA 
 
 **Team Submission Status:** Complete  
 **Submitted:** February 3, 2025  
-**Team Size:** 5 Developers
+**Team Members:** Isaac Adjei (Scrum Master), Sarah Cole, Kelynn Johnson, Naajat Sampong, Kritika Pant
