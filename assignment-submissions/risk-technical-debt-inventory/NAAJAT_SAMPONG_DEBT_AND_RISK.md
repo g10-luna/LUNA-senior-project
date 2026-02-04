@@ -1,7 +1,7 @@
 # Risk & Technical Debt Inventory
 ## LUNA Senior Project - Individual Submission
 
-**Name:** Naajat Sampong  
+**Name:** Najaat Sampong  
 **Date:** February 3, 2025  
 **Module:** Senior Project II Reset: From Prototypes to Products
 
@@ -485,6 +485,6 @@ This Risk & Technical Debt Inventory identifies **2 medium-priority technical de
 
 ---
 
-**Prepared by:** Naajat Sampong  
+**Prepared by:** Najaat Sampong  
 **Date:** February 3, 2025  
 **Repository:** https://github.com/kelejohn/LUNA-senior-project
