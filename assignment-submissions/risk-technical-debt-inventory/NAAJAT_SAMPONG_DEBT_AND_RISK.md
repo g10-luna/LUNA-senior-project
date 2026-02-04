@@ -16,7 +16,7 @@ This section identifies significant areas of technical debt in the LUNA codebase
 ### Technical Debt Item 18: Hardcoded Configuration Values
 
 **Item Name:** Hardcoded Configuration Values  
-**Category:** Configuration Debt  
+**Category:** Architectural Debt  
 **Severity:** MEDIUM
 
 **Description:**
@@ -120,7 +120,7 @@ The codebase contains numerous hardcoded configuration values scattered througho
 ### Technical Debt Item 20: Missing Input Validation
 
 **Item Name:** Missing Input Validation  
-**Category:** Security/Code Quality Debt  
+**Category:** Architectural Debt  
 **Severity:** MEDIUM
 
 **Description:**

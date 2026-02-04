@@ -70,7 +70,7 @@ The LUNA system consists of two parallel applications (`luna-book-bot` and `Seni
 ### Technical Debt Item 14: Missing Monitoring & Observability
 
 **Item Name:** Missing Monitoring & Observability  
-**Category:** Infrastructure Debt  
+**Category:** Architectural Debt  
 **Severity:** HIGH
 
 **Description:**

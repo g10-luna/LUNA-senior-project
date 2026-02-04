@@ -81,7 +81,7 @@ The LUNA system suffers from inconsistent domain type definitions across the cod
 ### Technical Debt Item 13: Inconsistent Error Handling
 
 **Item Name:** Inconsistent Error Handling  
-**Category:** Code Quality Debt  
+**Category:** Architectural Debt  
 **Severity:** HIGH
 
 **Description:**

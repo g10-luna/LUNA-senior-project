@@ -60,7 +60,7 @@ The prototype was built with a frontend-heavy architecture where React component
 ### Technical Debt Item 6: Scalability Limitations
 
 **Item Name:** Scalability Limitations  
-**Category:** Scalability Debt  
+**Category:** Architectural Debt  
 **Severity:** CRITICAL
 
 **Description:**
