@@ -2373,11 +2373,570 @@ This section describes how data flows through the system and where different typ
 
 ## 6. API Design
 
+The LUNA system exposes RESTful APIs for all client interactions. All APIs follow REST conventions, use JSON for data exchange, and implement consistent error handling and authentication.
+
 ### 6.1 Endpoints & Contracts
+
+#### 6.1.1 Authentication Service Endpoints
+
+**Base Path:** `/api/v1/auth`
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/register` | Register new user account | No |
+| POST | `/login` | Authenticate user and get tokens | No |
+| POST | `/logout` | Logout user and invalidate token | Yes |
+| POST | `/refresh` | Refresh access token | Yes |
+| POST | `/forgot-password` | Request password reset | No |
+| POST | `/reset-password` | Reset password with token | No |
+| GET | `/me` | Get current user profile | Yes |
+| PUT | `/me` | Update current user profile | Yes |
+| PUT | `/change-password` | Change user password | Yes |
+
+#### 6.1.2 Book Service Endpoints
+
+**Base Path:** `/api/v1/books`
+
+| Method | Endpoint | Description | Auth Required | Role |
+|--------|----------|-------------|---------------|------|
+| GET | `/` | Search and list books | Yes | All |
+| GET | `/{book_id}` | Get book details | Yes | All |
+| POST | `/` | Create new book | Yes | Librarian |
+| PUT | `/{book_id}` | Update book information | Yes | Librarian |
+| DELETE | `/{book_id}` | Delete book from catalog | Yes | Librarian |
+| POST | `/bulk-import` | Bulk import books | Yes | Librarian |
+| GET | `/{book_id}/availability` | Check book availability | Yes | All |
+
+#### 6.1.3 Delivery Service Endpoints
+
+**Base Path:** `/api/v1/requests` (Student Requests) and `/api/v1/deliveries` (Delivery Management)
+
+| Method | Endpoint | Description | Auth Required | Role |
+|--------|----------|-------------|---------------|------|
+| POST | `/api/v1/requests` | Create book delivery request | Yes | Student |
+| GET | `/api/v1/requests` | Get user's book requests | Yes | Student |
+| GET | `/api/v1/requests/{request_id}` | Get request details | Yes | Student |
+| PUT | `/api/v1/requests/{request_id}/cancel` | Cancel book request | Yes | Student |
+| PUT | `/api/v1/requests/{request_id}/complete` | Mark request as completed | Yes | Student |
+| POST | `/api/v1/returns` | Initiate book return | Yes | Student |
+| GET | `/api/v1/returns` | Get user's return requests | Yes | Student |
+| GET | `/api/v1/returns/{return_id}` | Get return details | Yes | Student |
+| PUT | `/api/v1/returns/{return_id}/picked-up` | Confirm book picked up | Yes | Student |
+| GET | `/api/v1/deliveries` | List all delivery tasks | Yes | Librarian |
+| GET | `/api/v1/deliveries/{task_id}` | Get delivery task details | Yes | Librarian |
+| POST | `/api/v1/deliveries/inter-staff` | Create inter-staff delivery | Yes | Librarian |
+| POST | `/api/v1/deliveries/workstation` | Create workstation delivery | Yes | Librarian |
+| POST | `/api/v1/deliveries/transfer` | Create inter-location transfer | Yes | Librarian |
+| PUT | `/api/v1/deliveries/{task_id}/book-placed` | Confirm book placed on robot | Yes | Librarian |
+| PUT | `/api/v1/deliveries/{task_id}/complete` | Mark delivery as complete | Yes | Librarian |
+| PUT | `/api/v1/deliveries/{task_id}/cancel` | Cancel delivery task | Yes | Librarian |
+
+#### 6.1.4 Robot Service Endpoints
+
+**Base Path:** `/api/v1/robot`
+
+| Method | Endpoint | Description | Auth Required | Role |
+|--------|----------|-------------|---------------|------|
+| GET | `/status` | Get robot status | Yes | Librarian |
+| GET | `/status/{robot_id}` | Get specific robot status | Yes | Librarian |
+| GET | `/tasks` | Get robot task queue | Yes | Librarian |
+| POST | `/emergency-stop` | Emergency stop robot | Yes | Librarian |
+| POST | `/emergency-stop/{robot_id}` | Emergency stop specific robot | Yes | Librarian |
+| GET | `/waypoints` | List all waypoints | Yes | Librarian |
+| POST | `/waypoints` | Create new waypoint | Yes | Librarian |
+| PUT | `/waypoints/{waypoint_id}` | Update waypoint | Yes | Librarian |
+| DELETE | `/waypoints/{waypoint_id}` | Delete waypoint | Yes | Librarian |
+
+#### 6.1.5 Notification Service Endpoints
+
+**Base Path:** `/api/v1/notifications`
+
+| Method | Endpoint | Description | Auth Required | Role |
+|--------|----------|-------------|---------------|------|
+| GET | `/` | Get user notifications | Yes | All |
+| GET | `/{notification_id}` | Get notification details | Yes | All |
+| PUT | `/{notification_id}/read` | Mark notification as read | Yes | All |
+| PUT | `/read-all` | Mark all notifications as read | Yes | All |
+| DELETE | `/{notification_id}` | Delete notification | Yes | All |
+| GET | `/preferences` | Get notification preferences | Yes | All |
+| PUT | `/preferences` | Update notification preferences | Yes | All |
 
 ### 6.2 Request/Response Formats
 
+#### 6.2.1 Standard Request Format
+
+All requests use JSON format with `Content-Type: application/json` header.
+
+**Request Headers:**
+```
+Authorization: Bearer {access_token}
+Content-Type: application/json
+Accept: application/json
+```
+
+**Pagination (for list endpoints):**
+```
+GET /api/v1/books?page=1&limit=20&sort=title&order=asc
+```
+
+**Query Parameters:**
+- `page`: Page number (default: 1)
+- `limit`: Items per page (default: 20, max: 100)
+- `sort`: Field to sort by
+- `order`: Sort order (asc/desc)
+- `filter`: Filter criteria (varies by endpoint)
+
+#### 6.2.2 Standard Response Format
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "data": {
+    // Response data
+  },
+  "meta": {
+    "timestamp": "2024-01-15T10:30:00Z",
+    "request_id": "req_123456"
+  }
+}
+```
+
+**Paginated Response:**
+```json
+{
+  "success": true,
+  "data": [
+    // Array of items
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 150,
+    "total_pages": 8
+  },
+  "meta": {
+    "timestamp": "2024-01-15T10:30:00Z",
+    "request_id": "req_123456"
+  }
+}
+```
+
+**Error Response:**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable error message",
+    "details": {
+      // Additional error details
+    }
+  },
+  "meta": {
+    "timestamp": "2024-01-15T10:30:00Z",
+    "request_id": "req_123456"
+  }
+}
+```
+
+#### 6.2.3 Example Requests and Responses
+
+**Register User:**
+```http
+POST /api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "student@university.edu",
+  "password": "SecurePassword123!",
+  "first_name": "John",
+  "last_name": "Doe",
+  "phone_number": "+1234567890",
+  "role": "STUDENT"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "email": "student@university.edu",
+      "first_name": "John",
+      "last_name": "Doe",
+      "role": "STUDENT"
+    },
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "expires_in": 3600
+  }
+}
+```
+
+**Login:**
+```http
+POST /api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "student@university.edu",
+  "password": "SecurePassword123!"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "expires_in": 3600,
+    "token_type": "Bearer"
+  }
+}
+```
+
+**Search Books:**
+```http
+GET /api/v1/books?q=python&page=1&limit=10
+Authorization: Bearer {access_token}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "isbn": "978-0134685991",
+      "title": "Effective Python",
+      "author": "Brett Slatkin",
+      "publisher": "Addison-Wesley",
+      "publication_year": 2019,
+      "status": "AVAILABLE",
+      "shelf_location": "A-123-45"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 25,
+    "total_pages": 3
+  }
+}
+```
+
+**Create Book Request:**
+```http
+POST /api/v1/requests
+Authorization: Bearer {access_token}
+Content-Type: application/json
+
+{
+  "book_id": "550e8400-e29b-41d4-a716-446655440000",
+  "request_location": "Library Study Room 201"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "660e8400-e29b-41d4-a716-446655440001",
+    "user_id": "550e8400-e29b-41d4-a716-446655440000",
+    "book_id": "550e8400-e29b-41d4-a716-446655440000",
+    "request_location": "Library Study Room 201",
+    "status": "PENDING",
+    "requested_at": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+**Initiate Book Return:**
+```http
+POST /api/v1/returns
+Authorization: Bearer {access_token}
+Content-Type: application/json
+
+{
+  "book_id": "550e8400-e29b-41d4-a716-446655440000",
+  "pickup_location": "Library Study Room 201"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "770e8400-e29b-41d4-a716-446655440002",
+    "user_id": "550e8400-e29b-41d4-a716-446655440000",
+    "book_id": "550e8400-e29b-41d4-a716-446655440000",
+    "pickup_location": "Library Study Room 201",
+    "status": "PENDING",
+    "initiated_at": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+**Get Robot Status:**
+```http
+GET /api/v1/robot/status
+Authorization: Bearer {access_token}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "880e8400-e29b-41d4-a716-446655440003",
+    "robot_name": "TurtleBot-4-001",
+    "status": "NAVIGATING",
+    "current_location": "Waypoint-A-12",
+    "battery_level": 0.85,
+    "current_task": {
+      "task_id": "990e8400-e29b-41d4-a716-446655440004",
+      "task_type": "STUDENT_DELIVERY",
+      "destination": "Library Study Room 201"
+    },
+    "last_heartbeat": "2024-01-15T10:29:55Z"
+  }
+}
+```
+
+#### 6.2.4 Error Codes
+
+**HTTP Status Codes:**
+- `200 OK` - Successful request
+- `201 Created` - Resource created successfully
+- `400 Bad Request` - Invalid request data
+- `401 Unauthorized` - Authentication required or invalid
+- `403 Forbidden` - Insufficient permissions
+- `404 Not Found` - Resource not found
+- `409 Conflict` - Resource conflict (e.g., duplicate)
+- `422 Unprocessable Entity` - Validation errors
+- `429 Too Many Requests` - Rate limit exceeded
+- `500 Internal Server Error` - Server error
+- `503 Service Unavailable` - Service temporarily unavailable
+
+**Error Code Examples:**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "BOOK_NOT_AVAILABLE",
+    "message": "The requested book is currently unavailable",
+    "details": {
+      "book_id": "550e8400-e29b-41d4-a716-446655440000",
+      "current_status": "CHECKED_OUT"
+    }
+  }
+}
+```
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed",
+    "details": {
+      "fields": {
+        "email": ["Invalid email format"],
+        "password": ["Password must be at least 8 characters"]
+      }
+    }
+  }
+}
+```
+
 ### 6.3 Authentication/Authorization
+
+#### 6.3.1 Authentication Mechanism
+
+**JWT (JSON Web Token) Based Authentication:**
+- Access tokens for API authentication
+- Refresh tokens for token renewal
+- Stateless authentication (no server-side session storage)
+
+**Token Structure:**
+- **Access Token:** Short-lived (1 hour), contains user ID and role
+- **Refresh Token:** Long-lived (7 days), used to obtain new access tokens
+- **Token Format:** JWT with HS256 or RS256 algorithm
+
+**Token Claims:**
+```json
+{
+  "sub": "user_id",
+  "email": "user@example.com",
+  "role": "STUDENT",
+  "iat": 1705315200,
+  "exp": 1705318800
+}
+```
+
+#### 6.3.2 Authentication Flow
+
+1. **Login:**
+   - Client sends credentials to `/api/v1/auth/login`
+   - Server validates credentials
+   - Server generates access token and refresh token
+   - Server returns tokens to client
+
+2. **API Request:**
+   - Client includes access token in `Authorization: Bearer {token}` header
+   - API Gateway validates token
+   - If valid, request is forwarded to service
+   - If invalid/expired, returns 401 Unauthorized
+
+3. **Token Refresh:**
+   - Client sends refresh token to `/api/v1/auth/refresh`
+   - Server validates refresh token
+   - Server generates new access token
+   - Server returns new access token
+
+4. **Logout:**
+   - Client sends logout request with access token
+   - Server invalidates refresh token (stored in Redis)
+   - Client discards tokens
+
+#### 6.3.3 Authorization (Role-Based Access Control)
+
+**Roles:**
+- **STUDENT:** Can create requests, view own data, initiate returns
+- **LIBRARIAN:** Full access to catalog management, delivery management, robot control
+- **ADMIN:** System administration and configuration
+
+**Permission Matrix:**
+
+| Endpoint | Student | Librarian | Admin |
+|----------|---------|-----------|-------|
+| Create book request | ✅ | ✅ | ✅ |
+| View own requests | ✅ | ✅ | ✅ |
+| Cancel own request | ✅ | ❌ | ✅ |
+| Create book | ❌ | ✅ | ✅ |
+| Update book | ❌ | ✅ | ✅ |
+| Delete book | ❌ | ✅ | ✅ |
+| View all deliveries | ❌ | ✅ | ✅ |
+| Control robot | ❌ | ✅ | ✅ |
+| Create inter-staff delivery | ❌ | ✅ | ✅ |
+
+**Authorization Checks:**
+- Performed at API Gateway level (middleware)
+- Additional checks at service level for sensitive operations
+- Resource-level authorization (users can only access their own data)
+
+#### 6.3.4 Security Best Practices
+
+- **Password Requirements:** Minimum 8 characters, mix of letters, numbers, special characters
+- **Password Hashing:** bcrypt with salt rounds
+- **HTTPS Only:** All API communication over HTTPS
+- **Token Storage:** Access tokens in memory, refresh tokens in secure HTTP-only cookies (web) or secure storage (mobile)
+- **Rate Limiting:** Per-user and per-endpoint rate limiting
+- **Input Validation:** All inputs validated and sanitized
+- **SQL Injection Prevention:** Parameterized queries, ORM usage
+- **XSS Prevention:** Input sanitization, output encoding
 
 ### 6.4 API Versioning Strategy
 
+#### 6.4.1 Versioning Approach
+
+**URL-Based Versioning:**
+- Version included in URL path: `/api/v1/`, `/api/v2/`
+- Clear and explicit versioning
+- Easy to deprecate old versions
+
+**Version Format:**
+- Major version number (v1, v2, v3)
+- Breaking changes increment major version
+- Non-breaking changes (additions) can be added to current version
+
+#### 6.4.2 Version Lifecycle
+
+**Active Versions:**
+- Current version (v1) - actively maintained
+- Previous version (v0) - supported for backward compatibility during transition
+
+**Deprecation Policy:**
+- Deprecated versions supported for minimum 6 months
+- Deprecation announced 3 months in advance
+- Deprecation headers in API responses: `X-API-Deprecation-Date: 2024-07-15`
+
+**Version Migration:**
+- Clear migration guides provided
+- Breaking changes documented with examples
+- Deprecation warnings in API responses
+
+#### 6.4.3 Versioning Guidelines
+
+**Breaking Changes (Require New Version):**
+- Removing endpoints
+- Changing request/response structure
+- Changing authentication mechanism
+- Removing required fields
+- Changing data types of fields
+
+**Non-Breaking Changes (Same Version):**
+- Adding new endpoints
+- Adding optional fields to requests/responses
+- Adding new query parameters
+- Adding new response fields
+- Improving error messages
+
+**Example Version Evolution:**
+
+**v1 (Current):**
+```
+POST /api/v1/requests
+{
+  "book_id": "uuid",
+  "request_location": "string"
+}
+```
+
+**v2 (Future - Breaking Change):**
+```
+POST /api/v2/requests
+{
+  "book_id": "uuid",
+  "delivery_location": {
+    "building": "string",
+    "room": "string",
+    "coordinates": {
+      "x": "float",
+      "y": "float"
+    }
+  },
+  "preferred_delivery_time": "datetime"
+}
+```
+
+#### 6.4.4 Version Headers
+
+**Request Headers:**
+```
+Accept: application/json
+Accept-Version: v1
+```
+
+**Response Headers:**
+```
+Content-Type: application/json
+API-Version: v1
+X-API-Deprecation-Date: 2024-07-15 (if deprecated)
+```
+
+#### 6.4.5 Backward Compatibility
+
+- Maintain backward compatibility within major version
+- Additive changes preferred over breaking changes
+- Provide clear upgrade paths
+- Support multiple versions during transition periods
+- Comprehensive changelog and migration documentation
