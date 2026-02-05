@@ -257,6 +257,186 @@ High-level requirements define the major capabilities the system must provide to
 
 ### 3.1 High-Level System Architecture
 
+The LUNA system follows a modern, cloud-native architecture with clear separation of concerns, horizontal scalability, and event-driven communication patterns.
+
+```mermaid
+graph TB
+    subgraph "User Layer"
+        Student[👤 Students]
+        Librarian[👤 Librarians]
+    end
+
+    subgraph "Frontend Layer"
+        MobileApp[📱 Mobile Application<br/>iOS/Android<br/>Book Discovery & Requests]
+        WebApp[💻 Web Dashboard<br/>React/TypeScript<br/>Catalog & Robot Management]
+    end
+
+    subgraph "API Gateway & Load Balancer"
+        Gateway[🔀 API Gateway<br/>Rate Limiting<br/>Request Routing<br/>SSL Termination]
+    end
+
+    subgraph "Backend Services Layer"
+        AuthService[🔐 Authentication Service<br/>JWT Tokens<br/>RBAC<br/>Session Management]
+        BookService[📚 Book Service<br/>Catalog Management<br/>Search & Discovery<br/>Availability Tracking]
+        DeliveryService[📦 Delivery Service<br/>Task Queue Management<br/>Workflow Orchestration<br/>Status Tracking]
+        RobotService[🤖 Robot Service<br/>Navigation Commands<br/>Status Monitoring<br/>Error Handling]
+        NotificationService[🔔 Notification Service<br/>Push Notifications<br/>Real-time Updates<br/>Event Broadcasting]
+    end
+
+    subgraph "Data & Cache Layer"
+        PostgreSQL[(🗄️ PostgreSQL Database<br/>Books, Requests, Users<br/>Tasks, Locations<br/>Audit Logs)]
+        Redis[(⚡ Redis Cache<br/>Session Storage<br/>Query Results<br/>Rate Limiting)]
+    end
+
+    subgraph "Message Queue"
+        MessageQueue[📬 Message Queue<br/>RabbitMQ/BullMQ<br/>Async Task Processing<br/>Event Distribution]
+    end
+
+    subgraph "Robot Integration Layer"
+        RobotAPI[🔌 Robot API Gateway<br/>ROS/ROS2 Interface<br/>Command Translation<br/>Status Aggregation]
+        RobotController[🎮 Robot Controller<br/>Path Planning<br/>Waypoint Management<br/>Safety Protocols]
+    end
+
+    subgraph "Robot Platform"
+        TurtleBot[TurtleBot 4<br/>Navigation System<br/>Sensor Integration<br/>Physical Movement]
+    end
+
+    subgraph "Real-Time Communication"
+        WebSocket[🔌 WebSocket Server<br/>Real-time Updates<br/>Bidirectional Communication]
+    end
+
+    subgraph "Monitoring & Observability"
+        Monitoring[📊 Monitoring Stack<br/>Logging, Metrics<br/>Error Tracking<br/>Health Checks]
+    end
+
+    %% User to Frontend
+    Student -->|Search, Request, Return| MobileApp
+    Librarian -->|Manage Catalog, Monitor Robot| WebApp
+
+    %% Frontend to Gateway
+    MobileApp -->|HTTPS/REST API| Gateway
+    WebApp -->|HTTPS/REST API| Gateway
+
+    %% Gateway to Services
+    Gateway -->|Route Requests| AuthService
+    Gateway -->|Route Requests| BookService
+    Gateway -->|Route Requests| DeliveryService
+    Gateway -->|Route Requests| RobotService
+    Gateway -->|Route Requests| NotificationService
+
+    %% Services to Data Layer
+    AuthService -->|Read/Write| PostgreSQL
+    AuthService -->|Session Cache| Redis
+    BookService -->|Read/Write| PostgreSQL
+    BookService -->|Query Cache| Redis
+    DeliveryService -->|Read/Write| PostgreSQL
+    DeliveryService -->|Task Queue| MessageQueue
+    RobotService -->|Read/Write| PostgreSQL
+    NotificationService -->|Read| PostgreSQL
+
+    %% Services to Message Queue
+    DeliveryService -->|Publish Events| MessageQueue
+    RobotService -->|Publish Events| MessageQueue
+    MessageQueue -->|Consume Tasks| DeliveryService
+    MessageQueue -->|Consume Tasks| RobotService
+
+    %% Robot Integration
+    RobotService -->|Send Commands| RobotAPI
+    RobotAPI -->|Translate & Forward| RobotController
+    RobotController -->|Navigation Commands| TurtleBot
+    TurtleBot -->|Status Updates| RobotController
+    RobotController -->|Aggregate Status| RobotAPI
+    RobotAPI -->|Status Events| RobotService
+
+    %% Real-Time Communication
+    NotificationService -->|Broadcast Updates| WebSocket
+    WebSocket -->|Push Notifications| MobileApp
+    WebSocket -->|Real-time Updates| WebApp
+    RobotService -->|Status Events| WebSocket
+
+    %% Monitoring
+    AuthService -.->|Logs, Metrics| Monitoring
+    BookService -.->|Logs, Metrics| Monitoring
+    DeliveryService -.->|Logs, Metrics| Monitoring
+    RobotService -.->|Logs, Metrics| Monitoring
+    TurtleBot -.->|Health Metrics| Monitoring
+
+    %% Styling
+    classDef userLayer fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    classDef frontendLayer fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef gatewayLayer fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef serviceLayer fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef dataLayer fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef queueLayer fill:#fff9c4,stroke:#f57f17,stroke-width:2px
+    classDef robotLayer fill:#e0f2f1,stroke:#004d40,stroke-width:2px
+    classDef realtimeLayer fill:#e3f2fd,stroke:#01579b,stroke-width:2px
+    classDef monitorLayer fill:#fafafa,stroke:#424242,stroke-width:2px
+
+    class Student,Librarian userLayer
+    class MobileApp,WebApp frontendLayer
+    class Gateway gatewayLayer
+    class AuthService,BookService,DeliveryService,RobotService,NotificationService serviceLayer
+    class PostgreSQL,Redis dataLayer
+    class MessageQueue queueLayer
+    class RobotAPI,RobotController,TurtleBot robotLayer
+    class WebSocket realtimeLayer
+    class Monitoring monitorLayer
+```
+
+#### Architecture Overview
+
+**User Layer:**
+- **Students:** Interact with the system through the mobile application to search, request, and return books
+- **Librarians:** Use the web dashboard to manage catalog, monitor robot operations, and oversee delivery tasks
+
+**Frontend Layer:**
+- **Mobile Application:** Native iOS/Android app providing book discovery, request creation, return initiation, and real-time status tracking
+- **Web Dashboard:** Responsive web application for librarians to manage catalog, monitor TurtleBot 4, and handle delivery operations
+
+**API Gateway & Load Balancer:**
+- Single entry point for all API requests
+- Handles SSL termination, rate limiting, request routing, and load distribution
+- Provides unified authentication and request validation
+
+**Backend Services Layer:**
+- **Authentication Service:** Manages user authentication, JWT token generation/validation, role-based access control, and session management
+- **Book Service:** Handles catalog operations (CRUD), search functionality, availability tracking, and book metadata management
+- **Delivery Service:** Orchestrates all delivery scenarios, manages task queues, tracks delivery status, and coordinates workflow execution
+- **Robot Service:** Interfaces with TurtleBot 4, sends navigation commands, monitors robot status, and handles error recovery
+- **Notification Service:** Manages push notifications, real-time event broadcasting, and notification history
+
+**Data & Cache Layer:**
+- **PostgreSQL Database:** Primary data store for books, requests, users, delivery tasks, locations, and audit logs
+- **Redis Cache:** High-performance caching for session storage, query results, and rate limiting data
+
+**Message Queue:**
+- Asynchronous task processing for delivery operations
+- Event distribution for real-time updates
+- Decouples services and enables scalable processing
+
+**Robot Integration Layer:**
+- **Robot API Gateway:** Translates between backend services and ROS/ROS2 protocols, aggregates robot status
+- **Robot Controller:** Manages path planning, waypoint navigation, safety protocols, and obstacle avoidance
+
+**Robot Platform:**
+- **TurtleBot 4:** Physical robot platform executing navigation commands, providing sensor data, and performing book delivery operations
+
+**Real-Time Communication:**
+- **WebSocket Server:** Enables bidirectional real-time communication for status updates, notifications, and live robot tracking
+
+**Monitoring & Observability:**
+- Comprehensive logging, metrics collection, error tracking, and health monitoring across all system components
+
+#### Key Architectural Patterns
+
+1. **Microservices Architecture:** Services are independently deployable and scalable
+2. **Event-Driven Communication:** Message queue enables asynchronous processing and loose coupling
+3. **API Gateway Pattern:** Single entry point simplifies client interactions and provides cross-cutting concerns
+4. **Caching Strategy:** Redis cache reduces database load and improves response times
+5. **Real-Time Updates:** WebSocket connections provide instant status updates to clients
+6. **Horizontal Scalability:** Stateless services enable easy scaling based on load
+7. **Separation of Concerns:** Clear boundaries between frontend, backend, data, and robot layers
+
 ### 3.2 Component Architecture
 
 ### 3.3 Data Flow Diagrams
