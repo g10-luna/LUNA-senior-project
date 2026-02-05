@@ -197,9 +197,59 @@ The system operates as a cohesive platform where:
 
 ## 2. Requirements
 
-### 2.1 Functional Requirements
+High-level requirements define the major capabilities the system must provide to meet user needs and business objectives.
 
-### 2.2 Non-Functional Requirements
+**Component Legend:**
+- 🟢 **Mobile App** - Student mobile application
+- 🔵 **Web App** - Librarian web dashboard  
+- 🟡 **Robot** - TurtleBot 4 platform
+- ⚪ **Other** - Backend services, infrastructure, shared components
+
+### 2.1 High-Level Functional Requirements
+
+| ID | High-Level Requirement | Mobile App | Web App | Robot | Other |
+|----|------------------------|:----------:|:-------:|:-----:|:-----:|
+| **FR-1** | **User Authentication & Authorization** | 🟢 | 🔵 | | ⚪ |
+| | Support user registration, login, and role-based access (Student, Librarian) | | | | |
+| **FR-2** | **Book Discovery & Search** | 🟢 | 🔵 | | ⚪ |
+| | Enable users to search and browse library catalog with real-time availability | | | | |
+| **FR-3** | **Book Request & Delivery** | 🟢 | | | ⚪ |
+| | Allow students to request books and receive automated delivery to their location | | | | |
+| **FR-4** | **Book Return & Pickup** | 🟢 | | | ⚪ |
+| | Enable students to return books with automated pickup from their location | | | | |
+| **FR-5** | **Delivery Task Management** | 🟢 | 🔵 | | ⚪ |
+| | Manage all delivery scenarios (student delivery, returns, inter-staff, workstation, transfers) | | | | |
+| **FR-6** | **Location & Navigation Management** | | 🔵 | 🟡 | ⚪ |
+| | Maintain delivery locations, waypoints, and routing for TurtleBot 4 navigation | | | | |
+| **FR-7** | **Robot Integration & Control** | | 🔵 | 🟡 | ⚪ |
+| | Communicate with TurtleBot 4, send navigation commands, receive status updates, handle errors | | | | |
+| **FR-8** | **Real-Time Updates & Notifications** | 🟢 | 🔵 | | ⚪ |
+| | Provide real-time status updates and push notifications for all delivery operations | | | | |
+| **FR-9** | **Catalog Management** | | 🔵 | | ⚪ |
+| | Enable librarians to manage library catalog (add, update, remove books, bulk operations) | | | | |
+| **FR-10** | **System Monitoring & Analytics** | | 🔵 | | ⚪ |
+| | Provide dashboard for robot status, task queue, analytics, and system health monitoring | | | | |
+
+### 2.2 High-Level Non-Functional Requirements
+
+| ID | High-Level Requirement | Mobile App | Web App | Robot | Other |
+|----|------------------------|:----------:|:-------:|:-----:|:-----:|
+| **NFR-1** | **Performance** | 🟢 | 🔵 | | ⚪ |
+| | System shall provide acceptable response times and handle concurrent users (metrics TBD) | | | | |
+| **NFR-2** | **Security** | 🟢 | 🔵 | | ⚪ |
+| | Encrypt data in transit and at rest, implement authentication, authorization, input validation, and audit logging | | | | |
+| **NFR-3** | **Reliability & Availability** | 🟢 | 🔵 | 🟡 | ⚪ |
+| | System shall handle failures gracefully, maintain data consistency, support backups, and handle network interruptions | | | | |
+| **NFR-4** | **Scalability** | | | | ⚪ |
+| | Architecture shall support horizontal scaling, increasing data volumes, and multiple robot units | | | | |
+| **NFR-5** | **Usability** | 🟢 | 🔵 | | |
+| | Applications shall provide intuitive interfaces, clear feedback, responsive design, and user guidance | | | | |
+| **NFR-6** | **Compatibility** | 🟢 | 🔵 | 🟡 | ⚪ |
+| | Support iOS/Android (mobile), modern browsers (web), ROS/ROS2 (robot), and standard APIs (REST, JSON, WebSocket) | | | | |
+| **NFR-7** | **Maintainability** | 🟢 | 🔵 | 🟡 | ⚪ |
+| | Codebase shall follow standards, support modular design, provide logging/monitoring, and support CI/CD | | | | |
+| **NFR-8** | **Safety (Robot Operations)** | | 🔵 | 🟡 | ⚪ |
+| | Implement safety protocols, emergency stop, obstacle avoidance, manual override, and safety event logging | | | | |
 
 ---
 
