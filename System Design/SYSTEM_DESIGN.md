@@ -259,126 +259,361 @@ High-level requirements define the major capabilities the system must provide to
 
 ```mermaid
 graph TB
-    subgraph "User Layer"
-        Student[👤 Students]
-        Librarian[👤 Librarians]
+    subgraph "Clients"
+        MobileApp[📱 Mobile App]
+        WebApp[💻 Web Dashboard]
     end
 
-    subgraph "Frontend Layer"
-        MobileApp[📱 Mobile Application<br/>iOS/Android<br/>Book Discovery & Requests]
-        WebApp[💻 Web Dashboard<br/>React/TypeScript<br/>Catalog & Robot Management]
+    subgraph "API Layer"
+        Gateway[🔀 API Gateway]
     end
 
-    subgraph "API Gateway & Load Balancer"
-        Gateway[🔀 API Gateway<br/>Rate Limiting<br/>Request Routing<br/>SSL Termination]
+    subgraph "Backend Services"
+        Services[🔧 Microservices<br/>Auth, Book, Delivery<br/>Robot, Notification]
     end
 
-    subgraph "Backend Services Layer"
-        AuthService[🔐 Authentication Service<br/>JWT Tokens<br/>RBAC<br/>Session Management]
-        BookService[📚 Book Service<br/>Catalog Management<br/>Search & Discovery<br/>Availability Tracking]
-        DeliveryService[📦 Delivery Service<br/>Task Queue Management<br/>Workflow Orchestration<br/>Status Tracking]
-        RobotService[🤖 Robot Service<br/>Navigation Commands<br/>Status Monitoring<br/>Error Handling]
-        NotificationService[🔔 Notification Service<br/>Push Notifications<br/>Real-time Updates<br/>Event Broadcasting]
-    end
-
-    subgraph "Data & Cache Layer"
-        PostgreSQL[(🗄️ PostgreSQL Database<br/>Books, Requests, Users<br/>Tasks, Locations<br/>Audit Logs)]
-        Redis[(⚡ Redis Cache<br/>Session Storage<br/>Query Results<br/>Rate Limiting)]
+    subgraph "Data Layer"
+        DB[(🗄️ PostgreSQL)]
+        Cache[(⚡ Redis)]
     end
 
     subgraph "Message Queue"
-        MessageQueue[📬 Message Queue<br/>RabbitMQ/BullMQ<br/>Async Task Processing<br/>Event Distribution]
+        MQ[📬 Message Queue]
     end
 
-    subgraph "Robot Integration Layer"
-        RobotAPI[🔌 Robot API Gateway<br/>ROS/ROS2 Interface<br/>Command Translation<br/>Status Aggregation]
-        RobotController[🎮 Robot Controller<br/>Path Planning<br/>Waypoint Management<br/>Safety Protocols]
+    subgraph "Robot System"
+        Robot[🤖 Robot Integration]
+        TurtleBot[TurtleBot 4]
     end
 
-    subgraph "Robot Platform"
-        TurtleBot[TurtleBot 4<br/>Navigation System<br/>Sensor Integration<br/>Physical Movement]
+    subgraph "Real-Time"
+        WS[🔌 WebSocket]
     end
 
-    subgraph "Real-Time Communication"
-        WebSocket[🔌 WebSocket Server<br/>Real-time Updates<br/>Bidirectional Communication]
+    MobileApp --> Gateway
+    WebApp --> Gateway
+    Gateway --> Services
+    Services --> DB
+    Services --> Cache
+    Services --> MQ
+    Services --> Robot
+    Robot --> TurtleBot
+    Services --> WS
+    WS --> MobileApp
+    WS --> WebApp
+```
+
+#### 3.1.1 Mobile Application Architecture
+
+```mermaid
+graph TB
+    subgraph "Presentation Layer"
+        Screens[📱 Screens<br/>Book Search<br/>Request Creation<br/>Return Initiation<br/>Status Tracking<br/>History View]
+        Components[🧩 UI Components<br/>Search Bar<br/>Book Cards<br/>Request Form<br/>Status Indicators<br/>Navigation]
     end
 
-    subgraph "Monitoring & Observability"
-        Monitoring[📊 Monitoring Stack<br/>Logging, Metrics<br/>Error Tracking<br/>Health Checks]
+    subgraph "State Management"
+        StateStore[📦 State Store<br/>Redux/Zustand<br/>App State<br/>User State<br/>Request State]
+        LocalCache[💾 Local Cache<br/>Offline Support<br/>Recent Searches<br/>Cached Catalog]
     end
 
-    %% User to Frontend
-    Student -->|Search, Request, Return| MobileApp
-    Librarian -->|Manage Catalog, Monitor Robot| WebApp
+    subgraph "Business Logic"
+        Services[⚙️ Service Layer<br/>Book Service<br/>Request Service<br/>Return Service<br/>Auth Service]
+        Hooks[🪝 Custom Hooks<br/>useBookSearch<br/>useRequest<br/>useNotifications<br/>useAuth]
+    end
 
-    %% Frontend to Gateway
-    MobileApp -->|HTTPS/REST API| Gateway
-    WebApp -->|HTTPS/REST API| Gateway
+    subgraph "Network Layer"
+        APIClient[🌐 API Client<br/>REST Client<br/>Request Interceptors<br/>Error Handling<br/>Retry Logic]
+        WSClient[🔌 WebSocket Client<br/>Connection Manager<br/>Reconnection Logic<br/>Event Handlers]
+        PushService[📲 Push Service<br/>FCM/APNS<br/>Notification Handler]
+    end
 
-    %% Gateway to Services
-    Gateway -->|Route Requests| AuthService
-    Gateway -->|Route Requests| BookService
-    Gateway -->|Route Requests| DeliveryService
-    Gateway -->|Route Requests| RobotService
-    Gateway -->|Route Requests| NotificationService
+    subgraph "Authentication"
+        AuthManager[🔐 Auth Manager<br/>Token Storage<br/>Session Management<br/>Auto Refresh]
+    end
 
-    %% Services to Data Layer
-    AuthService -->|Read/Write| PostgreSQL
-    AuthService -->|Session Cache| Redis
-    BookService -->|Read/Write| PostgreSQL
-    BookService -->|Query Cache| Redis
-    DeliveryService -->|Read/Write| PostgreSQL
-    DeliveryService -->|Task Queue| MessageQueue
-    RobotService -->|Read/Write| PostgreSQL
-    NotificationService -->|Read| PostgreSQL
+    subgraph "External Services"
+        BackendAPI[🔗 Backend API]
+        WebSocketServer[🔗 WebSocket Server]
+        PushGateway[🔗 Push Gateway]
+    end
 
-    %% Services to Message Queue
-    DeliveryService -->|Publish Events| MessageQueue
-    RobotService -->|Publish Events| MessageQueue
-    MessageQueue -->|Consume Tasks| DeliveryService
-    MessageQueue -->|Consume Tasks| RobotService
+    Screens --> Components
+    Components --> StateStore
+    StateStore --> Services
+    Services --> Hooks
+    Hooks --> APIClient
+    Hooks --> WSClient
+    Services --> AuthManager
+    APIClient --> BackendAPI
+    WSClient --> WebSocketServer
+    PushService --> PushGateway
+    PushGateway --> PushService
+    LocalCache --> StateStore
 
-    %% Robot Integration
-    RobotService -->|Send Commands| RobotAPI
-    RobotAPI -->|Translate & Forward| RobotController
-    RobotController -->|Navigation Commands| TurtleBot
-    TurtleBot -->|Status Updates| RobotController
-    RobotController -->|Aggregate Status| RobotAPI
-    RobotAPI -->|Status Events| RobotService
+    classDef presentation fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    classDef state fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef business fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef network fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef auth fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef external fill:#fafafa,stroke:#424242,stroke-width:2px
 
-    %% Real-Time Communication
-    NotificationService -->|Broadcast Updates| WebSocket
-    WebSocket -->|Push Notifications| MobileApp
-    WebSocket -->|Real-time Updates| WebApp
-    RobotService -->|Status Events| WebSocket
+    class Screens,Components presentation
+    class StateStore,LocalCache state
+    class Services,Hooks business
+    class APIClient,WSClient,PushService network
+    class AuthManager auth
+    class BackendAPI,WebSocketServer,PushGateway external
+```
 
-    %% Monitoring
-    AuthService -.->|Logs, Metrics| Monitoring
-    BookService -.->|Logs, Metrics| Monitoring
-    DeliveryService -.->|Logs, Metrics| Monitoring
-    RobotService -.->|Logs, Metrics| Monitoring
-    TurtleBot -.->|Health Metrics| Monitoring
+#### 3.1.2 Web Dashboard Architecture
 
-    %% Styling
-    classDef userLayer fill:#e1f5ff,stroke:#01579b,stroke-width:2px
-    classDef frontendLayer fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
-    classDef gatewayLayer fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    classDef serviceLayer fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
-    classDef dataLayer fill:#fce4ec,stroke:#880e4f,stroke-width:2px
-    classDef queueLayer fill:#fff9c4,stroke:#f57f17,stroke-width:2px
-    classDef robotLayer fill:#e0f2f1,stroke:#004d40,stroke-width:2px
-    classDef realtimeLayer fill:#e3f2fd,stroke:#01579b,stroke-width:2px
-    classDef monitorLayer fill:#fafafa,stroke:#424242,stroke-width:2px
+```mermaid
+graph TB
+    subgraph "Presentation Layer"
+        Pages[📄 Pages<br/>Dashboard<br/>Catalog Management<br/>Robot Monitoring<br/>Task Queue<br/>Analytics]
+        Components[🧩 React Components<br/>Data Tables<br/>Charts & Graphs<br/>Forms<br/>Status Cards<br/>Modals]
+    end
 
-    class Student,Librarian userLayer
-    class MobileApp,WebApp frontendLayer
-    class Gateway gatewayLayer
-    class AuthService,BookService,DeliveryService,RobotService,NotificationService serviceLayer
-    class PostgreSQL,Redis dataLayer
-    class MessageQueue queueLayer
-    class RobotAPI,RobotController,TurtleBot robotLayer
-    class WebSocket realtimeLayer
-    class Monitoring monitorLayer
+    subgraph "State Management"
+        StateStore[📦 State Management<br/>Context API/Redux<br/>Global State<br/>UI State<br/>Data State]
+        QueryCache[💾 React Query Cache<br/>Server State<br/>Cache Management<br/>Background Refetch]
+    end
+
+    subgraph "Business Logic"
+        Services[⚙️ Service Layer<br/>Catalog Service<br/>Robot Service<br/>Delivery Service<br/>Analytics Service]
+        Hooks[🪝 Custom Hooks<br/>useCatalog<br/>useRobotStatus<br/>useDeliveries<br/>useAnalytics]
+    end
+
+    subgraph "Network Layer"
+        APIClient[🌐 API Client<br/>Axios/Fetch<br/>Request Interceptors<br/>Error Handling<br/>Response Transformers]
+        WSClient[🔌 WebSocket Client<br/>Connection Manager<br/>Reconnection Logic<br/>Event Handlers]
+    end
+
+    subgraph "Authentication"
+        AuthProvider[🔐 Auth Provider<br/>Token Management<br/>Role-based Access<br/>Route Protection]
+    end
+
+    subgraph "External Services"
+        BackendAPI[🔗 Backend API]
+        WebSocketServer[🔗 WebSocket Server]
+    end
+
+    Pages --> Components
+    Components --> StateStore
+    Components --> QueryCache
+    StateStore --> Services
+    QueryCache --> Services
+    Services --> Hooks
+    Hooks --> APIClient
+    Hooks --> WSClient
+    Services --> AuthProvider
+    APIClient --> BackendAPI
+    WSClient --> WebSocketServer
+
+    classDef presentation fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef state fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef business fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef network fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    classDef auth fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef external fill:#fafafa,stroke:#424242,stroke-width:2px
+
+    class Pages,Components presentation
+    class StateStore,QueryCache state
+    class Services,Hooks business
+    class APIClient,WSClient network
+    class AuthProvider auth
+    class BackendAPI,WebSocketServer external
+```
+
+#### 3.1.3 Robot System Architecture
+
+```mermaid
+graph TB
+    subgraph "Backend Integration"
+        RobotService[🤖 Robot Service<br/>Command Queue<br/>Status Aggregation<br/>Error Handling]
+    end
+
+    subgraph "Robot API Gateway"
+        APIGateway[🔌 API Gateway<br/>REST to ROS Bridge<br/>Protocol Translation<br/>Request Validation]
+        CommandQueue[📋 Command Queue<br/>Task Prioritization<br/>Command Buffering<br/>Retry Logic]
+    end
+
+    subgraph "ROS/ROS2 Layer"
+        ROSBridge[🌉 ROS Bridge<br/>ROS/ROS2 Interface<br/>Topic Management<br/>Service Calls]
+        NodeManager[📦 Node Manager<br/>Node Lifecycle<br/>Dependency Management<br/>Health Monitoring]
+    end
+
+    subgraph "Navigation System"
+        PathPlanner[🗺️ Path Planner<br/>A* / RRT Algorithm<br/>Obstacle Avoidance<br/>Route Optimization]
+        WaypointManager[📍 Waypoint Manager<br/>Location Database<br/>Route Calculation<br/>Position Tracking]
+        SafetyMonitor[⚠️ Safety Monitor<br/>Collision Detection<br/>Emergency Stop<br/>Safety Protocols]
+    end
+
+    subgraph "Sensor Integration"
+        Lidar[📡 LiDAR Sensor<br/>Obstacle Detection<br/>Mapping<br/>Localization]
+        Camera[📷 Camera<br/>Visual Navigation<br/>Object Recognition]
+        IMU[🧭 IMU<br/>Orientation<br/>Acceleration]
+    end
+
+    subgraph "Actuator Control"
+        MotorController[⚙️ Motor Controller<br/>Velocity Control<br/>Position Control<br/>Odometry]
+        NavigationController[🎮 Navigation Controller<br/>Command Execution<br/>Feedback Loop<br/>Error Correction]
+    end
+
+    subgraph "TurtleBot 4 Hardware"
+        PhysicalRobot[🤖 TurtleBot 4<br/>Physical Platform<br/>Base Movement<br/>Payload Management]
+    end
+
+    subgraph "Status Reporting"
+        StatusAggregator[📊 Status Aggregator<br/>Battery Monitoring<br/>Health Metrics<br/>Error Reporting]
+    end
+
+    RobotService --> APIGateway
+    APIGateway --> CommandQueue
+    CommandQueue --> ROSBridge
+    ROSBridge --> NodeManager
+    NodeManager --> PathPlanner
+    NodeManager --> WaypointManager
+    NodeManager --> SafetyMonitor
+    PathPlanner --> NavigationController
+    WaypointManager --> NavigationController
+    SafetyMonitor --> NavigationController
+    NavigationController --> MotorController
+    Lidar --> PathPlanner
+    Camera --> PathPlanner
+    IMU --> NavigationController
+    MotorController --> PhysicalRobot
+    PhysicalRobot --> StatusAggregator
+    StatusAggregator --> ROSBridge
+    ROSBridge --> APIGateway
+    APIGateway --> RobotService
+
+    classDef backend fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef gateway fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef ros fill:#e0f2f1,stroke:#004d40,stroke-width:2px
+    classDef navigation fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    classDef sensor fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef actuator fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef hardware fill:#fff9c4,stroke:#f57f17,stroke-width:2px
+    classDef status fill:#fafafa,stroke:#424242,stroke-width:2px
+
+    class RobotService backend
+    class APIGateway,CommandQueue gateway
+    class ROSBridge,NodeManager ros
+    class PathPlanner,WaypointManager,SafetyMonitor navigation
+    class Lidar,Camera,IMU sensor
+    class MotorController,NavigationController actuator
+    class PhysicalRobot hardware
+    class StatusAggregator status
+```
+
+#### 3.1.4 Backend Services Architecture
+
+```mermaid
+graph TB
+    subgraph "API Gateway"
+        Gateway[🔀 API Gateway<br/>Kong/Nginx<br/>Rate Limiting<br/>SSL Termination<br/>Request Routing]
+        Middleware[🔧 Middleware<br/>Authentication<br/>Validation<br/>Logging<br/>Error Handling]
+    end
+
+    subgraph "Authentication Service"
+        AuthAPI[🔐 Auth API<br/>Login/Register<br/>Token Management<br/>Password Reset]
+        JWTService[🎫 JWT Service<br/>Token Generation<br/>Token Validation<br/>Refresh Tokens]
+        RBAC[👥 RBAC Engine<br/>Role Management<br/>Permission Checking<br/>Policy Enforcement]
+    end
+
+    subgraph "Book Service"
+        BookAPI[📚 Book API<br/>CRUD Operations<br/>Search Endpoints<br/>Availability Checks]
+        SearchEngine[🔍 Search Engine<br/>Full-text Search<br/>Filtering<br/>Sorting]
+        CatalogManager[📖 Catalog Manager<br/>Book Management<br/>Metadata Handling<br/>Bulk Operations]
+    end
+
+    subgraph "Delivery Service"
+        DeliveryAPI[📦 Delivery API<br/>Request Management<br/>Task Creation<br/>Status Updates]
+        TaskQueue[📋 Task Queue<br/>Priority Queue<br/>Task Scheduling<br/>Retry Logic]
+        WorkflowEngine[⚙️ Workflow Engine<br/>State Machine<br/>Workflow Orchestration<br/>Status Transitions]
+    end
+
+    subgraph "Robot Service"
+        RobotAPI[🤖 Robot API<br/>Command Interface<br/>Status Queries<br/>Emergency Controls]
+        CommandProcessor[📨 Command Processor<br/>Command Validation<br/>Command Translation<br/>Command Queueing]
+        StatusManager[📊 Status Manager<br/>Status Aggregation<br/>Health Monitoring<br/>Error Tracking]
+    end
+
+    subgraph "Notification Service"
+        NotificationAPI[🔔 Notification API<br/>Notification Creation<br/>History Management]
+        PushManager[📲 Push Manager<br/>FCM/APNS Integration<br/>Notification Delivery]
+        EventBroadcaster[📡 Event Broadcaster<br/>WebSocket Events<br/>Real-time Updates]
+    end
+
+    subgraph "Data Access Layer"
+        Repositories[🗄️ Repositories<br/>Data Access Objects<br/>Query Builders<br/>Transaction Management]
+        ORM[🔗 ORM Layer<br/>TypeORM/Prisma<br/>Model Definitions<br/>Migrations]
+    end
+
+    subgraph "Data Layer"
+        PostgreSQL[(🗄️ PostgreSQL)]
+        Redis[(⚡ Redis)]
+    end
+
+    subgraph "Message Queue"
+        MQ[📬 Message Queue<br/>RabbitMQ/BullMQ]
+    end
+
+    Gateway --> Middleware
+    Middleware --> AuthAPI
+    Middleware --> BookAPI
+    Middleware --> DeliveryAPI
+    Middleware --> RobotAPI
+    Middleware --> NotificationAPI
+
+    AuthAPI --> JWTService
+    AuthAPI --> RBAC
+    AuthAPI --> Repositories
+
+    BookAPI --> SearchEngine
+    BookAPI --> CatalogManager
+    BookAPI --> Repositories
+
+    DeliveryAPI --> TaskQueue
+    DeliveryAPI --> WorkflowEngine
+    DeliveryAPI --> Repositories
+    DeliveryAPI --> MQ
+
+    RobotAPI --> CommandProcessor
+    RobotAPI --> StatusManager
+    RobotAPI --> Repositories
+    RobotAPI --> MQ
+
+    NotificationAPI --> PushManager
+    NotificationAPI --> EventBroadcaster
+    NotificationAPI --> Repositories
+
+    Repositories --> ORM
+    ORM --> PostgreSQL
+    Repositories --> Redis
+
+    MQ --> DeliveryAPI
+    MQ --> RobotAPI
+
+    classDef gateway fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef auth fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef book fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    classDef delivery fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef robot fill:#e0f2f1,stroke:#004d40,stroke-width:2px
+    classDef notification fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef data fill:#fff9c4,stroke:#f57f17,stroke-width:2px
+    classDef storage fill:#fafafa,stroke:#424242,stroke-width:2px
+
+    class Gateway,Middleware gateway
+    class AuthAPI,JWTService,RBAC auth
+    class BookAPI,SearchEngine,CatalogManager book
+    class DeliveryAPI,TaskQueue,WorkflowEngine delivery
+    class RobotAPI,CommandProcessor,StatusManager robot
+    class NotificationAPI,PushManager,EventBroadcaster notification
+    class Repositories,ORM data
+    class PostgreSQL,Redis,MQ storage
 ```
 
 
