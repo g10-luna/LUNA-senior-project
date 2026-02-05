@@ -1430,9 +1430,450 @@ flowchart TD
 
 ### 4.1 Services/Modules
 
+The LUNA system is organized into distinct microservices, each with clear responsibilities and boundaries. This modular architecture enables independent development, deployment, and scaling of components.
+
+#### 4.1.1 Authentication Service
+
+**Purpose:** Manages user authentication, authorization, and session management for the entire system.
+
+**Responsibilities:**
+- User registration and account management
+- User authentication (login/logout)
+- JWT token generation, validation, and refresh
+- Role-based access control (RBAC) enforcement
+- Session management and token lifecycle
+- Password management (reset, change)
+- User profile management
+
+**Key Capabilities:**
+- Secure authentication using industry-standard protocols
+- Token-based stateless authentication
+- Role-based permission checking
+- Session invalidation and security controls
+- User account lifecycle management
+
+**Data Ownership:**
+- User accounts and credentials
+- User roles and permissions
+- Authentication tokens and sessions
+- User profile information
+
+#### 4.1.2 Book Service
+
+**Purpose:** Manages the library catalog, book metadata, search functionality, and availability tracking.
+
+**Responsibilities:**
+- Book catalog CRUD operations (Create, Read, Update, Delete)
+- Book search and discovery functionality
+- Book metadata management (title, author, ISBN, description, etc.)
+- Book availability tracking and status management
+- Catalog indexing and search optimization
+- Book location management within library
+- Bulk catalog operations (import, export)
+
+**Key Capabilities:**
+- Full-text search across book catalog
+- Advanced filtering and sorting
+- Real-time availability status
+- Catalog cache management
+- Search result ranking and relevance
+
+**Data Ownership:**
+- Book catalog and metadata
+- Book availability status
+- Search indexes
+- Book location information
+
+#### 4.1.3 Delivery Service
+
+**Purpose:** Orchestrates all delivery operations, manages delivery tasks, and coordinates delivery workflows.
+
+**Responsibilities:**
+- Delivery request creation and management
+- Delivery task queue management
+- Workflow orchestration for all delivery scenarios:
+  - Student book delivery
+  - Book return pickup
+  - Inter-staff delivery
+  - Workstation delivery
+  - Inter-location transfer
+- Delivery status tracking and updates
+- Task prioritization and scheduling
+- Delivery history and analytics
+
+**Key Capabilities:**
+- Multi-scenario delivery workflow management
+- Task queue with priority handling
+- State machine for delivery lifecycle
+- Real-time status updates
+- Delivery task coordination with Robot Service
+
+**Data Ownership:**
+- Delivery requests
+- Delivery tasks and status
+- Delivery history
+- Task queue state
+
+#### 4.1.4 Robot Service
+
+**Purpose:** Interfaces with TurtleBot 4, manages robot commands, and monitors robot status.
+
+**Responsibilities:**
+- Navigation command generation and sending
+- Robot status monitoring and aggregation
+- Robot health monitoring (battery, sensors, errors)
+- Error handling and recovery coordination
+- Emergency stop and safety protocol enforcement
+- Robot task execution coordination
+- Location and waypoint management for navigation
+
+**Key Capabilities:**
+- Real-time robot status monitoring
+- Command queue management for robot
+- Error detection and recovery
+- Safety protocol enforcement
+- Integration with ROS/ROS2 systems
+
+**Data Ownership:**
+- Robot status and health metrics
+- Navigation commands and history
+- Robot error logs
+- Waypoint and location data
+
+#### 4.1.5 Notification Service
+
+**Purpose:** Manages all system notifications, push notifications, and real-time event broadcasting.
+
+**Responsibilities:**
+- Push notification generation and delivery
+- Real-time event broadcasting via WebSocket
+- Notification history and management
+- Notification preferences management
+- Multi-channel notification delivery (push, in-app, email)
+- Event subscription management
+
+**Key Capabilities:**
+- Push notification delivery (FCM/APNS)
+- WebSocket event broadcasting
+- Notification queuing and retry logic
+- Notification history tracking
+- User notification preferences
+
+**Data Ownership:**
+- Notification records
+- Notification preferences
+- Event subscriptions
+- Delivery status and history
+
+#### 4.1.6 API Gateway
+
+**Purpose:** Single entry point for all client requests, providing routing, authentication, and cross-cutting concerns.
+
+**Responsibilities:**
+- Request routing to appropriate services
+- Authentication and authorization enforcement
+- Rate limiting and throttling
+- Request/response transformation
+- SSL/TLS termination
+- Request logging and monitoring
+- Error handling and standardization
+
+**Key Capabilities:**
+- Intelligent request routing
+- Centralized authentication
+- Rate limiting per user/service
+- Request/response logging
+- API versioning support
+
+#### 4.1.7 Message Queue Service
+
+**Purpose:** Provides asynchronous message processing and event distribution across services.
+
+**Responsibilities:**
+- Asynchronous task queue management
+- Event publishing and subscription
+- Message routing and delivery
+- Task retry and failure handling
+- Message persistence and durability
+
+**Key Capabilities:**
+- Priority-based task queuing
+- Event pub/sub patterns
+- Message persistence
+- Dead letter queue handling
+- Task scheduling and delayed execution
+
 ### 4.2 Interfaces & Contracts
 
+This section defines how services communicate and interact with each other, establishing clear boundaries and contracts.
+
+#### 4.2.1 Synchronous Communication (REST APIs)
+
+**Pattern:** Request-Response via RESTful HTTP APIs
+
+**Usage:**
+- Client-to-service communication (Mobile App, Web Dashboard → Backend Services)
+- Service-to-service communication for immediate data needs
+- Real-time queries and operations
+
+**Contracts:**
+- **Standard HTTP Methods:** GET (read), POST (create), PUT (update), DELETE (remove)
+- **Response Format:** JSON
+- **Status Codes:** Standard HTTP status codes (200, 201, 400, 401, 403, 404, 500, etc.)
+- **Authentication:** JWT tokens in Authorization header
+- **API Versioning:** URL-based versioning (/api/v1/, /api/v2/)
+
+**Service Boundaries:**
+- **Authentication Service:** Exposes `/api/v1/auth/*` endpoints
+- **Book Service:** Exposes `/api/v1/books/*` endpoints
+- **Delivery Service:** Exposes `/api/v1/deliveries/*` and `/api/v1/requests/*` endpoints
+- **Robot Service:** Exposes `/api/v1/robot/*` endpoints
+- **Notification Service:** Exposes `/api/v1/notifications/*` endpoints
+
+#### 4.2.2 Asynchronous Communication (Message Queue)
+
+**Pattern:** Event-driven messaging via message queue
+
+**Usage:**
+- Delivery task processing
+- Robot command queuing
+- Event distribution for real-time updates
+- Background job processing
+
+**Message Types:**
+- **Delivery Task Events:** Task creation, status updates, completion
+- **Robot Command Events:** Navigation commands, status updates, errors
+- **Catalog Events:** Book added, updated, deleted
+- **Notification Events:** Delivery status changes, system alerts
+
+**Contracts:**
+- **Message Format:** JSON
+- **Message Structure:** 
+  ```json
+  {
+    "eventType": "string",
+    "timestamp": "ISO8601",
+    "source": "service-name",
+    "payload": {}
+  }
+  ```
+- **Delivery Guarantees:** At-least-once delivery with idempotency handling
+- **Retry Policy:** Exponential backoff with max retries
+
+#### 4.2.3 Real-Time Communication (WebSocket)
+
+**Pattern:** Bidirectional WebSocket connections for real-time updates
+
+**Usage:**
+- Real-time delivery status updates
+- Live robot location tracking
+- Instant notification delivery
+- Real-time catalog updates
+
+**Contracts:**
+- **Connection:** WebSocket (WSS for secure)
+- **Message Format:** JSON
+- **Message Types:**
+  - Status updates
+  - Notifications
+  - Error alerts
+  - Heartbeat/ping-pong
+- **Authentication:** JWT token in connection handshake
+- **Reconnection:** Automatic reconnection with exponential backoff
+
+#### 4.2.4 Service Dependencies
+
+**Authentication Service:**
+- **Depends on:** Database (PostgreSQL), Cache (Redis)
+- **Used by:** All services (via API Gateway middleware)
+
+**Book Service:**
+- **Depends on:** Database (PostgreSQL), Cache (Redis), Authentication Service (for authorization)
+- **Publishes:** Catalog change events to Message Queue
+- **Used by:** Mobile App, Web Dashboard
+
+**Delivery Service:**
+- **Depends on:** Database (PostgreSQL), Message Queue, Book Service (for availability), Authentication Service
+- **Publishes:** Delivery status events to Message Queue
+- **Consumes:** Delivery task events from Message Queue
+- **Used by:** Mobile App, Web Dashboard, Robot Service
+
+**Robot Service:**
+- **Depends on:** Database (PostgreSQL), Message Queue, Delivery Service, Robot Integration Layer
+- **Publishes:** Robot status events to Message Queue and WebSocket
+- **Consumes:** Robot command events from Message Queue
+- **Used by:** Web Dashboard
+
+**Notification Service:**
+- **Depends on:** Database (PostgreSQL), Message Queue, Push notification services (FCM/APNS)
+- **Publishes:** Notifications via WebSocket and Push services
+- **Consumes:** Notification events from Message Queue
+- **Used by:** All services (for notification delivery)
+
+#### 4.2.5 Data Flow Contracts
+
+**Request Flow:**
+1. Client → API Gateway (with JWT token)
+2. API Gateway → Authentication Service (validate token)
+3. API Gateway → Target Service (route request)
+4. Target Service → Database/Cache (read/write data)
+5. Target Service → Message Queue (publish events if needed)
+6. Target Service → API Gateway → Client (return response)
+
+**Event Flow:**
+1. Service publishes event to Message Queue
+2. Message Queue delivers to subscribers
+3. Subscriber services process event
+4. Subscriber services update database/state
+5. Subscriber services publish notifications via WebSocket if needed
+
+**Real-Time Update Flow:**
+1. Service publishes status update to WebSocket Server
+2. WebSocket Server broadcasts to connected clients
+3. Clients receive real-time update
+
 ### 4.3 Technology Choices & Rationale
+
+This section outlines the high-level technology decisions for the LUNA system and the rationale behind each choice.
+
+#### 4.3.1 Backend Services
+
+**Technology Choice:** Python with FastAPI
+
+**Rationale:**
+- **ROS Integration:** Native Python support for ROS/ROS2, which is critical for TurtleBot 4 integration
+- **FastAPI Framework:** Modern, high-performance async framework with excellent performance
+- **Developer Productivity:** Clean, readable code with excellent tooling and libraries
+- **Ecosystem:** Rich ecosystem of libraries for web development, data processing, and robotics
+- **Type Hints:** Python type hints provide type safety and better developer experience
+- **Microservices:** Lightweight and suitable for microservices architecture
+- **Real-Time:** Excellent async/await support for WebSocket and real-time features
+- **Documentation:** Auto-generated API documentation with FastAPI
+- **Robot Service:** Direct integration with ROS/ROS2 nodes without bridges or wrappers
+
+**Alternative Considered:** Node.js (TypeScript), Java (Spring Boot)
+- **Not Chosen:** Node.js requires ROS bridges/wrappers adding complexity; Java has limited ROS support and is more heavyweight
+
+#### 4.3.2 Database
+
+**Technology Choice:** PostgreSQL
+
+**Rationale:**
+- **ACID Compliance:** Strong transactional guarantees for critical operations
+- **Relational Model:** Well-suited for structured data (books, users, requests)
+- **Performance:** Excellent query performance and optimization
+- **Features:** Full-text search, JSON support, advanced indexing
+- **Reliability:** Mature, battle-tested database with strong consistency
+- **Open Source:** No licensing costs
+
+**Alternative Considered:** MongoDB, MySQL
+- **Not Chosen:** MongoDB lacks ACID guarantees needed for financial/transactional data, MySQL has fewer advanced features
+
+#### 4.3.3 Caching Layer
+
+**Technology Choice:** Redis
+
+**Rationale:**
+- **Performance:** In-memory storage for sub-millisecond access
+- **Data Structures:** Rich data structures (strings, hashes, lists, sets)
+- **Session Storage:** Ideal for session management and token storage
+- **Pub/Sub:** Built-in pub/sub for event distribution
+- **Scalability:** Horizontal scaling with Redis Cluster
+- **Persistence:** Optional persistence for durability
+
+**Use Cases:**
+- Session storage
+- Query result caching
+- Rate limiting data
+- Real-time data caching
+
+#### 4.3.4 Message Queue
+
+**Technology Choice:** RabbitMQ or BullMQ (Redis-based)
+
+**Rationale:**
+- **Reliability:** Message persistence and delivery guarantees
+- **Flexibility:** Support for multiple messaging patterns (queues, pub/sub)
+- **Scalability:** Horizontal scaling capabilities
+- **Management:** Good tooling and monitoring
+- **Integration:** Easy integration with Node.js ecosystem
+
+**Considerations:**
+- **RabbitMQ:** More features, separate service to manage, excellent Python support
+- **Celery:** Python-native task queue, integrates well with Python ecosystem
+- **Redis with RQ/Celery:** Simpler deployment, good Python integration
+
+**Decision:** To be determined based on deployment complexity and feature requirements
+
+#### 4.3.5 API Gateway
+
+**Technology Choice:** Kong or Nginx
+
+**Rationale:**
+- **Routing:** Efficient request routing and load balancing
+- **Middleware:** Plugin ecosystem for authentication, rate limiting, logging
+- **Performance:** High-performance reverse proxy
+- **Management:** API management and monitoring capabilities
+
+**Considerations:**
+- **Kong:** More features, better API management
+- **Nginx:** Simpler, lighter weight, more widely used
+
+**Decision:** To be determined based on feature requirements
+
+#### 4.3.6 Frontend Technologies
+
+**Mobile Application:**
+- **Technology Choice:** React Native or Flutter
+- **Rationale:** Cross-platform development, single codebase for iOS/Android, native performance
+
+**Web Dashboard:**
+- **Technology Choice:** React with TypeScript
+- **Rationale:** Component-based architecture, large ecosystem, type safety, excellent tooling
+
+#### 4.3.7 Robot Integration
+
+**Technology Choice:** ROS 2 (Robot Operating System 2)
+
+**Rationale:**
+- **Standard:** Industry standard for robotics development
+- **TurtleBot 4:** Native ROS 2 support
+- **Ecosystem:** Rich ecosystem of packages and tools
+- **Real-Time:** Real-time capabilities for robot control
+- **Navigation:** Built-in navigation stack and packages
+
+#### 4.3.8 Real-Time Communication
+
+**Technology Choice:** WebSocket (FastAPI WebSocket support / python-socketio)
+
+**Rationale:**
+- **Bidirectional:** Full-duplex communication for real-time updates
+- **Low Latency:** Lower overhead than HTTP polling
+- **Standard:** Web standard, supported by all modern browsers
+- **FastAPI Integration:** Native WebSocket support in FastAPI
+- **Scalability:** Can scale horizontally with proper architecture (Redis adapter for Socket.IO)
+
+#### 4.3.9 Deployment & Infrastructure
+
+**Technology Choice:** Docker containers with Kubernetes (or Docker Compose for simpler deployments)
+
+**Rationale:**
+- **Containerization:** Consistent deployment across environments
+- **Scalability:** Easy horizontal scaling
+- **Orchestration:** Kubernetes for production, Docker Compose for development
+- **Cloud-Native:** Compatible with cloud platforms (AWS, GCP, Azure)
+
+#### 4.3.10 Monitoring & Observability
+
+**Technology Choice:** To be determined (options: Prometheus + Grafana, ELK Stack, CloudWatch)
+
+**Rationale:**
+- **Metrics:** System and application metrics collection
+- **Logging:** Centralized logging for debugging and auditing
+- **Tracing:** Distributed tracing for request flow analysis
+- **Alerting:** Alerting for system issues and anomalies
+
+**Decision:** To be determined based on deployment platform and requirements
 
 ---
 
