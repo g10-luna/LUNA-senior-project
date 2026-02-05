@@ -257,8 +257,6 @@ High-level requirements define the major capabilities the system must provide to
 
 ### 3.1 High-Level System Architecture
 
-The LUNA system follows a modern, cloud-native architecture with clear separation of concerns, horizontal scalability, and event-driven communication patterns.
-
 ```mermaid
 graph TB
     subgraph "User Layer"
@@ -383,63 +381,498 @@ graph TB
     class Monitoring monitorLayer
 ```
 
-#### Architecture Overview
-
-**User Layer:**
-- **Students:** Interact with the system through the mobile application to search, request, and return books
-- **Librarians:** Use the web dashboard to manage catalog, monitor robot operations, and oversee delivery tasks
-
-**Frontend Layer:**
-- **Mobile Application:** Native iOS/Android app providing book discovery, request creation, return initiation, and real-time status tracking
-- **Web Dashboard:** Responsive web application for librarians to manage catalog, monitor TurtleBot 4, and handle delivery operations
-
-**API Gateway & Load Balancer:**
-- Single entry point for all API requests
-- Handles SSL termination, rate limiting, request routing, and load distribution
-- Provides unified authentication and request validation
-
-**Backend Services Layer:**
-- **Authentication Service:** Manages user authentication, JWT token generation/validation, role-based access control, and session management
-- **Book Service:** Handles catalog operations (CRUD), search functionality, availability tracking, and book metadata management
-- **Delivery Service:** Orchestrates all delivery scenarios, manages task queues, tracks delivery status, and coordinates workflow execution
-- **Robot Service:** Interfaces with TurtleBot 4, sends navigation commands, monitors robot status, and handles error recovery
-- **Notification Service:** Manages push notifications, real-time event broadcasting, and notification history
-
-**Data & Cache Layer:**
-- **PostgreSQL Database:** Primary data store for books, requests, users, delivery tasks, locations, and audit logs
-- **Redis Cache:** High-performance caching for session storage, query results, and rate limiting data
-
-**Message Queue:**
-- Asynchronous task processing for delivery operations
-- Event distribution for real-time updates
-- Decouples services and enables scalable processing
-
-**Robot Integration Layer:**
-- **Robot API Gateway:** Translates between backend services and ROS/ROS2 protocols, aggregates robot status
-- **Robot Controller:** Manages path planning, waypoint navigation, safety protocols, and obstacle avoidance
-
-**Robot Platform:**
-- **TurtleBot 4:** Physical robot platform executing navigation commands, providing sensor data, and performing book delivery operations
-
-**Real-Time Communication:**
-- **WebSocket Server:** Enables bidirectional real-time communication for status updates, notifications, and live robot tracking
-
-**Monitoring & Observability:**
-- Comprehensive logging, metrics collection, error tracking, and health monitoring across all system components
-
-#### Key Architectural Patterns
-
-1. **Microservices Architecture:** Services are independently deployable and scalable
-2. **Event-Driven Communication:** Message queue enables asynchronous processing and loose coupling
-3. **API Gateway Pattern:** Single entry point simplifies client interactions and provides cross-cutting concerns
-4. **Caching Strategy:** Redis cache reduces database load and improves response times
-5. **Real-Time Updates:** WebSocket connections provide instant status updates to clients
-6. **Horizontal Scalability:** Stateless services enable easy scaling based on load
-7. **Separation of Concerns:** Clear boundaries between frontend, backend, data, and robot layers
 
 ### 3.2 Component Architecture
 
+```mermaid
+graph LR
+    subgraph "Mobile Application"
+        MobileUI[UI Components]
+        MobileState[State Management]
+        MobileAPI[API Client]
+        MobileWS[WebSocket Client]
+        MobileAuth[Auth Module]
+    end
+
+    subgraph "Web Dashboard"
+        WebUI[React Components]
+        WebState[State Management]
+        WebAPI[API Client]
+        WebWS[WebSocket Client]
+        WebAuth[Auth Module]
+    end
+
+    subgraph "API Gateway"
+        GatewayRouter[Request Router]
+        GatewayAuth[Auth Middleware]
+        GatewayRateLimit[Rate Limiter]
+        GatewayValidator[Request Validator]
+    end
+
+    subgraph "Authentication Service"
+        AuthAPI[Auth API]
+        AuthJWT[JWT Handler]
+        AuthRBAC[RBAC Engine]
+        AuthSession[Session Manager]
+    end
+
+    subgraph "Book Service"
+        BookAPI[Book API]
+        BookSearch[Search Engine]
+        BookCatalog[Catalog Manager]
+        BookAvailability[Availability Tracker]
+    end
+
+    subgraph "Delivery Service"
+        DeliveryAPI[Delivery API]
+        TaskQueue[Task Queue Manager]
+        WorkflowEngine[Workflow Engine]
+        StatusTracker[Status Tracker]
+    end
+
+    subgraph "Robot Service"
+        RobotAPI[Robot API]
+        CommandSender[Command Sender]
+        StatusReceiver[Status Receiver]
+        ErrorHandler[Error Handler]
+    end
+
+    subgraph "Notification Service"
+        NotificationAPI[Notification API]
+        PushService[Push Service]
+        EventBroadcaster[Event Broadcaster]
+        NotificationStore[Notification Store]
+    end
+
+    subgraph "Database Layer"
+        DB[PostgreSQL]
+        Cache[Redis Cache]
+    end
+
+    subgraph "Message Queue"
+        MQ[Message Queue<br/>RabbitMQ/BullMQ]
+    end
+
+    subgraph "Robot Integration"
+        RobotGateway[Robot API Gateway]
+        ROSBridge[ROS/ROS2 Bridge]
+        PathPlanner[Path Planner]
+        SafetyMonitor[Safety Monitor]
+    end
+
+    subgraph "TurtleBot 4"
+        Navigation[Navigation System]
+        Sensors[Sensor Array]
+        Actuators[Movement Control]
+    end
+
+    subgraph "WebSocket Server"
+        WSServer[WebSocket Server]
+        WSManager[Connection Manager]
+    end
+
+    %% Mobile App Internal
+    MobileUI --> MobileState
+    MobileState --> MobileAPI
+    MobileState --> MobileWS
+    MobileAPI --> MobileAuth
+    MobileWS --> MobileAuth
+
+    %% Web App Internal
+    WebUI --> WebState
+    WebState --> WebAPI
+    WebState --> WebWS
+    WebAPI --> WebAuth
+    WebWS --> WebAuth
+
+    %% Frontend to Gateway
+    MobileAPI --> GatewayRouter
+    WebAPI --> GatewayRouter
+    GatewayRouter --> GatewayAuth
+    GatewayRouter --> GatewayRateLimit
+    GatewayRouter --> GatewayValidator
+
+    %% Gateway to Services
+    GatewayRouter --> AuthAPI
+    GatewayRouter --> BookAPI
+    GatewayRouter --> DeliveryAPI
+    GatewayRouter --> RobotAPI
+    GatewayRouter --> NotificationAPI
+
+    %% Service Internal Components
+    AuthAPI --> AuthJWT
+    AuthAPI --> AuthRBAC
+    AuthAPI --> AuthSession
+
+    BookAPI --> BookSearch
+    BookAPI --> BookCatalog
+    BookAPI --> BookAvailability
+
+    DeliveryAPI --> TaskQueue
+    DeliveryAPI --> WorkflowEngine
+    DeliveryAPI --> StatusTracker
+
+    RobotAPI --> CommandSender
+    RobotAPI --> StatusReceiver
+    RobotAPI --> ErrorHandler
+
+    NotificationAPI --> PushService
+    NotificationAPI --> EventBroadcaster
+    NotificationAPI --> NotificationStore
+
+    %% Services to Data
+    AuthAPI --> DB
+    AuthAPI --> Cache
+    BookAPI --> DB
+    BookAPI --> Cache
+    DeliveryAPI --> DB
+    RobotAPI --> DB
+    NotificationAPI --> DB
+
+    %% Services to Message Queue
+    DeliveryAPI --> MQ
+    RobotAPI --> MQ
+    MQ --> DeliveryAPI
+    MQ --> RobotAPI
+
+    %% Robot Integration
+    RobotAPI --> RobotGateway
+    RobotGateway --> ROSBridge
+    ROSBridge --> PathPlanner
+    ROSBridge --> SafetyMonitor
+    PathPlanner --> Navigation
+    SafetyMonitor --> Navigation
+    Navigation --> Sensors
+    Navigation --> Actuators
+
+    %% Real-time
+    NotificationAPI --> WSServer
+    RobotAPI --> WSServer
+    WSServer --> WSManager
+    WSManager --> MobileWS
+    WSManager --> WebWS
+
+    %% Styling
+    classDef mobile fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    classDef web fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef gateway fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef service fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef data fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef queue fill:#fff9c4,stroke:#f57f17,stroke-width:2px
+    classDef robot fill:#e0f2f1,stroke:#004d40,stroke-width:2px
+    classDef ws fill:#e3f2fd,stroke:#01579b,stroke-width:2px
+
+    class MobileUI,MobileState,MobileAPI,MobileWS,MobileAuth mobile
+    class WebUI,WebState,WebAPI,WebWS,WebAuth web
+    class GatewayRouter,GatewayAuth,GatewayRateLimit,GatewayValidator gateway
+    class AuthAPI,AuthJWT,AuthRBAC,AuthSession,BookAPI,BookSearch,BookCatalog,BookAvailability,DeliveryAPI,TaskQueue,WorkflowEngine,StatusTracker,RobotAPI,CommandSender,StatusReceiver,ErrorHandler,NotificationAPI,PushService,EventBroadcaster,NotificationStore service
+    class DB,Cache data
+    class MQ queue
+    class RobotGateway,ROSBridge,PathPlanner,SafetyMonitor,Navigation,Sensors,Actuators robot
+    class WSServer,WSManager ws
+```
+
 ### 3.3 Data Flow Diagrams
+
+#### 3.3.1 Student Book Request Flow
+
+```mermaid
+sequenceDiagram
+    participant S as Student
+    participant MA as Mobile App
+    participant GW as API Gateway
+    participant Auth as Auth Service
+    participant Book as Book Service
+    participant Del as Delivery Service
+    participant MQ as Message Queue
+    participant Robot as Robot Service
+    participant TB as TurtleBot 4
+    participant WS as WebSocket
+    participant DB as Database
+
+    S->>MA: Search for book
+    MA->>GW: GET /api/v1/books/search
+    GW->>Auth: Validate JWT token
+    Auth-->>GW: Token valid
+    GW->>Book: Forward search request
+    Book->>DB: Query books catalog
+    DB-->>Book: Return search results
+    Book-->>GW: Search results
+    GW-->>MA: Return results
+    MA-->>S: Display books
+
+    S->>MA: Request book delivery
+    MA->>GW: POST /api/v1/requests
+    GW->>Auth: Validate token & role
+    Auth-->>GW: Authorized
+    GW->>Book: Check availability
+    Book->>DB: Query book availability
+    DB-->>Book: Book available
+    Book-->>GW: Availability confirmed
+    GW->>Del: Create delivery request
+    Del->>DB: Create request record
+    Del->>DB: Create task record
+    DB-->>Del: Records created
+    Del->>MQ: Publish delivery task
+    Del-->>GW: Request created
+    GW-->>MA: Request confirmation
+    MA-->>S: Show request status
+
+    MQ->>Robot: Consume delivery task
+    Robot->>TB: Send navigation command
+    TB-->>Robot: Navigation started
+    Robot->>DB: Update task status
+    Robot->>WS: Broadcast status update
+    WS-->>MA: Real-time status update
+    MA-->>S: Show "Robot en route"
+
+    TB->>Robot: Arrived at destination
+    Robot->>DB: Update task status
+    Robot->>WS: Broadcast arrival
+    WS-->>MA: Real-time update
+    MA-->>S: Show "Robot arrived"
+
+    S->>MA: Confirm book received
+    MA->>GW: PUT /api/v1/requests/{id}/complete
+    GW->>Del: Update request status
+    Del->>DB: Mark request complete
+    Del->>Book: Update book availability
+    Book->>DB: Update book status
+    Del->>WS: Broadcast completion
+    WS-->>MA: Completion notification
+    MA-->>S: Request completed
+```
+
+#### 3.3.2 Book Return Pickup Flow
+
+```mermaid
+sequenceDiagram
+    participant S as Student
+    participant MA as Mobile App
+    participant GW as API Gateway
+    participant Auth as Auth Service
+    participant Del as Delivery Service
+    participant MQ as Message Queue
+    participant Robot as Robot Service
+    participant TB as TurtleBot 4
+    participant WS as WebSocket
+    participant DB as Database
+    participant Book as Book Service
+
+    S->>MA: Initiate book return
+    MA->>GW: POST /api/v1/returns
+    GW->>Auth: Validate token
+    Auth-->>GW: Authorized
+    GW->>Del: Create return pickup task
+    Del->>DB: Create return record
+    Del->>DB: Create pickup task
+    DB-->>Del: Records created
+    Del->>MQ: Publish pickup task
+    Del-->>GW: Pickup scheduled
+    GW-->>MA: Pickup confirmation
+    MA-->>S: Show pickup status
+
+    MQ->>Robot: Consume pickup task
+    Robot->>TB: Send navigation to student
+    TB-->>Robot: Navigation started
+    Robot->>DB: Update task status
+    Robot->>WS: Broadcast status
+    WS-->>MA: "Robot en route for pickup"
+    MA-->>S: Show status update
+
+    TB->>Robot: Arrived at student location
+    Robot->>DB: Update status
+    Robot->>WS: Broadcast arrival
+    WS-->>MA: "Robot arrived for pickup"
+    MA-->>S: Show arrival notification
+
+    S->>MA: Confirm book placed on robot
+    MA->>GW: PUT /api/v1/returns/{id}/picked-up
+    GW->>Del: Update pickup status
+    Del->>DB: Mark picked up
+    Robot->>TB: Navigate to return workstation
+    TB-->>Robot: Navigation started
+    Robot->>DB: Update task status
+    Robot->>WS: Broadcast status
+    WS-->>MA: "Returning to workstation"
+    MA-->>S: Show return status
+
+    TB->>Robot: Arrived at workstation
+    Robot->>DB: Update task complete
+    Robot->>Book: Update book availability
+    Book->>DB: Mark book available
+    Robot->>WS: Broadcast completion
+    WS-->>MA: Return completed
+    MA-->>S: Return confirmation
+```
+
+#### 3.3.3 Inter-Staff Delivery Flow
+
+```mermaid
+sequenceDiagram
+    participant L1 as Librarian 1
+    participant WA as Web Dashboard
+    participant GW as API Gateway
+    participant Auth as Auth Service
+    participant Del as Delivery Service
+    participant MQ as Message Queue
+    participant Robot as Robot Service
+    participant TB as TurtleBot 4
+    participant WS as WebSocket
+    participant DB as Database
+    participant L2 as Librarian 2
+
+    L1->>WA: Create inter-staff delivery
+    WA->>GW: POST /api/v1/deliveries/inter-staff
+    GW->>Auth: Validate librarian role
+    Auth-->>GW: Authorized
+    GW->>Del: Create delivery task
+    Del->>DB: Create delivery record
+    Del->>DB: Create task record
+    DB-->>Del: Records created
+    Del->>MQ: Publish delivery task
+    Del-->>GW: Task created
+    GW-->>WA: Delivery scheduled
+    WA-->>L1: Show task in queue
+
+    L1->>WA: Place book on TurtleBot 4
+    L1->>WA: Confirm book placement
+    WA->>GW: PUT /api/v1/deliveries/{id}/book-placed
+    GW->>Del: Update placement status
+    Del->>DB: Mark book placed
+    Del->>Robot: Trigger navigation
+    Robot->>TB: Send navigation command
+    TB-->>Robot: Navigation started
+    Robot->>DB: Update task status
+    Robot->>WS: Broadcast status
+    WS-->>WA: "Robot navigating"
+    WA-->>L1: Show navigation status
+    WA-->>L2: Show incoming delivery
+
+    TB->>Robot: Arrived at destination
+    Robot->>DB: Update task status
+    Robot->>WS: Broadcast arrival
+    WS-->>WA: "Robot arrived"
+    WA-->>L2: Show arrival notification
+
+    L2->>WA: Confirm book received
+    WA->>GW: PUT /api/v1/deliveries/{id}/complete
+    GW->>Del: Update delivery status
+    Del->>DB: Mark delivery complete
+    Del->>WS: Broadcast completion
+    WS-->>WA: Delivery completed
+    WA-->>L1: Show completion
+    WA-->>L2: Show completion
+```
+
+#### 3.3.4 Catalog Management Flow
+
+```mermaid
+sequenceDiagram
+    participant L as Librarian
+    participant WA as Web Dashboard
+    participant GW as API Gateway
+    participant Auth as Auth Service
+    participant Book as Book Service
+    participant Cache as Redis Cache
+    participant DB as Database
+    participant WS as WebSocket
+    participant MA as Mobile App
+
+    L->>WA: Add new book to catalog
+    WA->>GW: POST /api/v1/books
+    GW->>Auth: Validate librarian role
+    Auth-->>GW: Authorized
+    GW->>Book: Create book request
+    Book->>DB: Insert book record
+    DB-->>Book: Book created
+    Book->>Cache: Invalidate catalog cache
+    Book-->>GW: Book created
+    GW-->>WA: Success response
+    WA-->>L: Show confirmation
+
+    Book->>WS: Broadcast catalog update
+    WS-->>MA: Catalog changed event
+    MA->>MA: Refresh catalog cache
+
+    L->>WA: Update book information
+    WA->>GW: PUT /api/v1/books/{id}
+    GW->>Auth: Validate role
+    Auth-->>GW: Authorized
+    GW->>Book: Update book request
+    Book->>DB: Update book record
+    DB-->>Book: Update confirmed
+    Book->>Cache: Invalidate cache
+    Book-->>GW: Update successful
+    GW-->>WA: Success response
+    WA-->>L: Show confirmation
+
+    Book->>WS: Broadcast update event
+    WS-->>MA: Book updated notification
+
+    L->>WA: Delete book
+    WA->>GW: DELETE /api/v1/books/{id}
+    GW->>Auth: Validate role
+    Auth-->>GW: Authorized
+    GW->>Book: Delete book request
+    Book->>DB: Delete book record
+    DB-->>Book: Deletion confirmed
+    Book->>Cache: Invalidate cache
+    Book-->>GW: Deletion successful
+    GW-->>WA: Success response
+    WA-->>L: Show confirmation
+
+    Book->>WS: Broadcast deletion event
+    WS-->>MA: Book removed notification
+```
+
+#### 3.3.5 Robot Status Monitoring Flow
+
+```mermaid
+sequenceDiagram
+    participant TB as TurtleBot 4
+    participant RC as Robot Controller
+    participant RG as Robot Gateway
+    participant RS as Robot Service
+    participant DB as Database
+    participant WS as WebSocket
+    participant WA as Web Dashboard
+    participant L as Librarian
+    participant Mon as Monitoring
+
+    loop Every 5 seconds
+        TB->>RC: Send status (location, battery, sensors)
+        RC->>RG: Aggregate status data
+        RG->>RS: Update robot status
+        RS->>DB: Store status snapshot
+        RS->>WS: Broadcast status update
+        WS-->>WA: Real-time status
+        WA-->>L: Update dashboard display
+        RS->>Mon: Send metrics
+    end
+
+    TB->>RC: Error detected
+    RC->>RG: Error event
+    RG->>RS: Report error
+    RS->>DB: Log error
+    RS->>WS: Broadcast error alert
+    WS-->>WA: Error notification
+    WA-->>L: Show error alert
+    RS->>Mon: Log error event
+
+    L->>WA: Request emergency stop
+    WA->>RS: POST /api/v1/robot/emergency-stop
+    RS->>RG: Send stop command
+    RG->>RC: Emergency stop signal
+    RC->>TB: Execute stop
+    TB-->>RC: Stopped
+    RC-->>RG: Stop confirmed
+    RG-->>RS: Stop confirmed
+    RS->>DB: Log emergency stop
+    RS->>WS: Broadcast stop event
+    WS-->>WA: Stop confirmation
+    WA-->>L: Show stop confirmation
+```
 
 ### 3.4 Deployment Architecture
 
