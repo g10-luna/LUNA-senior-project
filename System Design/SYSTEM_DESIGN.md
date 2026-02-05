@@ -260,34 +260,34 @@ High-level requirements define the major capabilities the system must provide to
 ```mermaid
 graph TB
     subgraph "Clients"
-        MobileApp[📱 Mobile App]
-        WebApp[💻 Web Dashboard]
+        MobileApp[Mobile App]
+        WebApp[Web Dashboard]
     end
 
     subgraph "API Layer"
-        Gateway[🔀 API Gateway]
+        Gateway[API Gateway]
     end
 
     subgraph "Backend Services"
-        Services[🔧 Microservices<br/>Auth, Book, Delivery<br/>Robot, Notification]
+        Services[Microservices<br/>Auth, Book, Delivery<br/>Robot, Notification]
     end
 
     subgraph "Data Layer"
-        DB[(🗄️ PostgreSQL)]
-        Cache[(⚡ Redis)]
+        DB[(PostgreSQL)]
+        Cache[(Redis)]
     end
 
     subgraph "Message Queue"
-        MQ[📬 Message Queue]
+        MQ[Message Queue]
     end
 
     subgraph "Robot System"
-        Robot[🤖 Robot Integration]
+        Robot[Robot Integration]
         TurtleBot[TurtleBot 4]
     end
 
     subgraph "Real-Time"
-        WS[🔌 WebSocket]
+        WS[WebSocket]
     end
 
     MobileApp --> Gateway
@@ -308,34 +308,34 @@ graph TB
 ```mermaid
 graph TB
     subgraph "Presentation Layer"
-        Screens[📱 Screens<br/>Book Search<br/>Request Creation<br/>Return Initiation<br/>Status Tracking<br/>History View]
-        Components[🧩 UI Components<br/>Search Bar<br/>Book Cards<br/>Request Form<br/>Status Indicators<br/>Navigation]
+        Screens[Screens<br/>Book Search<br/>Request Creation<br/>Return Initiation<br/>Status Tracking<br/>History View]
+        Components[UI Components<br/>Search Bar<br/>Book Cards<br/>Request Form<br/>Status Indicators<br/>Navigation]
     end
 
     subgraph "State Management"
-        StateStore[📦 State Store<br/>Redux/Zustand<br/>App State<br/>User State<br/>Request State]
-        LocalCache[💾 Local Cache<br/>Offline Support<br/>Recent Searches<br/>Cached Catalog]
+        StateStore[State Store<br/>Redux/Zustand<br/>App State<br/>User State<br/>Request State]
+        LocalCache[Local Cache<br/>Offline Support<br/>Recent Searches<br/>Cached Catalog]
     end
 
     subgraph "Business Logic"
-        Services[⚙️ Service Layer<br/>Book Service<br/>Request Service<br/>Return Service<br/>Auth Service]
-        Hooks[🪝 Custom Hooks<br/>useBookSearch<br/>useRequest<br/>useNotifications<br/>useAuth]
+        Services[Service Layer<br/>Book Service<br/>Request Service<br/>Return Service<br/>Auth Service]
+        Hooks[Custom Hooks<br/>useBookSearch<br/>useRequest<br/>useNotifications<br/>useAuth]
     end
 
     subgraph "Network Layer"
-        APIClient[🌐 API Client<br/>REST Client<br/>Request Interceptors<br/>Error Handling<br/>Retry Logic]
-        WSClient[🔌 WebSocket Client<br/>Connection Manager<br/>Reconnection Logic<br/>Event Handlers]
-        PushService[📲 Push Service<br/>FCM/APNS<br/>Notification Handler]
+        APIClient[API Client<br/>REST Client<br/>Request Interceptors<br/>Error Handling<br/>Retry Logic]
+        WSClient[WebSocket Client<br/>Connection Manager<br/>Reconnection Logic<br/>Event Handlers]
+        PushService[Push Service<br/>FCM/APNS<br/>Notification Handler]
     end
 
     subgraph "Authentication"
-        AuthManager[🔐 Auth Manager<br/>Token Storage<br/>Session Management<br/>Auto Refresh]
+        AuthManager[Auth Manager<br/>Token Storage<br/>Session Management<br/>Auto Refresh]
     end
 
     subgraph "External Services"
-        BackendAPI[🔗 Backend API]
-        WebSocketServer[🔗 WebSocket Server]
-        PushGateway[🔗 Push Gateway]
+        BackendAPI[Backend API]
+        WebSocketServer[WebSocket Server]
+        PushGateway[Push Gateway]
     end
 
     Screens --> Components
@@ -371,32 +371,32 @@ graph TB
 ```mermaid
 graph TB
     subgraph "Presentation Layer"
-        Pages[📄 Pages<br/>Dashboard<br/>Catalog Management<br/>Robot Monitoring<br/>Task Queue<br/>Analytics]
-        Components[🧩 React Components<br/>Data Tables<br/>Charts & Graphs<br/>Forms<br/>Status Cards<br/>Modals]
+        Pages[Pages<br/>Dashboard<br/>Catalog Management<br/>Robot Monitoring<br/>Task Queue<br/>Analytics]
+        Components[React Components<br/>Data Tables<br/>Charts & Graphs<br/>Forms<br/>Status Cards<br/>Modals]
     end
 
     subgraph "State Management"
-        StateStore[📦 State Management<br/>Context API/Redux<br/>Global State<br/>UI State<br/>Data State]
-        QueryCache[💾 React Query Cache<br/>Server State<br/>Cache Management<br/>Background Refetch]
+        StateStore[State Management<br/>Context API/Redux<br/>Global State<br/>UI State<br/>Data State]
+        QueryCache[React Query Cache<br/>Server State<br/>Cache Management<br/>Background Refetch]
     end
 
     subgraph "Business Logic"
-        Services[⚙️ Service Layer<br/>Catalog Service<br/>Robot Service<br/>Delivery Service<br/>Analytics Service]
-        Hooks[🪝 Custom Hooks<br/>useCatalog<br/>useRobotStatus<br/>useDeliveries<br/>useAnalytics]
+        Services[Service Layer<br/>Catalog Service<br/>Robot Service<br/>Delivery Service<br/>Analytics Service]
+        Hooks[Custom Hooks<br/>useCatalog<br/>useRobotStatus<br/>useDeliveries<br/>useAnalytics]
     end
 
     subgraph "Network Layer"
-        APIClient[🌐 API Client<br/>Axios/Fetch<br/>Request Interceptors<br/>Error Handling<br/>Response Transformers]
-        WSClient[🔌 WebSocket Client<br/>Connection Manager<br/>Reconnection Logic<br/>Event Handlers]
+        APIClient[API Client<br/>Axios/Fetch<br/>Request Interceptors<br/>Error Handling<br/>Response Transformers]
+        WSClient[WebSocket Client<br/>Connection Manager<br/>Reconnection Logic<br/>Event Handlers]
     end
 
     subgraph "Authentication"
-        AuthProvider[🔐 Auth Provider<br/>Token Management<br/>Role-based Access<br/>Route Protection]
+        AuthProvider[Auth Provider<br/>Token Management<br/>Role-based Access<br/>Route Protection]
     end
 
     subgraph "External Services"
-        BackendAPI[🔗 Backend API]
-        WebSocketServer[🔗 WebSocket Server]
+        BackendAPI[Backend API]
+        WebSocketServer[WebSocket Server]
     end
 
     Pages --> Components
@@ -431,42 +431,42 @@ graph TB
 ```mermaid
 graph TB
     subgraph "Backend Integration"
-        RobotService[🤖 Robot Service<br/>Command Queue<br/>Status Aggregation<br/>Error Handling]
+        RobotService[Robot Service<br/>Command Queue<br/>Status Aggregation<br/>Error Handling]
     end
 
     subgraph "Robot API Gateway"
-        APIGateway[🔌 API Gateway<br/>REST to ROS Bridge<br/>Protocol Translation<br/>Request Validation]
-        CommandQueue[📋 Command Queue<br/>Task Prioritization<br/>Command Buffering<br/>Retry Logic]
+        APIGateway[API Gateway<br/>REST to ROS Bridge<br/>Protocol Translation<br/>Request Validation]
+        CommandQueue[Command Queue<br/>Task Prioritization<br/>Command Buffering<br/>Retry Logic]
     end
 
     subgraph "ROS/ROS2 Layer"
-        ROSBridge[🌉 ROS Bridge<br/>ROS/ROS2 Interface<br/>Topic Management<br/>Service Calls]
-        NodeManager[📦 Node Manager<br/>Node Lifecycle<br/>Dependency Management<br/>Health Monitoring]
+        ROSBridge[ROS Bridge<br/>ROS/ROS2 Interface<br/>Topic Management<br/>Service Calls]
+        NodeManager[Node Manager<br/>Node Lifecycle<br/>Dependency Management<br/>Health Monitoring]
     end
 
     subgraph "Navigation System"
-        PathPlanner[🗺️ Path Planner<br/>A* / RRT Algorithm<br/>Obstacle Avoidance<br/>Route Optimization]
-        WaypointManager[📍 Waypoint Manager<br/>Location Database<br/>Route Calculation<br/>Position Tracking]
-        SafetyMonitor[⚠️ Safety Monitor<br/>Collision Detection<br/>Emergency Stop<br/>Safety Protocols]
+        PathPlanner[Path Planner<br/>A* / RRT Algorithm<br/>Obstacle Avoidance<br/>Route Optimization]
+        WaypointManager[Waypoint Manager<br/>Location Database<br/>Route Calculation<br/>Position Tracking]
+        SafetyMonitor[Safety Monitor<br/>Collision Detection<br/>Emergency Stop<br/>Safety Protocols]
     end
 
     subgraph "Sensor Integration"
-        Lidar[📡 LiDAR Sensor<br/>Obstacle Detection<br/>Mapping<br/>Localization]
-        Camera[📷 Camera<br/>Visual Navigation<br/>Object Recognition]
-        IMU[🧭 IMU<br/>Orientation<br/>Acceleration]
+        Lidar[LiDAR Sensor<br/>Obstacle Detection<br/>Mapping<br/>Localization]
+        Camera[Camera<br/>Visual Navigation<br/>Object Recognition]
+        IMU[IMU<br/>Orientation<br/>Acceleration]
     end
 
     subgraph "Actuator Control"
-        MotorController[⚙️ Motor Controller<br/>Velocity Control<br/>Position Control<br/>Odometry]
-        NavigationController[🎮 Navigation Controller<br/>Command Execution<br/>Feedback Loop<br/>Error Correction]
+        MotorController[Motor Controller<br/>Velocity Control<br/>Position Control<br/>Odometry]
+        NavigationController[Navigation Controller<br/>Command Execution<br/>Feedback Loop<br/>Error Correction]
     end
 
     subgraph "TurtleBot 4 Hardware"
-        PhysicalRobot[🤖 TurtleBot 4<br/>Physical Platform<br/>Base Movement<br/>Payload Management]
+        PhysicalRobot[TurtleBot 4<br/>Physical Platform<br/>Base Movement<br/>Payload Management]
     end
 
     subgraph "Status Reporting"
-        StatusAggregator[📊 Status Aggregator<br/>Battery Monitoring<br/>Health Metrics<br/>Error Reporting]
+        StatusAggregator[Status Aggregator<br/>Battery Monitoring<br/>Health Metrics<br/>Error Reporting]
     end
 
     RobotService --> APIGateway
@@ -513,52 +513,52 @@ graph TB
 ```mermaid
 graph TB
     subgraph "API Gateway"
-        Gateway[🔀 API Gateway<br/>Kong/Nginx<br/>Rate Limiting<br/>SSL Termination<br/>Request Routing]
-        Middleware[🔧 Middleware<br/>Authentication<br/>Validation<br/>Logging<br/>Error Handling]
+        Gateway[API Gateway<br/>Kong/Nginx<br/>Rate Limiting<br/>SSL Termination<br/>Request Routing]
+        Middleware[Middleware<br/>Authentication<br/>Validation<br/>Logging<br/>Error Handling]
     end
 
     subgraph "Authentication Service"
-        AuthAPI[🔐 Auth API<br/>Login/Register<br/>Token Management<br/>Password Reset]
-        JWTService[🎫 JWT Service<br/>Token Generation<br/>Token Validation<br/>Refresh Tokens]
-        RBAC[👥 RBAC Engine<br/>Role Management<br/>Permission Checking<br/>Policy Enforcement]
+        AuthAPI[Auth API<br/>Login/Register<br/>Token Management<br/>Password Reset]
+        JWTService[JWT Service<br/>Token Generation<br/>Token Validation<br/>Refresh Tokens]
+        RBAC[RBAC Engine<br/>Role Management<br/>Permission Checking<br/>Policy Enforcement]
     end
 
     subgraph "Book Service"
-        BookAPI[📚 Book API<br/>CRUD Operations<br/>Search Endpoints<br/>Availability Checks]
-        SearchEngine[🔍 Search Engine<br/>Full-text Search<br/>Filtering<br/>Sorting]
-        CatalogManager[📖 Catalog Manager<br/>Book Management<br/>Metadata Handling<br/>Bulk Operations]
+        BookAPI[Book API<br/>CRUD Operations<br/>Search Endpoints<br/>Availability Checks]
+        SearchEngine[Search Engine<br/>Full-text Search<br/>Filtering<br/>Sorting]
+        CatalogManager[Catalog Manager<br/>Book Management<br/>Metadata Handling<br/>Bulk Operations]
     end
 
     subgraph "Delivery Service"
-        DeliveryAPI[📦 Delivery API<br/>Request Management<br/>Task Creation<br/>Status Updates]
-        TaskQueue[📋 Task Queue<br/>Priority Queue<br/>Task Scheduling<br/>Retry Logic]
-        WorkflowEngine[⚙️ Workflow Engine<br/>State Machine<br/>Workflow Orchestration<br/>Status Transitions]
+        DeliveryAPI[Delivery API<br/>Request Management<br/>Task Creation<br/>Status Updates]
+        TaskQueue[Task Queue<br/>Priority Queue<br/>Task Scheduling<br/>Retry Logic]
+        WorkflowEngine[Workflow Engine<br/>State Machine<br/>Workflow Orchestration<br/>Status Transitions]
     end
 
     subgraph "Robot Service"
-        RobotAPI[🤖 Robot API<br/>Command Interface<br/>Status Queries<br/>Emergency Controls]
-        CommandProcessor[📨 Command Processor<br/>Command Validation<br/>Command Translation<br/>Command Queueing]
-        StatusManager[📊 Status Manager<br/>Status Aggregation<br/>Health Monitoring<br/>Error Tracking]
+        RobotAPI[Robot API<br/>Command Interface<br/>Status Queries<br/>Emergency Controls]
+        CommandProcessor[Command Processor<br/>Command Validation<br/>Command Translation<br/>Command Queueing]
+        StatusManager[Status Manager<br/>Status Aggregation<br/>Health Monitoring<br/>Error Tracking]
     end
 
     subgraph "Notification Service"
-        NotificationAPI[🔔 Notification API<br/>Notification Creation<br/>History Management]
-        PushManager[📲 Push Manager<br/>FCM/APNS Integration<br/>Notification Delivery]
-        EventBroadcaster[📡 Event Broadcaster<br/>WebSocket Events<br/>Real-time Updates]
+        NotificationAPI[Notification API<br/>Notification Creation<br/>History Management]
+        PushManager[Push Manager<br/>FCM/APNS Integration<br/>Notification Delivery]
+        EventBroadcaster[Event Broadcaster<br/>WebSocket Events<br/>Real-time Updates]
     end
 
     subgraph "Data Access Layer"
-        Repositories[🗄️ Repositories<br/>Data Access Objects<br/>Query Builders<br/>Transaction Management]
-        ORM[🔗 ORM Layer<br/>TypeORM/Prisma<br/>Model Definitions<br/>Migrations]
+        Repositories[Repositories<br/>Data Access Objects<br/>Query Builders<br/>Transaction Management]
+        ORM[ORM Layer<br/>TypeORM/Prisma<br/>Model Definitions<br/>Migrations]
     end
 
     subgraph "Data Layer"
-        PostgreSQL[(🗄️ PostgreSQL)]
-        Redis[(⚡ Redis)]
+        PostgreSQL[(PostgreSQL)]
+        Redis[(Redis)]
     end
 
     subgraph "Message Queue"
-        MQ[📬 Message Queue<br/>RabbitMQ/BullMQ]
+        MQ[Message Queue<br/>RabbitMQ/BullMQ]
     end
 
     Gateway --> Middleware
@@ -1109,7 +1109,267 @@ sequenceDiagram
     WA-->>L: Show stop confirmation
 ```
 
-### 3.4 Deployment Architecture
+### 3.4 User Workflow Diagrams
+
+#### 3.4.1 Student Book Request Workflow
+
+```mermaid
+flowchart TD
+    Start([Student Opens App]) --> Login{Logged In?}
+    Login -->|No| Auth[Login/Register]
+    Auth --> Login
+    Login -->|Yes| Home[Home Screen]
+    Home --> Search[Search for Book]
+    Search --> Results[View Search Results]
+    Results --> Select[Select Book]
+    Select --> Details[View Book Details]
+    Details --> Available{Book Available?}
+    Available -->|No| Notify[Show Not Available]
+    Notify --> Search
+    Available -->|Yes| Request[Create Delivery Request]
+    Request --> Confirm[Confirm Request Details]
+    Confirm --> Submit[Submit Request]
+    Submit --> Pending[Request Pending Status]
+    Pending --> Wait[Wait for Librarian Action]
+    Wait --> LibrarianAction[Librarian Places Book on Robot]
+    LibrarianAction --> RobotEnRoute[Robot En Route Notification]
+    RobotEnRoute --> Track[Track Robot Location]
+    Track --> Arrived[Robot Arrived Notification]
+    Arrived --> Receive[Receive Book from Robot]
+    Receive --> ConfirmReceive[Confirm Receipt]
+    ConfirmReceive --> Complete[Request Completed]
+    Complete --> History[View Request History]
+    History --> End([End])
+```
+
+#### 3.4.2 Student Book Return Workflow
+
+```mermaid
+flowchart TD
+    Start([Student Opens App]) --> MyBooks[View My Books]
+    MyBooks --> SelectReturn[Select Book to Return]
+    SelectReturn --> InitiateReturn[Initiate Return]
+    InitiateReturn --> ChooseLocation[Choose Pickup Location]
+    ChooseLocation --> ConfirmReturn[Confirm Return Request]
+    ConfirmReturn --> SubmitReturn[Submit Return Request]
+    SubmitReturn --> PendingPickup[Pickup Scheduled]
+    PendingPickup --> WaitRobot[Wait for Robot]
+    WaitRobot --> RobotArriving[Robot Arriving Notification]
+    RobotArriving --> TrackRobot[Track Robot Location]
+    TrackRobot --> RobotArrived[Robot Arrived]
+    RobotArrived --> PlaceBook[Place Book on Robot]
+    PlaceBook --> ConfirmPlacement[Confirm Book Placed]
+    ConfirmPlacement --> RobotReturning[Robot Returning to Workstation]
+    RobotReturning --> ReturnComplete[Return Completed]
+    ReturnComplete --> UpdateHistory[Update Return History]
+    UpdateHistory --> End([End])
+```
+
+#### 3.4.3 Librarian Catalog Management Workflow
+
+```mermaid
+flowchart TD
+    Start([Librarian Opens Dashboard]) --> Login{Logged In?}
+    Login -->|No| Auth[Login]
+    Auth --> Login
+    Login -->|Yes| Dashboard[Dashboard]
+    Dashboard --> CatalogMenu[Catalog Management]
+    CatalogMenu --> Action{Action Type}
+    Action -->|Add Book| AddBook[Add New Book]
+    Action -->|Update Book| UpdateBook[Update Existing Book]
+    Action -->|Delete Book| DeleteBook[Delete Book]
+    Action -->|Bulk Import| BulkImport[Bulk Import Books]
+    
+    AddBook --> FillDetails[Fill Book Details]
+    FillDetails --> ValidateDetails{Validate Details}
+    ValidateDetails -->|Invalid| FillDetails
+    ValidateDetails -->|Valid| SaveBook[Save Book]
+    SaveBook --> Success[Book Added Successfully]
+    
+    UpdateBook --> SearchBook[Search for Book]
+    SearchBook --> SelectBook[Select Book]
+    SelectBook --> EditDetails[Edit Book Details]
+    EditDetails --> ValidateUpdate{Validate Changes}
+    ValidateUpdate -->|Invalid| EditDetails
+    ValidateUpdate -->|Valid| UpdateSave[Save Changes]
+    UpdateSave --> UpdateSuccess[Book Updated Successfully]
+    
+    DeleteBook --> FindBook[Find Book]
+    FindBook --> ConfirmDelete{Confirm Deletion}
+    ConfirmDelete -->|Cancel| CatalogMenu
+    ConfirmDelete -->|Confirm| DeleteConfirm[Delete Book]
+    DeleteConfirm --> DeleteSuccess[Book Deleted Successfully]
+    
+    BulkImport --> UploadFile[Upload CSV/Excel File]
+    UploadFile --> ValidateFile{Validate File}
+    ValidateFile -->|Invalid| UploadFile
+    ValidateFile -->|Valid| ProcessImport[Process Import]
+    ProcessImport --> ImportResults[Show Import Results]
+    ImportResults --> ImportSuccess[Import Completed]
+    
+    Success --> CatalogMenu
+    UpdateSuccess --> CatalogMenu
+    DeleteSuccess --> CatalogMenu
+    ImportSuccess --> CatalogMenu
+    CatalogMenu --> End([End])
+```
+
+#### 3.4.4 Librarian Delivery Management Workflow
+
+```mermaid
+flowchart TD
+    Start([Librarian Opens Dashboard]) --> Dashboard[Dashboard]
+    Dashboard --> DeliveryMenu[Delivery Management]
+    DeliveryMenu --> ViewQueue[View Delivery Queue]
+    ViewQueue --> SelectTask[Select Delivery Task]
+    SelectTask --> TaskDetails[View Task Details]
+    TaskDetails --> TaskType{Task Type}
+    
+    TaskType -->|Student Delivery| StudentDelivery[Student Delivery Flow]
+    TaskType -->|Book Return| BookReturn[Book Return Flow]
+    TaskType -->|Inter-Staff| InterStaff[Inter-Staff Delivery Flow]
+    TaskType -->|Workstation| Workstation[Workstation Delivery Flow]
+    
+    StudentDelivery --> LocateBook[Locate Book in Library]
+    LocateBook --> RetrieveBook[Retrieve Book]
+    RetrieveBook --> PlaceOnRobot[Place Book on TurtleBot 4]
+    PlaceOnRobot --> ConfirmPlacement[Confirm Book Placement]
+    ConfirmPlacement --> StartDelivery[Start Robot Delivery]
+    StartDelivery --> Monitor[Monitor Robot Progress]
+    
+    BookReturn --> WaitPickup[Wait for Robot Pickup]
+    WaitPickup --> ReceiveBook[Receive Book from Robot]
+    ReceiveBook --> ProcessReturn[Process Return]
+    ProcessReturn --> UpdateCatalog[Update Catalog]
+    UpdateCatalog --> ReturnComplete[Return Processed]
+    
+    InterStaff --> PrepareTransfer[Prepare Book Transfer]
+    PrepareTransfer --> PlaceTransfer[Place Book on Robot]
+    PlaceTransfer --> InitiateTransfer[Initiate Transfer]
+    InitiateTransfer --> MonitorTransfer[Monitor Transfer]
+    
+    Workstation --> PrepareWorkstation[Prepare for Workstation]
+    PrepareWorkstation --> PlaceWorkstation[Place Book on Robot]
+    PlaceWorkstation --> InitiateWorkstation[Initiate Delivery]
+    InitiateWorkstation --> MonitorWorkstation[Monitor Delivery]
+    
+    Monitor --> DeliveryComplete[Delivery Completed]
+    MonitorTransfer --> TransferComplete[Transfer Completed]
+    MonitorWorkstation --> WorkstationComplete[Workstation Delivery Completed]
+    
+    DeliveryComplete --> UpdateStatus[Update Task Status]
+    TransferComplete --> UpdateStatus
+    WorkstationComplete --> UpdateStatus
+    ReturnComplete --> UpdateStatus
+    
+    UpdateStatus --> ViewQueue
+    ViewQueue --> End([End])
+```
+
+#### 3.4.5 Librarian Robot Monitoring Workflow
+
+```mermaid
+flowchart TD
+    Start([Librarian Opens Dashboard]) --> Dashboard[Dashboard]
+    Dashboard --> RobotMenu[Robot Monitoring]
+    RobotMenu --> RobotStatus[View Robot Status]
+    RobotStatus --> StatusInfo[Display Status Information<br/>Location, Battery, Health]
+    StatusInfo --> MonitorOptions{Monitoring Options}
+    
+    MonitorOptions -->|View Live Location| LiveLocation[View Live Robot Location]
+    MonitorOptions -->|View Task Queue| TaskQueue[View Active Task Queue]
+    MonitorOptions -->|View History| History[View Robot History]
+    MonitorOptions -->|Emergency Stop| Emergency[Emergency Stop]
+    
+    LiveLocation --> MapView[Display Map with Robot Position]
+    MapView --> UpdateLocation[Real-time Location Updates]
+    UpdateLocation --> MapView
+    
+    TaskQueue --> QueueList[Display Task Queue]
+    QueueList --> QueueActions{Queue Actions}
+    QueueActions -->|Prioritize Task| Prioritize[Change Task Priority]
+    QueueActions -->|Cancel Task| CancelTask[Cancel Task]
+    QueueActions -->|View Details| TaskDetails[View Task Details]
+    Prioritize --> QueueList
+    CancelTask --> QueueList
+    TaskDetails --> QueueList
+    
+    History --> HistoryList[Display History Logs]
+    HistoryList --> FilterHistory[Filter by Date/Type]
+    FilterHistory --> HistoryList
+    HistoryList --> ViewLog[View Detailed Log]
+    ViewLog --> HistoryList
+    
+    Emergency --> ConfirmStop{Confirm Emergency Stop}
+    ConfirmStop -->|Cancel| RobotStatus
+    ConfirmStop -->|Confirm| ExecuteStop[Execute Emergency Stop]
+    ExecuteStop --> StopConfirmation[Stop Confirmation]
+    StopConfirmation --> RobotStatus
+    
+    RobotStatus --> End([End])
+```
+
+#### 3.4.6 Complete Student Journey Workflow
+
+```mermaid
+flowchart TD
+    Start([Student First Time User]) --> Onboarding[App Onboarding]
+    Onboarding --> Register[Create Account]
+    Register --> Verify[Verify Email]
+    Verify --> Login[Login to App]
+    Login --> Tutorial[App Tutorial]
+    Tutorial --> Home[Home Screen]
+    
+    Home --> MainMenu{Main Menu}
+    MainMenu -->|Search Books| SearchFlow[Search & Request Flow]
+    MainMenu -->|My Requests| MyRequests[View My Requests]
+    MainMenu -->|My Books| MyBooks[View My Books]
+    MainMenu -->|Return Book| ReturnFlow[Return Book Flow]
+    MainMenu -->|History| History[View History]
+    MainMenu -->|Settings| Settings[App Settings]
+    
+    SearchFlow --> Search[Search Books]
+    Search --> Browse[Browse Results]
+    Browse --> Select[Select Book]
+    Select --> Request[Request Delivery]
+    Request --> Track[Track Delivery]
+    Track --> Receive[Receive Book]
+    Receive --> Home
+    
+    MyRequests --> RequestList[View Active Requests]
+    RequestList --> RequestDetails[View Request Details]
+    RequestDetails --> CancelRequest{Cancel Request?}
+    CancelRequest -->|Yes| Cancel[Cancel Request]
+    Cancel --> RequestList
+    CancelRequest -->|No| RequestList
+    RequestList --> Home
+    
+    MyBooks --> BooksList[View Checked Out Books]
+    BooksList --> BookDetails[View Book Details]
+    BookDetails --> ReturnOption[Return Book Option]
+    ReturnOption --> ReturnFlow
+    BooksList --> Home
+    
+    ReturnFlow --> SelectReturn[Select Book to Return]
+    SelectReturn --> InitiateReturn[Initiate Return]
+    InitiateReturn --> TrackReturn[Track Return Pickup]
+    TrackReturn --> CompleteReturn[Complete Return]
+    CompleteReturn --> Home
+    
+    History --> HistoryList[View All History]
+    HistoryList --> FilterHistory[Filter History]
+    FilterHistory --> HistoryList
+    HistoryList --> Home
+    
+    Settings --> ProfileSettings[Profile Settings]
+    Settings --> NotificationSettings[Notification Settings]
+    Settings --> AppSettings[App Preferences]
+    ProfileSettings --> Home
+    NotificationSettings --> Home
+    AppSettings --> Home
+    
+    Home --> End([End])
+```
 
 ---
 
