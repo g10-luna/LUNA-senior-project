@@ -1881,9 +1881,493 @@ This section outlines the high-level technology decisions for the LUNA system an
 
 ### 5.1 Database Schema
 
+The LUNA system uses PostgreSQL as the primary relational database. The schema is designed to support all system operations including user management, catalog management, delivery operations, and robot integration.
+
+#### 5.1.1 Entity Relationship Diagram
+
+```mermaid
+erDiagram
+    USERS ||--o{ BOOK_REQUESTS : creates
+    USERS ||--o{ BOOK_RETURNS : initiates
+    USERS ||--o{ DELIVERY_TASKS : assigned_to
+    USERS {
+        uuid id PK
+        string email UK
+        string password_hash
+        string first_name
+        string last_name
+        enum role
+        string phone_number
+        timestamp created_at
+        timestamp updated_at
+        boolean is_active
+    }
+    
+    BOOKS ||--o{ BOOK_REQUESTS : requested
+    BOOKS ||--o{ BOOK_RETURNS : returned
+    BOOKS ||--o{ DELIVERY_TASKS : delivered
+    BOOKS {
+        uuid id PK
+        string isbn UK
+        string title
+        string author
+        string publisher
+        integer publication_year
+        string description
+        string cover_image_url
+        enum status
+        string shelf_location
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    BOOK_REQUESTS ||--|| DELIVERY_TASKS : creates
+    BOOK_REQUESTS {
+        uuid id PK
+        uuid user_id FK
+        uuid book_id FK
+        string request_location
+        enum status
+        timestamp requested_at
+        timestamp completed_at
+        string notes
+    }
+    
+    BOOK_RETURNS ||--|| DELIVERY_TASKS : creates
+    BOOK_RETURNS {
+        uuid id PK
+        uuid user_id FK
+        uuid book_id FK
+        string pickup_location
+        enum status
+        timestamp initiated_at
+        timestamp picked_up_at
+        timestamp completed_at
+    }
+    
+    DELIVERY_TASKS ||--o{ TASK_STATUS_HISTORY : has
+    DELIVERY_TASKS {
+        uuid id PK
+        uuid request_id FK
+        uuid return_id FK
+        enum task_type
+        enum priority
+        enum status
+        uuid assigned_robot_id FK
+        string source_location
+        string destination_location
+        timestamp created_at
+        timestamp started_at
+        timestamp completed_at
+        json metadata
+    }
+    
+    ROBOTS ||--o{ DELIVERY_TASKS : assigned
+    ROBOTS ||--o{ ROBOT_STATUS_LOGS : logs
+    ROBOTS {
+        uuid id PK
+        string robot_name UK
+        enum status
+        string current_location
+        float battery_level
+        json sensor_data
+        timestamp last_heartbeat
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    WAYPOINTS ||--o{ DELIVERY_TASKS : used_in
+    WAYPOINTS {
+        uuid id PK
+        string name UK
+        string location_code
+        float x_coordinate
+        float y_coordinate
+        float z_coordinate
+        json metadata
+        boolean is_active
+        timestamp created_at
+    }
+    
+    NOTIFICATIONS {
+        uuid id PK
+        uuid user_id FK
+        enum notification_type
+        string title
+        string message
+        json payload
+        boolean is_read
+        timestamp created_at
+        timestamp read_at
+    }
+    
+    AUDIT_LOGS {
+        uuid id PK
+        uuid user_id FK
+        string action
+        string resource_type
+        uuid resource_id
+        json changes
+        string ip_address
+        timestamp created_at
+    }
+```
+
+#### 5.1.2 Core Tables
+
+**Users Table**
+- Stores user accounts (students and librarians)
+- Supports role-based access control
+- Includes authentication and profile information
+
+**Books Table**
+- Library catalog with book metadata
+- Tracks availability status and shelf location
+- Supports search and discovery operations
+
+**Book Requests Table**
+- Student book delivery requests
+- Links users to requested books
+- Tracks request status and location
+
+**Book Returns Table**
+- Book return operations
+- Tracks return pickup and completion
+- Links to delivery tasks for automated pickup
+
+**Delivery Tasks Table**
+- All delivery operations (student delivery, returns, inter-staff, workstation, transfers)
+- Task queue management
+- Links to requests/returns and robots
+- Tracks task lifecycle and status
+
+**Robots Table**
+- TurtleBot 4 instances and status
+- Current location and health metrics
+- Battery and sensor data
+
+**Waypoints Table**
+- Navigation waypoints for robot navigation
+- Library location mapping
+- Coordinates and metadata for path planning
+
+**Notifications Table**
+- User notifications and alerts
+- Supports push notifications and in-app notifications
+- Tracks read status
+
+**Task Status History Table**
+- Historical record of task status changes
+- Audit trail for delivery operations
+- Supports analytics and debugging
+
+**Audit Logs Table**
+- System-wide audit trail
+- User actions and system changes
+- Security and compliance logging
+
+#### 5.1.3 Indexes
+
+**Performance Indexes:**
+- `users.email` - Unique index for authentication
+- `books.isbn` - Unique index for catalog lookups
+- `books.title`, `books.author` - Full-text search indexes
+- `book_requests.user_id`, `book_requests.status` - Query optimization
+- `delivery_tasks.status`, `delivery_tasks.priority` - Task queue queries
+- `robots.robot_name` - Robot lookup
+- `waypoints.location_code` - Navigation queries
+- `notifications.user_id`, `notifications.is_read` - User notification queries
+
+**Composite Indexes:**
+- `(book_requests.user_id, book_requests.status)` - User request queries
+- `(delivery_tasks.status, delivery_tasks.priority, delivery_tasks.created_at)` - Task queue ordering
+- `(notifications.user_id, notifications.is_read, notifications.created_at)` - Notification queries
+
 ### 5.2 Data Models
 
+This section defines the core data models and their relationships, representing the business entities in the LUNA system.
+
+#### 5.2.1 User Model
+
+```python
+class User(BaseModel):
+    id: UUID
+    email: str  # Unique
+    password_hash: str
+    first_name: str
+    last_name: str
+    role: UserRole  # STUDENT, LIBRARIAN, ADMIN
+    phone_number: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+    is_active: bool
+```
+
+**Relationships:**
+- One-to-Many with BookRequest
+- One-to-Many with BookReturn
+- One-to-Many with Notification
+- One-to-Many with AuditLog
+
+#### 5.2.2 Book Model
+
+```python
+class Book(BaseModel):
+    id: UUID
+    isbn: str  # Unique
+    title: str
+    author: str
+    publisher: Optional[str]
+    publication_year: Optional[int]
+    description: Optional[str]
+    cover_image_url: Optional[str]
+    status: BookStatus  # AVAILABLE, CHECKED_OUT, RESERVED, UNAVAILABLE
+    shelf_location: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+```
+
+**Relationships:**
+- One-to-Many with BookRequest
+- One-to-Many with BookReturn
+- One-to-Many with DeliveryTask
+
+#### 5.2.3 Book Request Model
+
+```python
+class BookRequest(BaseModel):
+    id: UUID
+    user_id: UUID  # Foreign Key to User
+    book_id: UUID  # Foreign Key to Book
+    request_location: str  # Student's location for delivery
+    status: RequestStatus  # PENDING, APPROVED, IN_PROGRESS, COMPLETED, CANCELLED
+    requested_at: datetime
+    completed_at: Optional[datetime]
+    notes: Optional[str]
+```
+
+**Relationships:**
+- Many-to-One with User
+- Many-to-One with Book
+- One-to-One with DeliveryTask
+
+#### 5.2.4 Book Return Model
+
+```python
+class BookReturn(BaseModel):
+    id: UUID
+    user_id: UUID  # Foreign Key to User
+    book_id: UUID  # Foreign Key to Book
+    pickup_location: str  # Student's location for pickup
+    status: ReturnStatus  # PENDING, PICKUP_SCHEDULED, PICKED_UP, COMPLETED, CANCELLED
+    initiated_at: datetime
+    picked_up_at: Optional[datetime]
+    completed_at: Optional[datetime]
+```
+
+**Relationships:**
+- Many-to-One with User
+- Many-to-One with Book
+- One-to-One with DeliveryTask
+
+#### 5.2.5 Delivery Task Model
+
+```python
+class DeliveryTask(BaseModel):
+    id: UUID
+    request_id: Optional[UUID]  # Foreign Key to BookRequest (if student delivery)
+    return_id: Optional[UUID]  # Foreign Key to BookReturn (if return pickup)
+    task_type: TaskType  # STUDENT_DELIVERY, RETURN_PICKUP, INTER_STAFF, WORKSTATION, TRANSFER
+    priority: TaskPriority  # LOW, NORMAL, HIGH, URGENT
+    status: TaskStatus  # PENDING, QUEUED, ASSIGNED, IN_PROGRESS, COMPLETED, FAILED, CANCELLED
+    assigned_robot_id: Optional[UUID]  # Foreign Key to Robot
+    source_location: str
+    destination_location: str
+    created_at: datetime
+    started_at: Optional[datetime]
+    completed_at: Optional[datetime]
+    metadata: dict  # JSON field for additional task data
+```
+
+**Relationships:**
+- Many-to-One with BookRequest (optional)
+- Many-to-One with BookReturn (optional)
+- Many-to-One with Robot
+- One-to-Many with TaskStatusHistory
+
+#### 5.2.6 Robot Model
+
+```python
+class Robot(BaseModel):
+    id: UUID
+    robot_name: str  # Unique
+    status: RobotStatus  # IDLE, BUSY, NAVIGATING, ERROR, MAINTENANCE
+    current_location: Optional[str]
+    battery_level: float  # 0.0 to 1.0
+    sensor_data: dict  # JSON field for sensor readings
+    last_heartbeat: datetime
+    created_at: datetime
+    updated_at: datetime
+```
+
+**Relationships:**
+- One-to-Many with DeliveryTask
+- One-to-Many with RobotStatusLog
+
+#### 5.2.7 Waypoint Model
+
+```python
+class Waypoint(BaseModel):
+    id: UUID
+    name: str  # Unique
+    location_code: str  # Unique location identifier
+    x_coordinate: float
+    y_coordinate: float
+    z_coordinate: float
+    metadata: dict  # JSON field for additional waypoint data
+    is_active: bool
+    created_at: datetime
+```
+
+**Relationships:**
+- Many-to-Many with DeliveryTask (via navigation paths)
+
+#### 5.2.8 Notification Model
+
+```python
+class Notification(BaseModel):
+    id: UUID
+    user_id: UUID  # Foreign Key to User
+    notification_type: NotificationType  # DELIVERY_UPDATE, REQUEST_STATUS, SYSTEM_ALERT, etc.
+    title: str
+    message: str
+    payload: dict  # JSON field for additional notification data
+    is_read: bool
+    created_at: datetime
+    read_at: Optional[datetime]
+```
+
+**Relationships:**
+- Many-to-One with User
+
 ### 5.3 Data Flow & Storage Patterns
+
+This section describes how data flows through the system and where different types of data are stored.
+
+#### 5.3.1 Data Storage Strategy
+
+**PostgreSQL (Primary Database):**
+- **Structured Data:** All persistent business entities (users, books, requests, tasks, robots)
+- **Transactional Data:** All operations requiring ACID guarantees
+- **Historical Data:** Audit logs, status history, delivery records
+- **Relationships:** Foreign keys and referential integrity
+- **Search Data:** Full-text search indexes for book catalog
+
+**Redis (Cache & Session Storage):**
+- **Session Data:** User sessions and authentication tokens
+- **Query Results:** Frequently accessed data (catalog search results, user profiles)
+- **Rate Limiting:** API rate limit counters
+- **Real-Time Data:** Temporary data for real-time features
+- **Task Queue:** Message queue for async task processing (if using Redis-based queue)
+
+#### 5.3.2 Data Flow Patterns
+
+**Read-Heavy Operations (Catalog Search):**
+1. Client requests book search
+2. Check Redis cache for search results
+3. If cache miss, query PostgreSQL with full-text search
+4. Store results in Redis cache (TTL: 5-15 minutes)
+5. Return results to client
+
+**Write Operations (Request Creation):**
+1. Client creates book request
+2. Validate request (check book availability, user permissions)
+3. Begin database transaction
+4. Create BookRequest record in PostgreSQL
+5. Create DeliveryTask record in PostgreSQL
+6. Update Book status to RESERVED
+7. Commit transaction
+8. Publish event to message queue
+9. Invalidate relevant cache entries
+10. Return response to client
+
+**Real-Time Updates (Delivery Status):**
+1. Robot Service updates task status
+2. Update DeliveryTask in PostgreSQL
+3. Create TaskStatusHistory record
+4. Publish status update event to message queue
+5. Notification Service consumes event
+6. Update notification in PostgreSQL
+7. Broadcast via WebSocket to connected clients
+8. Update Redis cache if applicable
+
+**Async Task Processing (Delivery Execution):**
+1. Delivery Service creates task and publishes to message queue
+2. Message queue stores task (persistent storage)
+3. Robot Service worker consumes task from queue
+4. Robot Service updates task status to ASSIGNED in PostgreSQL
+5. Robot Service sends command to Robot Integration Layer
+6. Robot executes navigation
+7. Status updates flow back through system (PostgreSQL → Message Queue → WebSocket)
+
+#### 5.3.3 Caching Strategy
+
+**Cache Layers:**
+1. **Application-Level Cache (Redis):**
+   - Catalog search results (TTL: 15 minutes)
+   - User profile data (TTL: 30 minutes)
+   - Book details (TTL: 10 minutes)
+   - Robot status (TTL: 5 seconds - frequently updated)
+
+2. **Cache Invalidation:**
+   - **On Write:** Invalidate related cache entries when data is modified
+   - **On Create:** Invalidate search/index caches
+   - **On Update:** Invalidate specific item cache and related indexes
+   - **On Delete:** Invalidate item cache and search indexes
+
+3. **Cache Keys:**
+   - `book:{book_id}` - Individual book data
+   - `search:{query_hash}` - Search result cache
+   - `user:{user_id}` - User profile cache
+   - `robot:{robot_id}:status` - Robot status cache
+   - `session:{session_id}` - User session data
+
+#### 5.3.4 Data Consistency Patterns
+
+**Strong Consistency (PostgreSQL):**
+- User authentication and authorization
+- Book availability updates
+- Financial/transactional operations
+- Critical status updates
+
+**Eventual Consistency (Message Queue + Cache):**
+- Real-time status updates
+- Notification delivery
+- Search index updates
+- Analytics data aggregation
+
+**Transaction Management:**
+- **ACID Transactions:** Used for multi-step operations (request creation, status updates)
+- **Optimistic Locking:** For concurrent updates (book availability, task assignment)
+- **Pessimistic Locking:** For critical operations (robot assignment, inventory updates)
+
+#### 5.3.5 Data Retention & Archival
+
+**Active Data:**
+- Current requests, active tasks, recent notifications (retained indefinitely)
+- User accounts (retained while active)
+- Book catalog (retained indefinitely)
+
+**Historical Data:**
+- Completed delivery tasks (retained for 2 years)
+- Audit logs (retained for 7 years for compliance)
+- Task status history (retained for 1 year)
+- Notification history (retained for 90 days)
+
+**Archival Strategy:**
+- Move old data to archive tables/partitions
+- Compress historical data
+- Maintain referential integrity for reporting
 
 ---
 
