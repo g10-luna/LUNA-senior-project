@@ -3,6 +3,59 @@
 
 ---
 
+## Table of Contents
+
+1. [System Overview & Goals](#1-system-overview--goals)
+   - 1.1 [System Purpose](#11-system-purpose)
+   - 1.2 [Problem Statement](#12-problem-statement)
+   - 1.3 [System Goals & Objectives](#13-system-goals--objectives)
+   - 1.4 [System Scope](#14-system-scope)
+   - 1.5 [High-Level System Description](#15-high-level-system-description)
+   - 1.6 [Target Users & Stakeholders](#16-target-users--stakeholders)
+
+2. [Requirements](#2-requirements)
+   - 2.1 [High-Level Functional Requirements](#21-high-level-functional-requirements)
+   - 2.2 [High-Level Non-Functional Requirements](#22-high-level-non-functional-requirements)
+
+3. [Architecture Diagrams](#3-architecture-diagrams)
+   - 3.1 [High-Level System Architecture](#31-high-level-system-architecture)
+     - 3.1.1 [Mobile Application Architecture](#311-mobile-application-architecture)
+     - 3.1.2 [Web Dashboard Architecture](#312-web-dashboard-architecture)
+     - 3.1.3 [Robot System Architecture](#313-robot-system-architecture)
+     - 3.1.4 [Backend Services Architecture](#314-backend-services-architecture)
+   - 3.2 [Component Architecture](#32-component-architecture)
+   - 3.3 [Data Flow Diagrams](#33-data-flow-diagrams)
+     - 3.3.1 [Student Book Request Flow](#331-student-book-request-flow)
+     - 3.3.2 [Book Return Pickup Flow](#332-book-return-pickup-flow)
+     - 3.3.3 [Inter-Staff Delivery Flow](#333-inter-staff-delivery-flow)
+     - 3.3.4 [Catalog Management Flow](#334-catalog-management-flow)
+     - 3.3.5 [Robot Status Monitoring Flow](#335-robot-status-monitoring-flow)
+   - 3.4 [User Workflow Diagrams](#34-user-workflow-diagrams)
+     - 3.4.1 [Student Book Request Workflow](#341-student-book-request-workflow)
+     - 3.4.2 [Student Book Return Workflow](#342-student-book-return-workflow)
+     - 3.4.3 [Librarian Catalog Management Workflow](#343-librarian-catalog-management-workflow)
+     - 3.4.4 [Librarian Delivery Management Workflow](#344-librarian-delivery-management-workflow)
+     - 3.4.5 [Librarian Robot Monitoring Workflow](#345-librarian-robot-monitoring-workflow)
+     - 3.4.6 [Complete Student Journey Workflow](#346-complete-student-journey-workflow)
+
+4. [Component Design](#4-component-design)
+   - 4.1 [Services/Modules](#41-servicesmodules)
+   - 4.2 [Interfaces & Contracts](#42-interfaces--contracts)
+   - 4.3 [Technology Choices & Rationale](#43-technology-choices--rationale)
+
+5. [Data Design](#5-data-design)
+   - 5.1 [Database Schema](#51-database-schema)
+   - 5.2 [Data Models](#52-data-models)
+   - 5.3 [Data Flow & Storage Patterns](#53-data-flow--storage-patterns)
+
+6. [API Design](#6-api-design)
+   - 6.1 [Endpoints & Contracts](#61-endpoints--contracts)
+   - 6.2 [Request/Response Formats](#62-requestresponse-formats)
+   - 6.3 [Authentication/Authorization](#63-authenticationauthorization)
+   - 6.4 [API Versioning Strategy](#64-api-versioning-strategy)
+
+---
+
 ## 1. System Overview & Goals
 
 ### 1.1 System Purpose
