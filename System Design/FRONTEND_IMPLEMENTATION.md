@@ -91,6 +91,30 @@ Provide librarians with an intuitive interface to:
 - HTML  
 - CSS  
 
+### Authentication 
+
+Login flow
+
+   - Librarian submits credentials on Login screen.
+   - Frontend calls POST /auth/login via the API gateway (Nginx).
+   - On success, backend returns an access token (JWT).
+
+Token storage
+
+   - Store the token in memory (app state) for the session.
+   - Optionally mirror it in sessionStorage to persist across refreshes (avoid localStorage if possible).
+   
+Sending token on API calls
+   
+   - Use a single API client (fetch/axios wrapper) that attaches:
+      - Authorization: Bearer <token> to every request after login.
+
+401 handling (expired/invalid token)
+
+   - If any API call returns 401 Unauthorized:
+      - Clear token from storage
+      - Redirect to Login
+      - Show a small message like: “Session expired — please log in again.”
 ---
 
 ### Structure Philosophy
