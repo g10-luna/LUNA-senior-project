@@ -1,0 +1,489 @@
+# Frontend – Implementation Design Document
+This document describes the **implementation plan** for the LUNA Librarian Web Dashboard frontend. It derives from and must stay aligned with the [System Design Document](SYSTEM_DESIGN.md), specifically:
+
+- **Section 3: Architecture Diagrams** (system architecture, component boundaries, and data flow relevant to frontend integration)
+- **Section 4: Component Design** (services, interfaces, technology choices)
+- **Section 5: Data Design** (data models and state structures used by the UI)
+- **Section 6: API Design** (frontend integration endpoints, request/response formats, authentication, and versioning)
+
+---
+## Table of Contents
+
+1. [Overview](#1-overview)
+   - [Purpose](#purpose)
+   - [Goal of the Frontend](#goal-of-the-frontend)
+   - [Librarian Interface Goals](#librarian-interface-goals)
+
+2. [High-Level Architecture](#2-high-level-architecture)
+   - [Frontend Stack](#frontend-stack)
+   - [Structure Philosophy](#structure-philosophy)
+      - [App Shell](#app-shell-top-bar)
+      - [Screens](#screens)
+      - [Reusable UI Components](#reusable-ui-components)
+   - [Architectural Principles](#architectural-principles)
+  
+3. [Project Folder Structure](#3-project-folder-structure)
+   - [Responsibilities](#responsibilities)
+     
+4. [Page Breakdown](#4-page-breakdown)
+   - [Dashboard](#dashboard)
+   - [Library Catalog](#library-catalog)
+   - [Robot Maintenance](#robot-maintenance)
+   - [Library Map](#library-map)
+   - [Options Menu](#options-menu)
+   - [Account Settings](#account-settings)
+
+5. [Key User Flows](#5-key-user-flows)
+   - [Assign and Monitor a Robot Task](#assign-and-monitor-a-robot-task)
+   - [Update Book Availability](#update-book-availability)
+   - [Review Maintenance Diagnostics](#review-maintenance-diagnostics)
+   - [Locate Robot on Library Map](#locate-robot-on-library-map)
+   
+6. [Component Design](#6-component-design)
+   - [Core Shared UI](#core-shared-ui)
+   - [Librarian Components](#librarian-components)
+     
+7. [Work Division Plan](#7-work-division-plan)
+   - [Najaat – System Owner](#najaat--system-owner)
+   - [Kelynn – Screen Owner](#kelynn--screen-owner)
+
+8. [Data Strategy](#8-data-strategy)
+
+9. [UX & Design Guidelines](#9-ux--design-guidelines)
+
+10. [Risk & Technical Considerations](#10-risk--technical-considerations)
+   - [Potential Risks](#potential-risks)
+      - [Mitigation](#mitigation)
+ 
+---
+
+## 1. Overview
+
+### Purpose
+This document outlines how the librarian website frontend will be implemented, including structure, responsibilities, and page organization. 
+
+### Goal of the Frontend
+
+To provide a librarian web dashboard for operational control, catalog management, and real-time system monitoring:
+
+#### Librarian Interface Goals
+Provide librarians with an intuitive interface to:
+
+- Monitor robot system status and current task  
+- Manage task queue (add, reorder, pause/cancel)  
+- Review alerts, recent activity, and daily summary  
+- Manage library catalog (availability, shelf location, add/delete)  
+- Access maintenance diagnostics and logs  
+- Use library map to view robot position  
+- Manage account settings and notifications  
+- Navigate everything via a menu screen  
+
+---
+
+## 2. High-Level Architecture
+
+<img width="869" height="530" alt="Screenshot 2026-02-19 at 12 03 42 AM" src="https://github.com/user-attachments/assets/1822c339-2679-4f56-bef5-47d58e074306" />
+
+### Frontend Stack
+
+- React  
+- TypeScript  
+- HTML  
+- CSS  
+
+### Authentication 
+
+Login flow
+
+   - Librarian submits credentials on Login screen.
+   - Frontend calls POST /auth/login via the API gateway (Nginx).
+   - On success, backend returns an access token (JWT).
+
+Token storage
+
+   - Store the token in memory (app state) for the session.
+   - Optionally mirror it in sessionStorage to persist across refreshes (avoid localStorage if possible).
+   
+Sending token on API calls
+   
+   - Use a single API client (fetch/axios wrapper) that attaches:
+      - Authorization: Bearer <token> to every request after login.
+
+401 handling (expired/invalid token)
+
+   - If any API call returns 401 Unauthorized:
+      - Clear token from storage
+      - Redirect to Login
+      - Show a small message like: “Session expired — please log in again.”
+---
+
+### Structure Philosophy
+
+The librarian website follows a structured layout built around a centralized application shell.
+
+#### App Shell (Top Bar)
+- Back-to-dashboard button (contextual navigation)  
+- Dynamic page title  
+- Utility icons (Menu, Notifications, Refresh)  
+
+#### Screens
+- Dashboard  
+- Library Catalog  
+- Robot Maintenance  
+- Library Map  
+- Account Settings  
+- Options Menu  
+
+#### Reusable UI Components
+- Cards (section containers, summary panels)  
+- Status indicators and progress bars  
+- Tabs and filters  
+- Primary and secondary buttons  
+- Search inputs  
+
+This structure separates layout, screen logic, and reusable components to ensure maintainability and scalability.
+
+---
+
+### Architectural Principles
+
+This design ensures:
+
+- **Consistency** – Shared components create a unified visual system.  
+- **Reusability** – UI elements are built once and reused across screens.  
+- **Scalability** – Additional pages or features can be added without restructuring the application shell.  
+
+---
+
+## 3. Project Folder Structure
+The Librarian Web Dashboard frontend lives in the repository under:
+
+/web-dashboard
+
+
+This separation ensures clear boundaries between:
+- Frontend (UI layer)
+- Backend services
+- Robot system components
+
+
+### Folder Structure
+      /src
+      
+         /screens (Dashboard, Catalog, Maintenance, Map, AccountSettings, OptionsMenu)
+         
+         /components
+         
+            /ui (Button, Card, Badge, Tabs, SearchBar, ProgressBar, IconButton)
+            
+            /domain
+            
+               /tasks (TaskQueueItem, CurrentTaskCard, RecentActivityList)
+               
+               /catalog (BookListItem, AvailabilityPill)
+               
+               /maintenance (HealthMetricRow, LogItem)
+               
+               /map (MapLegend, RobotMarker)
+            
+               /layouts (TopBarLayout)
+            
+         /lib (mock data, types, api helpers)
+         
+### lib/ Evolution Strategy
+
+During early development, the `lib/` directory will contain:
+
+- Mock data objects
+- TypeScript data types
+- Local state utilities
+
+As backend services become available, `lib/` will transition to include:
+
+- API helper functions (e.g., `apiClient.ts`)
+- Centralized request configuration (headers, auth token handling)
+- Response mapping utilities
+
+This staged approach allows frontend development to proceed independently while maintaining a clear migration path to live API integration.
+
+### Responsibilities
+
+- `components/` → reusable UI pieces  
+- `screens/` → full screen views  
+- `layouts/` → dashboard shell  
+- `lib/` → data handling  
+
+---
+
+## 4. Page Breakdown
+
+### Dashboard
+
+**Purpose:** Operational control panel  
+
+**Features:**
+- System Status card (battery, status pill, location)  
+- Current Task card (task type, from→to, ETA, progress, controls)  
+- Task Queue (list, add, reorder)  
+- Alerts/Warnings (empty state + severity)  
+- Today’s Summary (tasks completed, books delivered)  
+- Recent Activity (status tags)  
+- Quick Links (Maintenance, Catalog, Map)  
+
+---
+
+### Library Catalog
+
+**Purpose:** Inventory management  
+
+**Features:**
+- Search (title, author, ISBN)  
+- Book list items (cover, metadata, copies, shelf location)  
+- Availability pill  
+- Actions (Mark Available/Unavailable, Delete)  
+- Add Book button  
+
+---
+
+### Robot Maintenance
+
+**Purpose:** Diagnostics view  
+
+**Features:**
+- Operational Status  
+- System Health (CPU, memory, temperature, navigation accuracy)  
+- Sensor Status (expand/collapse)  
+- Maintenance Schedule  
+- Maintenance Logs with filters  
+
+---
+
+### Library Map
+
+**Purpose:** Spatial awareness  
+
+**Features:**
+- Search shelf/section  
+- Robot marker  
+- Legend (Active/Paused/Error + Charging Dock)  
+
+---
+
+### Options Menu
+
+**Purpose:** Navigation hub  
+
+**Features:**
+- Search pages/actions  
+- Menu cards:
+  - Dashboard  
+  - Library Catalog  
+  - Library Map  
+  - Robot Maintenance  
+  - Account Settings  
+
+---
+
+### Account Settings
+
+**Purpose:** Account + notifications  
+
+**Features:**
+- Profile Information  
+- Security Settings  
+- Notification Preferences  
+- Permissions & Access  
+- Account Actions
+  
+<img width="644" height="527" alt="Screenshot 2026-02-19 at 12 12 45 AM" src="https://github.com/user-attachments/assets/a32a9e0a-25ff-4def-87a1-9fe322dd83c7" />
+
+---
+
+
+## 5. Key User Flows
+
+### Assign and Monitor a Robot Task
+
+**Goal:** Create and supervise a robot delivery task.
+
+**Flow:**
+1. Open Dashboard  
+2. Click “Assign Task”  
+3. Select book/location  
+4. Confirm pickup and drop-off  
+5. Task appears in CurrentTaskCard or TaskQueue  
+6. Monitor progress and status  
+7. Upon completion → moves to Recent Activity  
+
+**System Interaction:**  
+Task created → Robot state updates → Dashboard reflects changes.
+
+---
+
+### Update Book Availability
+
+**Goal:** Mark book available/unavailable.
+
+**Flow:**
+1. Open Library Catalog  
+2. Search/select book  
+3. Click Mark Available/Unavailable  
+4. Availability updates immediately  
+
+---
+
+### Review Maintenance Diagnostics
+
+**Goal:** Inspect system health.
+
+**Flow:**
+1. Open Robot Maintenance  
+2. Review metrics and logs  
+3. Filter logs  
+4. Return to Dashboard if needed  
+
+---
+
+### Locate Robot on Library Map
+
+**Goal:** Track robot visually.
+
+**Flow:**
+1. Open Library Map  
+2. View RobotMarker  
+3. Optionally assign task  
+4. Return to Dashboard  
+
+---
+
+## 6. Component Design
+
+### Core Shared UI
+
+- TopBar  
+- StatusPill  
+- ProgressBar  
+- Card / SectionCard  
+- IconButton  
+- SearchBar  
+- TabFilter  
+- ListItemRow  
+- PrimaryActionButton  
+
+### Librarian Components
+
+- CurrentTaskCard  
+- TaskQueueList / TaskQueueItem  
+- AlertsPanel  
+- SummaryCard  
+- ActivityLogList / ActivityLogItem  
+- CatalogBookRow  
+- HealthMetricRow  
+- MaintenanceLogItem  
+- MapLegend / RobotMarker  
+
+---
+
+## 7. Work Division Plan
+
+### Najaat – System Owner
+- Layout + routing  
+- Shared UI components  
+- Styling system  
+- Mock data + types  
+
+### Kelynn – Screen Owner
+- Dashboard  
+- Catalog  
+- Maintenance  
+- Map  
+- Options Menu + Account Settings  
+
+---
+
+## 8. Data Strategy
+
+During development:
+- Use mock data  
+- Maintain consistent data shapes  
+- Replace with backend APIs later
+   
+### Mock Data Alignment Strategy
+
+Mock data structures are intentionally designed to match the API response shapes defined in the System Design Document and backend implementation.
+
+Specifically:
+
+- Task types will align with backend-defined delivery categories  
+- Status enums will mirror backend state values  
+- Field naming conventions will follow API contracts  
+- Response structures will reflect expected request/response formats  
+
+This alignment ensures that transitioning from mock data to live API integration requires minimal refactoring.
+
+---
+
+RobotStatus {
+  state: "Idle" | "Active" | "Paused" | "Error"
+  batteryPercent: number
+  locationLabel: string
+}
+
+Task {
+  id: string
+  type: "Student Request" | "Return Pickup" | "Other"
+  from: string
+  to: string
+  eta?: string
+  progress?: number
+  status: "Queued" | "Active" | "Complete" | "Cancelled" | "Failed"
+}
+
+MaintenanceMetric {
+  cpuPercent: number
+  memoryPercent: number
+  tempC: number
+  navAccuracyPercent: number
+  health: "Good" | "Warning" | "Critical"
+}
+
+CatalogBook {
+  id: string
+  title: string
+  author: string
+  isbn: string
+  shelf: string
+  availableCopies: number
+  totalCopies: number
+  availability: "Available" | "Unavailable"
+}
+
+---
+## 9. UX & Design Guidelines
+- Status-first hierarchy: System Status always at the top of operational pages
+- Read-only by default on Maintenance + Account screens
+- Primary action per screen:
+    - Dashboard → Manage task (Pause/Cancel/Reroute)
+    - Catalog → Add/Update availability
+    - Map → Assign task
+- Consistent empty states (“No alerts”, “No logs”)
+- Consistent severity colors (green: good, orange: warning, red: error)
+
+---
+## 10. Risk & Technical Considerations 
+### Potential Risks:
+- Map accuracy mismatch (static map vs real layout)
+- Task state inconsistencies across Dashboard/Map/Maintenance
+- Overloaded dashboard if too many metrics creep in
+- Role permissions (admin vs librarian) not enforced in UI
+### Mitigation:
+- **Map Synchronization**
+  Waypoints and robot position will be provided by the backend services to ensure the frontend map reflects authoritative system state. The frontend will render robot markers and status based solely on backend-provided coordinates and state values to prevent desynchronization.
+- **Centralized State Alignment**
+  A single source of truth for robot and task state will be maintained (mock store during development, API integration later).
+- **Enum & Status Alignment**
+  Task types and status values will match backend-defined enums to avoid integration drift.
+- **Role-Based Access Alignment**
+  UI-level permission guards will align with the role definitions in the System Design Document (Section 6.3.3 – Authentication/Authorization). Frontend access controls will reflect the same STUDENT, LIBRARIAN, and ADMIN permissions enforced at the API level.
+- **Maintenance Safety**
+  Maintenance views will remain diagnostic-only to prevent unintended destructive actions from the UI.
