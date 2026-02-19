@@ -52,7 +52,7 @@
 ## 1. Overview
 
 ### Purpose
-This document outlines how the librarian website frontend and student application will be implemented, including structure, responsibilities, and page organization.
+This document outlines how the librarian website frontend will be implemented, including structure, responsibilities, and page organization. The web dashboard will provide librarians with operational control, catalog management, and real-time system monitoring.
 
 ### Goal of the Frontend
 
