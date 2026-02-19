@@ -82,7 +82,7 @@ Provide librarians with an intuitive interface to:
 
 ## 2. High-Level Architecture
 
-<img width="791" height="280" alt="Screenshot 2026-02-18 at 11 25 02 PM" src="https://github.com/user-attachments/assets/0c03d8a3-429c-4a69-8be7-bc0e7550d76e" />
+<img width="869" height="530" alt="Screenshot 2026-02-19 at 12 03 42 AM" src="https://github.com/user-attachments/assets/1822c339-2679-4f56-bef5-47d58e074306" />
 
 ### Frontend Stack
 
@@ -295,9 +295,10 @@ This staged approach allows frontend development to proceed independently while 
 - Permissions & Access  
 - Account Actions
   
-<img width="706" height="134" alt="Screenshot 2026-02-18 at 11 25 33 PM" src="https://github.com/user-attachments/assets/3d93c5eb-a6cf-4174-b2b2-f9612ba9a177" />
+<img width="644" height="527" alt="Screenshot 2026-02-19 at 12 12 45 AM" src="https://github.com/user-attachments/assets/a32a9e0a-25ff-4def-87a1-9fe322dd83c7" />
 
 ---
+
 
 ## 5. Key User Flows
 
