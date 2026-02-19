@@ -78,7 +78,6 @@ Provide librarians with an intuitive interface to:
 
 - React  
 - TypeScript  
-- JavaScript  
 - HTML  
 - CSS  
 
