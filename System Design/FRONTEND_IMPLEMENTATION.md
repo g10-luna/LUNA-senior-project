@@ -52,11 +52,11 @@
 ## 1. Overview
 
 ### Purpose
-This document outlines how the librarian website frontend will be implemented, including structure, responsibilities, and page organization. The web dashboard will provide librarians with operational control, catalog management, and real-time system monitoring.
+This document outlines how the librarian website frontend will be implemented, including structure, responsibilities, and page organization. 
 
 ### Goal of the Frontend
 
-To provide two coordinated interfaces:
+To provide a librarian web dashboard for operational control, catalog management, and real-time system monitoring:
 
 #### Librarian Interface Goals
 Provide librarians with an intuitive interface to:
