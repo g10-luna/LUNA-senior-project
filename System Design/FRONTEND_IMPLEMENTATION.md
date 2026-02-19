@@ -1,5 +1,5 @@
 # Frontend – Implementation Design Document
-This document describes the **implementation plan** for the LUNA Librarian Web Dashboard frontend. (Docker Compose). It derives from and must stay aligned with the [System Design Document](SYSTEM_DESIGN.md), specifically:
+This document describes the **implementation plan** for the LUNA Librarian Web Dashboard frontend. It derives from and must stay aligned with the [System Design Document](SYSTEM_DESIGN.md), specifically:
 
 - **Section 3: Architecture Diagrams** (system architecture, component boundaries, and data flow relevant to frontend integration)
 - **Section 4: Component Design** (services, interfaces, technology choices)
