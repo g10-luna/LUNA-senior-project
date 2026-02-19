@@ -1,8 +1,14 @@
 # Frontend – Implementation Design Document
 ## Table of Contents
 
-1. [Overview](#1-Overview)
+1. [Overview](#1-overview)
+   - [Purpose](#purpose)
+   - [Goal of the Frontend](#goal-of-the-frontend)
+   - [Librarian Interface Goals](#librarian-interface-goals)
 
+2. [High-Level Architecture](#2-high-level-architecture)
+   - [Frontend Stack](#frontend-stack)
+   - [Structure Philosophy](#structure-philosophy)
 ---
 
 ## 1. Overview
