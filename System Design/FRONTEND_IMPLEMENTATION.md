@@ -9,6 +9,44 @@
 2. [High-Level Architecture](#2-high-level-architecture)
    - [Frontend Stack](#frontend-stack)
    - [Structure Philosophy](#structure-philosophy)
+      - [App Shell](#app-shell-top-bar)
+      - [Screens](#screens)
+      - [Reusable UI Components](#reusable-ui-components)
+   - [Architectural Principles](#architectural-principles)
+  
+3. [Project Folder Structure](#3-project-folder-structure)
+   - [Responsibilities](#responsibilities)
+     
+4. [Page Breakdown](#4-page-breakdown)
+   - [Dashboard](#dashboard)
+   - [Library Catalog](#library-catalog)
+   - [Robot Maintenance](#robot-maintenance)
+   - [Library Map](#library-map)
+   - [Options Menu](#options-menu)
+   - [Account Settings](#account-settings)
+
+5. [Key User Flows](#5-key-user-flows)
+   - [Assign and Monitor a Robot Task](#assign-and-monitor-a-robot-task)
+   - [Update Book Availability](#update-book-availability)
+   - [Review Maintenance Diagnostics](#review-maintenance-diagnostics)
+   - [Locate Robot on Library Map](#locate-robot-on-library-map)
+   
+6. [Component Design](#6-component-design)
+   - [Core Shared UI](#core-shared-ui)
+   - [Librarian Components](#librarian-components)
+     
+7. [Work Division Plan](#7-work-division-plan)
+   - [Najaat – System Owner](#najaat--system-owner)
+   - [Kelynn – Screen Owner](#kelynn--screen-owner)
+
+8. [Data Strategy](#8-data-strategy)
+
+9. [UX & Design Guidelines](#9-ux--design-guidelines)
+
+10. [Risk & Technical Considerations](#10-risk--technical-considerations)
+   - [Potential Risks](#potential-risks)
+      - [Mitigation](#mitigation)
+ 
 ---
 
 ## 1. Overview
@@ -110,7 +148,7 @@ This design ensures:
 
 ## 4. Page Breakdown
 
-### 4.1 Dashboard
+### Dashboard
 
 **Purpose:** Operational control panel  
 
@@ -125,7 +163,7 @@ This design ensures:
 
 ---
 
-### 4.2 Library Catalog
+### Library Catalog
 
 **Purpose:** Inventory management  
 
@@ -138,7 +176,7 @@ This design ensures:
 
 ---
 
-### 4.3 Robot Maintenance
+### Robot Maintenance
 
 **Purpose:** Diagnostics view  
 
@@ -151,7 +189,7 @@ This design ensures:
 
 ---
 
-### 4.4 Library Map
+### Library Map
 
 **Purpose:** Spatial awareness  
 
@@ -162,7 +200,7 @@ This design ensures:
 
 ---
 
-### 4.5 Options Menu
+### Options Menu
 
 **Purpose:** Navigation hub  
 
@@ -177,7 +215,7 @@ This design ensures:
 
 ---
 
-### 4.6 Account Settings
+### Account Settings
 
 **Purpose:** Account + notifications  
 
@@ -352,7 +390,7 @@ CatalogBook {
 - Task state inconsistencies across Dashboard/Map/Maintenance
 - Overloaded dashboard if too many metrics creep in
 - Role permissions (admin vs librarian) not enforced in UI
-**Mitigation:**
+### Mitigation:
 - Single source of truth for robot/task state (mock store now, API later)
 - Define status enums + badge rules centrally
 - Keep Maintenance strictly diagnostic (no destructive actions)
