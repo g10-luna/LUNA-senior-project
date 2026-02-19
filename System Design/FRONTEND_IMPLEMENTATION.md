@@ -1,4 +1,12 @@
 # Frontend – Implementation Design Document
+This document describes the **implementation plan** for the LUNA Librarian Web Dashboard frontend. (Docker Compose). It derives from and must stay aligned with the [System Design Document](SYSTEM_DESIGN.md), specifically:
+
+- **Section 3: Architecture Diagrams** (system architecture, component boundaries, and data flow relevant to frontend integration)
+- **Section 4: Component Design** (services, interfaces, technology choices)
+- **Section 5: Data Design** (data models and state structures used by the UI)
+- **Section 6: API Design** (frontend integration endpoints, request/response formats, authentication, and versioning)
+
+---
 ## Table of Contents
 
 1. [Overview](#1-overview)
@@ -122,19 +130,55 @@ This design ensures:
 ---
 
 ## 3. Project Folder Structure
+The Librarian Web Dashboard frontend lives in the repository under:
 
-/src
-/screens (Dashboard, Catalog, Maintenance, Map, AccountSettings, OptionsMenu)
-/components
-/ui (Button, Card, Badge, Tabs, SearchBar, ProgressBar, IconButton)
-/domain
-/tasks (TaskQueueItem, CurrentTaskCard, RecentActivityList)
-/catalog (BookListItem, AvailabilityPill)
-/maintenance (HealthMetricRow, LogItem)
-/map (MapLegend, RobotMarker)
-/layouts (TopBarLayout)
-/lib (mock data, types, api helpers)
+/web-dashboard
 
+
+This separation ensures clear boundaries between:
+- Frontend (UI layer)
+- Backend services
+- Robot system components
+
+
+### Folder Structure
+      /src
+      
+         /screens (Dashboard, Catalog, Maintenance, Map, AccountSettings, OptionsMenu)
+         
+         /components
+         
+            /ui (Button, Card, Badge, Tabs, SearchBar, ProgressBar, IconButton)
+            
+            /domain
+            
+               /tasks (TaskQueueItem, CurrentTaskCard, RecentActivityList)
+               
+               /catalog (BookListItem, AvailabilityPill)
+               
+               /maintenance (HealthMetricRow, LogItem)
+               
+               /map (MapLegend, RobotMarker)
+            
+               /layouts (TopBarLayout)
+            
+         /lib (mock data, types, api helpers)
+         
+### lib/ Evolution Strategy
+
+During early development, the `lib/` directory will contain:
+
+- Mock data objects
+- TypeScript data types
+- Local state utilities
+
+As backend services become available, `lib/` will transition to include:
+
+- API helper functions (e.g., `apiClient.ts`)
+- Centralized request configuration (headers, auth token handling)
+- Response mapping utilities
+
+This staged approach allows frontend development to proceed independently while maintaining a clear migration path to live API integration.
 
 ### Responsibilities
 
@@ -333,8 +377,22 @@ Task created → Robot state updates → Dashboard reflects changes.
 During development:
 - Use mock data  
 - Maintain consistent data shapes  
-- Replace with backend APIs later  
+- Replace with backend APIs later
+   
+### Mock Data Alignment Strategy
 
+Mock data structures are intentionally designed to match the API response shapes defined in the System Design Document and backend implementation.
+
+Specifically:
+
+- Task types will align with backend-defined delivery categories  
+- Status enums will mirror backend state values  
+- Field naming conventions will follow API contracts  
+- Response structures will reflect expected request/response formats  
+
+This alignment ensures that transitioning from mock data to live API integration requires minimal refactoring.
+
+---
 
 RobotStatus {
   state: "Idle" | "Active" | "Paused" | "Error"
@@ -390,7 +448,13 @@ CatalogBook {
 - Overloaded dashboard if too many metrics creep in
 - Role permissions (admin vs librarian) not enforced in UI
 ### Mitigation:
-- Single source of truth for robot/task state (mock store now, API later)
-- Define status enums + badge rules centrally
-- Keep Maintenance strictly diagnostic (no destructive actions)
-- Guard admin-only actions in UI (disable/hide)
+- **Map Synchronization**
+  Waypoints and robot position will be provided by the backend services to ensure the frontend map reflects authoritative system state. The frontend will render robot markers and status based solely on backend-provided coordinates and state values to prevent desynchronization.
+- **Centralized State Alignment**
+  A single source of truth for robot and task state will be maintained (mock store during development, API integration later).
+- **Enum & Status Alignment**
+  Task types and status values will match backend-defined enums to avoid integration drift.
+- **Role-Based Access Alignment**
+  UI-level permission guards will align with the role definitions in the System Design Document (Section 6.3.3 – Authentication/Authorization). Frontend access controls will reflect the same STUDENT, LIBRARIAN, and ADMIN permissions enforced at the API level.
+- **Maintenance Safety**
+  Maintenance views will remain diagnostic-only to prevent unintended destructive actions from the UI.
