@@ -186,7 +186,7 @@ This separation ensures clear boundaries between:
                
                /map (MapLegend, RobotMarker)
             
-               /layouts (TopBarLayout)
+         /layouts (TopBarLayout)
             
          /lib (mock data, types, api helpers)
          
