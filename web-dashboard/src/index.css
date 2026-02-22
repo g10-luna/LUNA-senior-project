@@ -1,0 +1,109 @@
+/* src/index.css */
+
+/* 1) CSS variables and global font settings */
+:root {
+  /* Brand Colors */
+  --navy: #184468;
+  --navy-light: #5181A8;
+  --blue-accent: #009DFF;
+  --green: #34C759;
+  --red: #BF3133;
+
+  /* Surfaces */
+  --bg: #184468;          /* main app background */
+  --surface: #F5F5F5;    /* card background */
+  --surface-soft: #F5F5F5aa; /* card background with 66% opacity */
+
+  /* Text */
+  --text-dark: #184468;
+  --text-light: #F5F5F5;
+  --text-muted: #5181A8;
+
+  /* Borders */
+  --border: #5181A8;
+
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* 2) Global page defaults */
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text-dark);
+}
+
+/* 3) Typography defaults */
+h1, h2, h3 {
+  margin: 0 0 12px 0;
+}
+p {
+  margin: 0 0 12px 0;
+  color: var(--muted);
+}
+
+/* 4) Links */
+a {
+  color: var(--text-light);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--text-muted);
+  text-decoration: underline;
+}
+
+/* 5) Buttons*/
+button {
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  background: var(--bg);
+  color: var(--text-light);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, transform 0.02s;
+}
+button:hover {
+  border-color: #5181A8;
+  background: #184468aa;
+}
+button:active {
+  transform: translateY(1px);
+}
+button:focus,
+button:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.25);
+  outline-offset: 2px;
+}
+
+.card {
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+  border: 1px solid var(--border);
+}
+
+.section-title {
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--text-dark);
+}
+
+.status-green {
+  color: var(--green);
+  font-weight: 600;
+}
+.placeholder-text {
+  color: var(--text-light);
+  font-weight: 500;
+}
