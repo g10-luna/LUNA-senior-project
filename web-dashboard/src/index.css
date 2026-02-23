@@ -85,6 +85,43 @@ button:focus-visible {
   outline-offset: 2px;
 }
 
+/* <button> inside cards */
+.card button {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-dark);
+  transition: background-color 150ms ease, transform 80ms ease, box-shadow 150ms ease;
+}
+
+.card button:hover {
+  background: var(--navy);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.10);
+}
+
+.card button:active {
+  transform: translateY(1px);
+}
+
+/* TopBar icon buttons */
+.topbar-icon {
+  background: var(--bg);
+  border: 2px solid var(--border);
+  color: white;
+  border-radius: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: background-color 150ms ease, transform 80ms ease;
+}
+
+.topbar-icon:hover {
+  border-color: #5181A8;
+  background: #184468aa;
+}
+
+.topbar-icon:active {
+  transform: translateY(1px);
+}
+
 .card {
   background: var(--surface);
   border-radius: 14px;

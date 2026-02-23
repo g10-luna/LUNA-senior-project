@@ -27,11 +27,11 @@ export default function TopBar({ title }: TopBarProps) {
       </div>
 
       <div style={styles.right}>
-        <button style={styles.iconButton} onClick={() => navigate(ROUTES.OPTIONS)}>
+        <button className="topbar-icon" onClick={() => navigate(ROUTES.OPTIONS)}>
             ☰
         </button>
-        <button style={styles.iconButton}>🔔</button>
-        <button style={styles.iconButton}>⟳</button>
+        <button className="topbar-icon" >🔔</button>
+        <button className="topbar-icon" >⟳</button>
       </div>
     </div>
   );
