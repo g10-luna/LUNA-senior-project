@@ -169,6 +169,8 @@ This separation ensures clear boundaries between:
 
 ### Folder Structure
       /src
+
+         /assets (logo)
       
          /screens (Dashboard, Catalog, Maintenance, Map, AccountSettings, OptionsMenu)
          
@@ -186,9 +188,11 @@ This separation ensures clear boundaries between:
                
                /map (MapLegend, RobotMarker)
             
-               /layouts (TopBarLayout)
+         /layouts (TopBarLayout)
             
          /lib (mock data, types, api helpers)
+
+         /routes (AppRouter)
          
 ### lib/ Evolution Strategy
 
