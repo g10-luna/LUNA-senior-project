@@ -23,8 +23,29 @@ cd web-dashboard
 See `package.json` for exact version constraints.
 
 ## Prerequisites
-- Node.js 18+
+
+- Node.js (LTS version recommended)
 - npm
+
+To verify your installation:
+
+```bash
+node -v
+npm -v
+```
+
+## Troubleshooting
+
+- If `npm install` fails:
+  - Verify your Node version with `node -v`
+  - Delete `node_modules` and `package-lock.json`, then retry `npm install`
+
+- If `npm run dev` fails:
+  - Confirm you are inside `/web-dashboard`
+  - Ensure your `.env` file exists and contains a valid `VITE_API_BASE_URL`
+
+- If the app loads but API calls fail:
+  - Confirm the backend service is running at the configured `VITE_API_BASE_URL`
 
 ## Getting Started
 
@@ -85,6 +106,7 @@ Key folders under `src/`:
 - `src/layouts/` – app shell and layout wrappers (e.g., top bar layout).
 - `src/lib/` – shared helpers (mock data, types, API client/utilities).
 - `src/routes/` – routing configuration for the app.
+
 
 For a more detailed breakdown of pages, components, and flows, see `System Design/FRONTEND_IMPLEMENTATION.md`.
 
