@@ -1,9 +1,9 @@
-import { useState, useEffect, type FormEventHandler } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { login } from "../lib/authApi";
 import { ROUTES } from "../lib/routes";
 import "./LoginScreen.css";
-
+import { loginSchema } from "../lib/loginSchema";
 const prevent = (e: React.MouseEvent) => e.preventDefault();
 
 const FIELDS = [
@@ -25,19 +25,23 @@ export default function LoginScreen() {
     }
   }, [searchParams, setSearchParams]);
 
-  const onSubmit: FormEventHandler<HTMLFormElement> = async (e) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!form.email.trim() || !form.password.trim()) {
-      setError("Please enter your email and password.");
+
+    const result = loginSchema.safeParse({ email: form.email, password: form.password });
+
+    if (!result.success) {
+      setError(result.error.issues[0].message);
       return;
     }
+
     try {
       setLoading(true);
-      await login(form.email.trim(), form.password);
+      await login(result.data.email, result.data.password);
       navigate(ROUTES.DASHBOARD, { replace: true });
     } catch {
-      setError("Invalid email or password. Please try again.");
+      setError("Invalid email or password");
     } finally {
       setLoading(false);
     }
