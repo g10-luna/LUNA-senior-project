@@ -1,6 +1,7 @@
 import { apiFetch } from "./api";
 import { tokenStorage } from "./tokenStorage";
 
+// Use mock auth when explicitly set, or in dev when no API URL is configured (backend may not be running)
 const USE_MOCK_AUTH =
   import.meta.env.VITE_USE_MOCK_AUTH === "true" ||
   (import.meta.env.DEV && !import.meta.env.VITE_API_BASE_URL);
