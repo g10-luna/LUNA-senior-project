@@ -1,39 +1,36 @@
-// src/routes/AppRouter.tsx
-
 import { Routes, Route, Navigate } from "react-router-dom";
-
+import { ProtectedRoute, PublicOnlyRoute } from "../layouts/ProtectedRoute";
 import TopBarLayout from "../layouts/TopBarLayout";
 import { ROUTES } from "../lib/routes";
-
-import LoginScreen from "../screens/LoginScreen";
-import Dashboard from "../screens/Dashboard";
+import { tokenStorage } from "../lib/tokenStorage";
+import AccountSettingsScreen from "../screens/AccountSettingsScreen";
 import CatalogScreen from "../screens/CatalogScreen";
+import Dashboard from "../screens/Dashboard";
+import LoginScreen from "../screens/LoginScreen";
 import MaintenanceScreen from "../screens/MaintenanceScreen";
 import MapScreen from "../screens/MapScreen";
 import OptionsScreen from "../screens/OptionsScreen";
-import AccountSettingsScreen from "../screens/AccountSettingsScreen";
+
+const RootRedirect = () => <Navigate to={tokenStorage.isAuthenticated() ? ROUTES.DASHBOARD : ROUTES.LOGIN} replace />;
 
 export default function AppRouter() {
   return (
     <Routes>
-      {/* Redirect root to dashboard */}
-      <Route path="/" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
-
-      {/* Auth routes (no TopBarLayout) */}
-      <Route path={ROUTES.LOGIN} element={<LoginScreen />} />
-
-      {/* Main app routes (wrapped with TopBarLayout shell) */}
-      <Route element={<TopBarLayout />}>
-        <Route path={ROUTES.DASHBOARD} element={<Dashboard/>} />
-        <Route path={ROUTES.CATALOG} element={<CatalogScreen />} />
-        <Route path={ROUTES.MAINTENANCE} element={<MaintenanceScreen />} />
-        <Route path={ROUTES.MAP} element={<MapScreen />} />
-        <Route path={ROUTES.OPTIONS} element={<OptionsScreen />} />
-        <Route path={ROUTES.ACCOUNT} element={<AccountSettingsScreen />} />
+      <Route path="/" element={<RootRedirect />} />
+      <Route element={<PublicOnlyRoute />}>
+        <Route path={ROUTES.LOGIN} element={<LoginScreen />} />
       </Route>
-
-      {/* Catch-all fallback */}
-      <Route path="*" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
+      <Route element={<ProtectedRoute />}>
+        <Route element={<TopBarLayout />}>
+          <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />
+          <Route path={ROUTES.CATALOG} element={<CatalogScreen />} />
+          <Route path={ROUTES.MAINTENANCE} element={<MaintenanceScreen />} />
+          <Route path={ROUTES.MAP} element={<MapScreen />} />
+          <Route path={ROUTES.OPTIONS} element={<OptionsScreen />} />
+          <Route path={ROUTES.ACCOUNT} element={<AccountSettingsScreen />} />
+        </Route>
+      </Route>
+      <Route path="*" element={<RootRedirect />} />
     </Routes>
   );
 }
