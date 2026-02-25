@@ -1,0 +1,108 @@
+/* LoginScreen – Figma: Welcome, dark blue button, links */
+
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--navy);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  padding: 32px;
+  border-radius: 18px;
+  background: #fff;
+  border: 1px solid rgba(81, 129, 168, 0.2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+}
+
+.login-title {
+  margin: 0 0 24px;
+  color: var(--navy);
+  font-size: 1.75rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.login-form {
+  display: grid;
+  gap: 16px;
+}
+
+.login-label {
+  display: grid;
+  gap: 6px;
+  text-align: left;
+}
+
+.login-label-text,
+.login-input,
+.login-error,
+.login-link,
+.login-signup-text {
+  font-size: 14px;
+}
+
+.login-label-text {
+  color: var(--text-dark);
+  font-weight: 600;
+}
+
+.login-input {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--navy-light);
+  font-family: inherit;
+  color: var(--text-dark);
+}
+
+.login-error {
+  color: var(--red);
+}
+
+.login-submit {
+  margin-top: 8px;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 10px;
+  background-color: var(--navy);
+  color: var(--text-light);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.login-submit:hover:not(:disabled) {
+  background-color: var(--navy-light);
+}
+
+.login-submit:disabled {
+  opacity: 0.85;
+  cursor: not-allowed;
+}
+
+.login-links {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  text-align: center;
+}
+
+.login-link {
+  color: var(--navy-light);
+  text-decoration: none;
+}
+
+.login-signup-text {
+  color: var(--text-dark);
+}
+
+.login-signup-link {
+  color: var(--navy);
+  font-weight: 700;
+  text-decoration: underline;
+}
