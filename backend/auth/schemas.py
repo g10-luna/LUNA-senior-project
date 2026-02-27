@@ -1,7 +1,6 @@
 """
 Auth request/response schemas aligned with System Design Section 6.2.
 """
-from datetime import datetime
 from enum import Enum
 from uuid import UUID
 
@@ -81,12 +80,15 @@ class TokenResponse(BaseModel):
 
 class RegisterResponse(BaseModel):
     user: UserResponse
-    access_token: str
-    refresh_token: str
-    expires_in: int
+    access_token: str | None = None
+    refresh_token: str | None = None
+    expires_in: int | None = None
+    token_type: str | None = "Bearer"
+    message: str | None = None
 
 
 class LoginResponse(BaseModel):
+    user: UserResponse
     access_token: str
     refresh_token: str
     expires_in: int

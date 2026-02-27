@@ -9,15 +9,18 @@ from pathlib import Path
 # Load .env FIRST, before any other imports that use env vars
 from dotenv import load_dotenv
 _env_path = Path(__file__).resolve().parent.parent / ".env"
-load_dotenv(_env_path, override=True)
+load_dotenv(_env_path, override=False)
 
 from fastapi import FastAPI
 
 from auth.routes import router as auth_router
+from shared.env_bootstrap import ensure_local_jwt_secret
 
 
 def _validate_startup():
     """Validate required env and services at startup. Raises clear errors."""
+    ensure_local_jwt_secret(_env_path)
+
     url = os.getenv("SUPABASE_URL")
     key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
     if not url or not key:
@@ -58,6 +61,12 @@ def root():
 @app.get("/health")
 def health():
     """Health check."""
+    return {"status": "healthy"}
+
+
+@app.get("/api/v1/auth/health")
+def auth_health():
+    """Auth API path health check."""
     return {"status": "healthy"}
 
 
