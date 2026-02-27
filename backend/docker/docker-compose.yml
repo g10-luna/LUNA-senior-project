@@ -1,4 +1,16 @@
-version: '3.8'
+name: luna
+
+x-backend-env: &backend-env
+  SUPABASE_URL: ${SUPABASE_URL:-https://YOUR_PROJECT_REF.supabase.co}
+  SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-SUPABASE_SERVICE_ROLE_KEY_PLACEHOLDER}
+  SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-SUPABASE_ANON_KEY_PLACEHOLDER}
+  SUPABASE_WEBHOOK_SECRET: ${SUPABASE_WEBHOOK_SECRET:-SUPABASE_WEBHOOK_SECRET_PLACEHOLDER}
+  DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://luna_user:luna_password@postgres:5432/luna_db}
+  DATABASE_URL_SYNC: ${DATABASE_URL_SYNC:-postgresql://luna_user:luna_password@postgres:5432/luna_db}
+  REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+  REDIS_CELERY_BROKER_URL: ${REDIS_CELERY_BROKER_URL:-redis://redis:6379/1}
+  ENVIRONMENT: ${ENVIRONMENT:-development}
+  DEBUG: ${DEBUG:-true}
 
 services:
   postgres:
@@ -35,6 +47,145 @@ services:
       retries: 5
     networks:
       - luna-network
+
+  migrate:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: luna-migrate
+    environment: *backend-env
+    command: alembic upgrade head
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - luna-network
+    restart: "no"
+
+  auth-service:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: luna-auth-service
+    environment: *backend-env
+    command: uvicorn auth.main:app --host 0.0.0.0 --port 8001
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - luna-network
+    restart: unless-stopped
+
+  book-service:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: luna-book-service
+    environment: *backend-env
+    command: uvicorn book.main:app --host 0.0.0.0 --port 8002
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - luna-network
+    restart: unless-stopped
+
+  delivery-service:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: luna-delivery-service
+    environment: *backend-env
+    command: uvicorn delivery.main:app --host 0.0.0.0 --port 8003
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - luna-network
+    restart: unless-stopped
+
+  robot-service:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: luna-robot-service
+    environment: *backend-env
+    command: uvicorn robot.main:app --host 0.0.0.0 --port 8004
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - luna-network
+    restart: unless-stopped
+
+  notification-service:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: luna-notification-service
+    environment: *backend-env
+    command: uvicorn notification.main:app --host 0.0.0.0 --port 8005
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - luna-network
+    restart: unless-stopped
+
+  celery-worker:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: luna-celery-worker
+    environment: *backend-env
+    command: celery -A shared.celery_app:celery_app worker --loglevel=INFO
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - luna-network
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: luna-nginx
+    depends_on:
+      - auth-service
+      - book-service
+      - delivery-service
+      - robot-service
+      - notification-service
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - luna-network
+    restart: unless-stopped
 
 volumes:
   postgres_data:
