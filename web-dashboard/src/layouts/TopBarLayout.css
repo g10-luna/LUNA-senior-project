@@ -1,0 +1,11 @@
+.topbar-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--navy);
+}
+
+.topbar-layout main {
+  flex: 1;
+  padding: 24px;
+}

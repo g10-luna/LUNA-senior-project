@@ -1,26 +1,72 @@
 """
-Authentication Service - Simple Hello API
-This is a minimal FastAPI application to demonstrate service startup.
-Full implementation will follow the Backend Implementation Design.
+LUNA Auth Service - FastAPI application.
+Base path: /api/v1/auth
 """
+import os
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+# Load .env FIRST, before any other imports that use env vars
+from dotenv import load_dotenv
+_env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(_env_path, override=False)
+
 from fastapi import FastAPI
+
+from auth.routes import router as auth_router
+from shared.env_bootstrap import ensure_local_jwt_secret
+
+
+def _validate_startup():
+    """Validate required env and services at startup. Raises clear errors."""
+    ensure_local_jwt_secret(_env_path)
+
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    if not url or not key:
+        raise RuntimeError(
+            "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in .env"
+        )
+    try:
+        from shared.redis_client import get_redis
+        get_redis().ping()
+    except Exception as e:
+        raise RuntimeError(
+            "Redis is not running. Start it with: cd backend/docker && docker compose up -d"
+        ) from e
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    _validate_startup()
+    yield
+
 
 app = FastAPI(
     title="LUNA Auth Service",
-    description="Authentication Service for LUNA",
-    version="0.1.0"
+    description="Authentication Service - register, login, JWT, RBAC",
+    version="0.1.0",
+    lifespan=lifespan,
 )
+
+app.include_router(auth_router)
 
 
 @app.get("/")
-async def root():
-    """Health check endpoint"""
-    return {"service": "auth", "status": "running", "message": "Hello from Auth Service"}
+def root():
+    """Health check."""
+    return {"service": "auth", "status": "running"}
 
 
 @app.get("/health")
-async def health():
-    """Health check endpoint"""
+def health():
+    """Health check."""
+    return {"status": "healthy"}
+
+
+@app.get("/api/v1/auth/health")
+def auth_health():
+    """Auth API path health check."""
     return {"status": "healthy"}
 
 

@@ -1,2 +1,1 @@
-# Shared code
-# Contains: DB connection, Redis client, JWT utilities, RBAC middleware, Pydantic schemas
+# Shared code: DB, Redis, JWT, RBAC, Pydantic schemas, Supabase client

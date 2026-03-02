@@ -1,12 +1,13 @@
 # Core Framework
 fastapi>=0.104.1
 uvicorn[standard]>=0.24.0
-pydantic>=2.5.0
+pydantic[email]>=2.5.0
 pydantic-settings>=2.1.0
 
 # Database
 sqlalchemy>=2.0.23
 alembic>=1.12.1
+supabase>=2.0.0  # Supabase Python client (auth, db, storage, realtime)
 asyncpg>=0.29.0  # Async PostgreSQL driver
 psycopg2-binary>=2.9.9  # PostgreSQL adapter (fallback/sync)
 
