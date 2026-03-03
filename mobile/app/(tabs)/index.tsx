@@ -17,11 +17,73 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import HeaderWaveDivider from '@/components/HeaderWaveDivider';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const { width: screenWidth } = Dimensions.get('window');
 const WAVE_HEIGHT = 36;
 const HOWARD_BLUE = '#003A63';
 const HOWARD_RED = '#E31837';
-const CARD_BG = '#f8fafc';
+
+const CATEGORIES = [
+  {
+    id: 'new',
+    title: 'New Arrivals',
+    icon: 'star',
+    color: '#f59e0b',
+    books: [
+      { title: 'Think Like a Robot', author: 'Jaron Rain Ha', available: true, isNew: true },
+      { title: "The Alchemist's Code", author: 'Eric North', available: true, isNew: true },
+      { title: 'Quantum Minds', author: 'Sara Lin', available: false, isNew: true },
+      { title: 'Digital Futures', author: 'K. Ahmed', available: true, isNew: true },
+    ],
+  },
+  {
+    id: 'trending',
+    title: 'Trending Today',
+    icon: 'fire',
+    color: '#ef4444',
+    books: [
+      { title: 'The Midnight Library', author: 'Matt Haig', available: true, isNew: false },
+      { title: 'Atomic Habits', author: 'James Clear', available: false, isNew: false },
+      { title: 'Deep Work', author: 'Cal Newport', available: true, isNew: false },
+      { title: 'The Power of Now', author: 'E. Tolle', available: true, isNew: false },
+    ],
+  },
+  {
+    id: 'science',
+    title: 'Science',
+    icon: 'flask',
+    color: '#06b6d4',
+    books: [
+      { title: 'A Brief History of Time', author: 'S. Hawking', available: true, isNew: false },
+      { title: 'The Gene', author: 'Siddhartha Mukherjee', available: true, isNew: false },
+      { title: 'Cosmos', author: 'Carl Sagan', available: false, isNew: false },
+      { title: 'The Selfish Gene', author: 'R. Dawkins', available: true, isNew: false },
+    ],
+  },
+  {
+    id: 'fiction',
+    title: 'Fiction',
+    icon: 'magic',
+    color: '#8b5cf6',
+    books: [
+      { title: '1984', author: 'George Orwell', available: true, isNew: false },
+      { title: 'Dune', author: 'Frank Herbert', available: false, isNew: false },
+      { title: 'The Hobbit', author: 'J.R.R. Tolkien', available: true, isNew: false },
+      { title: 'Neuromancer', author: 'William Gibson', available: true, isNew: false },
+    ],
+  },
+  {
+    id: 'tech',
+    title: 'Technology',
+    icon: 'microchip',
+    color: '#003A63',
+    books: [
+      { title: 'Clean Code', author: 'Robert C. Martin', available: true, isNew: false },
+      { title: 'The Pragmatic Programmer', author: 'Hunt & Thomas', available: false, isNew: false },
+      { title: 'Intro to Algorithms', author: 'Cormen et al.', available: true, isNew: false },
+      { title: 'Designing Data-Intensive Apps', author: 'M. Kleppmann', available: true, isNew: false },
+    ],
+  },
+];
 
 const searchStyles = StyleSheet.create({
   container: {
@@ -128,64 +190,52 @@ export default function TabIndexScreen() {
           </TouchableOpacity>
       </View>
 
-      {/* Status card: Delivery + Pickup */}
-      <View style={styles.statusCard}>
-        <View style={styles.statusRow}>
-          <View style={[styles.statusBlock, styles.deliveryBlock]}>
-            <FontAwesome name="automobile" size={28} color={HOWARD_BLUE} style={styles.statusIcon} />
-            <Text style={styles.statusTitle}>Delivery in Progress</Text>
-            <Text style={styles.statusSub}>Robot is on the way — Room 302</Text>
-            <Text style={styles.statusTime}>Arriving in 2 min</Text>
-            <TouchableOpacity style={styles.mapLink}>
-              <Text style={styles.mapLinkText}>View on Library Map</Text>
-              <FontAwesome name="chevron-down" size={12} color={HOWARD_BLUE} />
+
+      {CATEGORIES.map((cat) => (
+        <View key={cat.id} style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleRow}>
+              <View style={[styles.sectionIcon, { backgroundColor: cat.color + '18' }]}>
+                <FontAwesome name={cat.icon as any} size={14} color={cat.color} />
+              </View>
+              <Text style={styles.sectionTitle}>{cat.title}</Text>
+            </View>
+            <TouchableOpacity>
+              <Text style={styles.seeAll}>See all</Text>
             </TouchableOpacity>
           </View>
-          <View style={[styles.statusBlock, styles.pickupBlock]}>
-            <FontAwesome name="book" size={24} color={HOWARD_RED} style={styles.statusIcon} />
-            <Text style={styles.statusTitle}>Pickup Pending</Text>
-            <Text style={styles.statusSub}>Ready for return at Desk 5A</Text>
-          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.bookList}
+          >
+            {cat.books.map((book, i) => (
+              <TouchableOpacity key={i} style={styles.bookCard} activeOpacity={0.85}>
+                <View style={[styles.bookCover, { backgroundColor: cat.color + '15' }]}>
+                  <LinearGradient
+                    colors={[cat.color + '30', cat.color + '08']}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <FontAwesome name="book" size={28} color={cat.color} />
+                  {book.isNew && (
+                    <View style={styles.newBadge}>
+                      <Text style={styles.newBadgeText}>NEW</Text>
+                    </View>
+                  )}
+                  <View style={[styles.availableTag, { backgroundColor: book.available ? 'rgba(22,163,74,0.85)' : 'rgba(220,38,38,0.85)' }]}>
+                    <View style={styles.availableDot} />
+                    <Text style={styles.availableText}>
+                      {book.available ? 'Available' : 'Checked Out'}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.bookTitle} numberOfLines={2}>{book.title}</Text>
+                <Text style={styles.bookAuthor} numberOfLines={1}>{book.author}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
-      </View>
-
-      {/* Action buttons */}
-      <View style={styles.actions}>
-        <TouchableOpacity style={[styles.actionBtn, styles.requestBtn]}>
-          <FontAwesome name="book" size={20} color="#fff" />
-          <Text style={styles.actionBtnText}>Request a Book</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionBtn, styles.returnBtn]}>
-          <FontAwesome name="reply" size={20} color="#fff" />
-          <Text style={styles.actionBtnText}>Return a Book</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Newly Arrived */}
-      <Text style={styles.sectionTitle}>Newly Arrived</Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.bookList}
-      >
-        {[
-          { title: 'Think Like a Robot', author: 'Jaron Rain Ha' },
-          { title: 'The Alchemist\'s Code', author: 'Eric North' },
-          { title: 'Quantum Computing for Everyone', author: 'Deni B.' },
-          { title: 'Introduction to Algorithms', author: 'Thomas H. Cormen' },
-        ].map((book, i) => (
-          <TouchableOpacity key={i} style={styles.bookCard}>
-            <View style={styles.bookCover}>
-              <FontAwesome name="book" size={32} color={HOWARD_BLUE} />
-            </View>
-            <Text style={styles.bookTitle} numberOfLines={2}>{book.title}</Text>
-            <Text style={styles.bookAuthor} numberOfLines={1}>{book.author}</Text>
-            <View style={styles.availableTag}>
-              <Text style={styles.availableText}>Available</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      ))}
       </ScrollView>
     </>
   );
@@ -319,69 +369,103 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  statusCard: {
-    backgroundColor: CARD_BG,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 58, 99, 0.12)',
+  section: {
+    marginBottom: 28,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sectionIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  seeAll: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: HOWARD_BLUE,
+  },
+  bookList: {
+    paddingRight: 20,
+    gap: 12,
+  },
+  bookCard: {
+    width: 130,
+  },
+  bookCover: {
+    width: 130,
+    height: 175,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
     overflow: 'hidden',
-    marginBottom: 20,
   },
-  statusRow: { flexDirection: 'row' },
-  statusBlock: {
-    flex: 1,
-    padding: 16,
-    minHeight: 140,
+  newBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: '#f59e0b',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
-  deliveryBlock: { borderRightWidth: 1, borderRightColor: 'rgba(0, 58, 99, 0.1)' },
-  pickupBlock: { backgroundColor: 'rgba(227, 24, 55, 0.08)' },
-  statusIcon: { marginBottom: 8 },
-  statusTitle: { fontSize: 14, fontWeight: '700', color: HOWARD_BLUE, marginBottom: 4 },
-  statusSub: { fontSize: 12, color: '#64748b', marginBottom: 6 },
-  statusTime: { fontSize: 12, fontWeight: '600', color: HOWARD_BLUE, marginBottom: 6 },
-  mapLink: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  mapLinkText: { fontSize: 12, color: HOWARD_BLUE, fontWeight: '600' },
-  actions: { flexDirection: 'row', gap: 12, marginBottom: 24 },
-  actionBtn: {
-    flex: 1,
+  newBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: 0.5,
+  },
+  bookTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 3,
+    lineHeight: 18,
+  },
+  bookAuthor: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginBottom: 8,
+  },
+  availableTag: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    paddingVertical: 14,
-    borderRadius: 14,
+    paddingVertical: 6,
+    gap: 5,
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 14,
   },
-  requestBtn: { backgroundColor: HOWARD_RED },
-  returnBtn: { backgroundColor: HOWARD_BLUE },
-  actionBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
-  sectionTitle: {
-    fontSize: 18,
+  availableDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#fff',
+  },
+  availableText: {
+    fontSize: 11,
     fontWeight: '700',
-    color: '#1e293b',
-    marginBottom: 12,
+    color: '#fff',
+    letterSpacing: 0.3,
   },
-  bookList: { paddingRight: 20 },
-  bookCard: {
-    width: 120,
-    marginRight: 14,
-  },
-  bookCover: {
-    width: 120,
-    height: 160,
-    backgroundColor: 'rgba(0, 58, 99, 0.08)',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  bookTitle: { fontSize: 13, fontWeight: '600', color: '#334155', marginBottom: 2 },
-  bookAuthor: { fontSize: 12, color: '#64748b', marginBottom: 6 },
-  availableTag: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(0, 58, 99, 0.12)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  availableText: { fontSize: 11, fontWeight: '600', color: HOWARD_BLUE },
 });
