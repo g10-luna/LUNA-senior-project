@@ -19,6 +19,7 @@ import { StatusBar } from 'expo-status-bar';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { router } from 'expo-router';
 import { useFonts, Montserrat_800ExtraBold } from '@expo-google-fonts/montserrat';
+import { getApiUrl, setTokens } from '@/src/services/auth';
 
 const { width } = Dimensions.get('window');
 
@@ -35,15 +36,56 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [fontsLoaded] = useFonts({ Montserrat_800ExtraBold });
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
+    setError(null);
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setError('Please enter your email or Student ID.');
+      return;
+    }
+    if (!password) {
+      setError('Please enter your password.');
+      return;
+    }
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const res = await fetch(`${getApiUrl()}/api/v1/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: trimmedEmail.toLowerCase(),
+          password,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const d = data?.detail;
+        let message = 'Sign in failed. Please try again.';
+        if (typeof d === 'string') message = d;
+        else if (d?.message) message = d.message;
+        else if (data?.message) message = data.message;
+        setError(message);
+        return;
+      }
+      // Backend returns { success, data: { user, access_token, refresh_token, ... }, meta }
+      const payload = data?.data ?? data;
+      const accessToken = payload?.access_token;
+      const refreshToken = payload?.refresh_token;
+      if (!accessToken || !refreshToken) {
+        setError('Invalid response from server. Please try again.');
+        return;
+      }
+      await setTokens(accessToken, refreshToken);
       router.replace('/(tabs)');
-    }, 800);
+    } catch {
+      setError('Unable to reach the server. Check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!fontsLoaded) return null;
@@ -69,7 +111,6 @@ export default function LoginScreen() {
             {/* Login Form - Glass Card (glassy + transparent) */}
             <View style={styles.glassCardOuter}>
               <BlurView intensity={80} tint="light" style={styles.glassCard}>
-                <View style={styles.glassHighlight} />
                 <View style={styles.glassCardInner}>
                   <View style={styles.brandingSection}>
                     <View style={styles.brandingRow}>
@@ -123,6 +164,7 @@ export default function LoginScreen() {
                       />
                     </TouchableOpacity>
                   </View>
+                  {error ? <Text style={styles.errorText}>{error}</Text> : null}
                   <TouchableOpacity style={styles.loginButton} onPress={handleLogin} disabled={loading}>
                     {loading ? (
                       <ActivityIndicator color="#fff" />
@@ -135,7 +177,7 @@ export default function LoginScreen() {
                   </TouchableOpacity>
                   <View style={styles.signupRow}>
                     <Text style={styles.signupText}>First time here? </Text>
-                    <TouchableOpacity>
+                    <TouchableOpacity onPress={() => router.push('/setup-account')}>
                       <Text style={styles.signupLink}>Set up account</Text>
                     </TouchableOpacity>
                   </View>
@@ -207,17 +249,6 @@ const styles = StyleSheet.create({
     borderRightColor: 'rgba(255, 255, 255, 0.25)',
     borderBottomColor: 'rgba(255, 255, 255, 0.2)',
   },
-  glassHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    zIndex: 1,
-  },
   glassCardInner: {
     padding: 28,
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
@@ -284,6 +315,13 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   eyeButton: { padding: 6 },
+  errorText: {
+    fontSize: 13,
+    color: HOWARD_RED,
+    marginBottom: 12,
+    textAlign: 'center',
+    width: '100%',
+  },
   loginButton: {
     backgroundColor: HOWARD_RED,
     borderRadius: 30,

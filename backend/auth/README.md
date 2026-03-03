@@ -82,6 +82,17 @@ curl -X DELETE http://localhost:8000/api/v1/auth/me \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
+## Tracing registration / login failures
+
+If you see "Registration failed due to an internal error" (or the same for login):
+
+1. **Backend logs** – In the terminal where the auth service runs, look for `Unexpected registration failure` (or login). The next lines are the Python traceback and show the exact failing step (e.g. Supabase `sign_up`, `_sync_user_profile`, or Redis `store_refresh_token`).
+2. **Detailed error in API response** – Set `DEBUG=true` in `backend/.env` and restart the auth service. The API will include the exception type and message in the `detail` field, and the mobile app will show it on the Set up account screen.
+3. **Typical causes:**
+   - **Supabase:** Missing or wrong `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`; or Supabase rejecting signup (e.g. email already exists).
+   - **Database:** `app.user_profiles` missing or migrations not run; or wrong `DATABASE_URL_SYNC` (auth uses sync for profile sync).
+   - **Redis:** Redis not running or wrong `REDIS_URL` (needed for `store_refresh_token`).
+
 ## Supabase Notes
 
 - Use real Supabase values in `backend/.env`:
@@ -145,12 +156,12 @@ From `backend/docker`:
 
 ```bash
 # auth service logs
-docker compose --env-file ../.env logs -f auth-service
+docker compose logs -f auth-service
 
 # health
 curl http://localhost:8000/api/v1/auth/health
 
 # check mirrored users in postgres
-docker compose --env-file ../.env exec -T postgres \
+docker compose exec -T postgres \
   psql -U luna_user -d luna_db -c "SELECT id, email, role FROM app.user_profiles;"
 ```
