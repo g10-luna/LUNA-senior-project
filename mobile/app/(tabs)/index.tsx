@@ -11,7 +11,9 @@ import {
   ImageBackground,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import HeaderWaveDivider from '@/components/HeaderWaveDivider';
 import { getApiUrl, getAccessToken } from '@/src/services/auth';
@@ -48,6 +50,7 @@ function SearchScreen() {
 
 export default function TabIndexScreen() {
   const { hasToken } = useAuth();
+  const insets = useSafeAreaInsets();
   const [displayName, setDisplayName] = useState<string>('');
 
   useEffect(() => {
@@ -82,8 +85,17 @@ export default function TabIndexScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <StatusBar style="light" translucent backgroundColor="transparent" />
       {/* Top third: founders fills to top; header + arc sit on top so the curve looks like the edge */}
-      <View style={styles.topThirdWrap}>
+      <View
+        style={[
+          styles.topThirdWrap,
+          {
+            marginTop: -insets.top,
+            height: TOP_THIRD_HEIGHT + insets.top,
+          },
+        ]}
+      >
         <ImageBackground
           source={require('../../assets/images/founders_background.jpg')}
           style={styles.topThirdBg}
@@ -99,7 +111,7 @@ export default function TabIndexScreen() {
             colors={['rgba(0,58,99,0.55)', 'rgba(0,42,71,0.65)']}
             style={StyleSheet.absoluteFill}
           />
-          <View style={styles.headerRow}>
+          <View style={[styles.headerRow, { paddingTop: 70 + insets.top }]}>
             <View style={styles.headerLeft}>
               <View style={styles.headerBranding}>
                 <Text style={styles.headerTitle}>LUNA</Text>
@@ -215,7 +227,7 @@ export default function TabIndexScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  content: { paddingHorizontal: 20, paddingTop: 50, paddingBottom: 24 },
+  content: { paddingHorizontal: 20, paddingTop: 0, paddingBottom: 24 },
   topThirdWrap: {
     height: TOP_THIRD_HEIGHT,
     marginHorizontal: -20,
