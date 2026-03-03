@@ -7,7 +7,7 @@ import {
   TextInput,
   TouchableOpacity,
   Dimensions,
-  Image,
+  ImageBackground,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -79,24 +79,22 @@ export default function TabIndexScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      {/* Header: gradient bar with curved bottom (single block, no separate lines) */}
+      {/* Header: icon as background, gradient overlay, then text + bell */}
       <View style={styles.header}>
+        <ImageBackground
+          source={require('../../assets/images/galaxy.jpg')}
+          style={styles.headerBgImage}
+          resizeMode="cover"
+        />
         <LinearGradient
-          colors={['rgba(0,58,99,0.92)', 'rgba(0,42,71,0.95)']}
+          colors={['rgba(0,58,99,0.55)', 'rgba(0,42,71,0.65)']}
           style={StyleSheet.absoluteFill}
         />
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
-            <View style={styles.headerLogoWrap}>
-              <Image
-                source={require('../../assets/images/luna-icon-transparent.png')}
-                style={styles.headerLogo}
-                resizeMode="contain"
-              />
-            </View>
             <View style={styles.headerBranding}>
               <Text style={styles.headerTitle}>LUNA</Text>
-              <Text style={styles.headerSubtitle}>HOWARD UNIVERSITY LIBRARIES</Text>
+              <Text style={styles.headerSubtitle}>Library Utility and Navigation Assistant | Howard University </Text>
             </View>
           </View>
           <View style={styles.headerRight}>
@@ -214,21 +212,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingRight: 12,
   },
+  headerBgImage: {
+    ...StyleSheet.absoluteFillObject,
+  },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
-  headerLogoWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  headerLogo: { width: 28, height: 28 },
   headerBranding: { flex: 1 },
   headerTitle: {
     fontSize: 22,
