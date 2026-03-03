@@ -21,19 +21,20 @@ export default function TabLayout() {
         tabBarActiveTintColor: HOWARD_RED,
         tabBarInactiveTintColor: '#888',
         headerShown: false,
-        tabBarStyle: hasToken ? { display: 'none' } : undefined,
       }}>
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Search',
-          tabBarIcon: ({ color }) => <TabBarIcon name="search" color={color} />,
+          title: hasToken ? 'Home' : 'Search',
+          tabBarIcon: ({ color }) => (
+            <TabBarIcon name={hasToken ? 'home' : 'search'} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="my-account"
         options={{
-          title: 'Login',
+          title: hasToken ? 'Profile' : 'Login',
           tabBarIcon: ({ color }) => <TabBarIcon name="user-o" color={color} />,
         }}
       />

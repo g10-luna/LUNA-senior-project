@@ -82,6 +82,7 @@ export default function LoginView({ onSuccess }: LoginViewProps) {
       }
       await setTokens(accessToken, refreshToken);
       onSuccess();
+      router.replace('/(tabs)');
     } catch {
       setError('Unable to reach the server. Check your connection and try again.');
     } finally {
