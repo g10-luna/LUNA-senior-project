@@ -7,6 +7,7 @@ import {
   TextInput,
   TouchableOpacity,
   Dimensions,
+  Image,
   ImageBackground,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,7 +16,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import HeaderWaveDivider from '@/components/HeaderWaveDivider';
 import { getApiUrl, getAccessToken } from '@/src/services/auth';
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const TOP_THIRD_HEIGHT = screenHeight * (1 / 3);
+const WAVE_HEIGHT = 36;
 const HOWARD_BLUE = '#003A63';
 const HOWARD_RED = '#E31837';
 const CARD_BG = '#f8fafc';
@@ -79,58 +82,73 @@ export default function TabIndexScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      {/* Header: icon as background, gradient overlay, then text + bell */}
-      <View style={styles.header}>
+      {/* Top third: founders fills to top; header + arc sit on top so the curve looks like the edge */}
+      <View style={styles.topThirdWrap}>
         <ImageBackground
-          source={require('../../assets/images/galaxy.jpg')}
-          style={styles.headerBgImage}
+          source={require('../../assets/images/founders_background.jpg')}
+          style={styles.topThirdBg}
           resizeMode="cover"
         />
-        <LinearGradient
-          colors={['rgba(0,58,99,0.55)', 'rgba(0,42,71,0.65)']}
-          style={StyleSheet.absoluteFill}
-        />
-        <View style={styles.headerRow}>
-          <View style={styles.headerLeft}>
-            <View style={styles.headerBranding}>
-              <Text style={styles.headerTitle}>LUNA</Text>
-              <Text style={styles.headerSubtitle}>Library Utility and Navigation Assistant | Howard University </Text>
+        <View style={styles.header}>
+          <ImageBackground
+            source={require('../../assets/images/galaxy.jpg')}
+            style={styles.headerBgImage}
+            resizeMode="cover"
+          />
+          <LinearGradient
+            colors={['rgba(0,58,99,0.55)', 'rgba(0,42,71,0.65)']}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={styles.headerRow}>
+            <View style={styles.headerLeft}>
+              <View style={styles.headerBranding}>
+                <Text style={styles.headerTitle}>LUNA</Text>
+                <Text style={styles.headerSubtitle}>Library Utility and Navigation Assistant | Howard University </Text>
+              </View>
+            </View>
+            <View style={styles.headerRight}>
+              <TouchableOpacity style={styles.notifButton} activeOpacity={0.7}>
+                <FontAwesome name="bell" size={22} color="#fff" />
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>1</Text>
+                </View>
+              </TouchableOpacity>
             </View>
           </View>
-          <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.notifButton} activeOpacity={0.7}>
-              <FontAwesome name="bell" size={22} color="#fff" />
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>1</Text>
-              </View>
+          <HeaderWaveDivider width={screenWidth} height={WAVE_HEIGHT} fill="#fff" variant="concave" />
+        </View>
+        <View style={styles.topThirdContent}>
+          <LinearGradient
+            colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0.88)']}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+          />
+          <View style={styles.greetingRow}>
+            <TouchableOpacity style={styles.profileAvatar} activeOpacity={0.7}>
+              <Image
+                source={require('../../assets/images/placeholder_profile.jpeg')}
+                style={styles.profileAvatarImage}
+                resizeMode="cover"
+              />
+            </TouchableOpacity>
+            <View style={styles.greetingBlock}>
+              <Text style={styles.greeting}>Hello, {greetingName} 👋</Text>
+              <Text style={styles.greetingSubtitle}>Ready to explore the library?</Text>
+            </View>
+          </View>
+          <View style={styles.searchBar}>
+            <FontAwesome name="search" size={18} color="#64748b" style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search books..."
+              placeholderTextColor="#94a3b8"
+              editable={false}
+            />
+            <TouchableOpacity style={styles.searchFilterBtn}>
+              <FontAwesome name="sliders" size={16} color="#fff" />
             </TouchableOpacity>
           </View>
         </View>
-        <HeaderWaveDivider width={screenWidth} height={36} fill="#fff" variant="concave" />
-      </View>
-
-      {/* Greeting: profile + Hello, [name] 👋 + subtitle */}
-      <View style={styles.greetingRow}>
-        <TouchableOpacity style={styles.profileAvatar} activeOpacity={0.7}>
-          <FontAwesome name="user-o" size={24} color={HOWARD_BLUE} />
-        </TouchableOpacity>
-        <View style={styles.greetingBlock}>
-          <Text style={styles.greeting}>Hello, {greetingName} 👋</Text>
-          <Text style={styles.greetingSubtitle}>Ready to explore the library?</Text>
-        </View>
-      </View>
-
-      <View style={styles.searchBar}>
-        <FontAwesome name="search" size={18} color="#64748b" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search books..."
-          placeholderTextColor="#94a3b8"
-          editable={false}
-        />
-        <TouchableOpacity style={styles.searchFilterBtn}>
-          <FontAwesome name="sliders" size={16} color="#fff" />
-        </TouchableOpacity>
       </View>
 
       {/* Status card: Delivery + Pickup */}
@@ -198,11 +216,24 @@ export default function TabIndexScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   content: { paddingHorizontal: 20, paddingTop: 50, paddingBottom: 24 },
-  header: {
+  topThirdWrap: {
+    height: TOP_THIRD_HEIGHT,
     marginHorizontal: -20,
     overflow: 'hidden',
-    paddingBottom: 36,
-    marginBottom: 20,
+    marginBottom: 0,
+  },
+  topThirdBg: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  topThirdContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+    position: 'relative',
+  },
+  header: {
+    overflow: 'hidden',
+    paddingBottom: WAVE_HEIGHT,
+    marginBottom: 0,
   },
   headerRow: {
     flexDirection: 'row',
@@ -261,33 +292,42 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,
+    marginTop: -6,
   },
   profileAvatar: {
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: 'rgba(0, 58, 99, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
     marginRight: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 58, 99, 0.15)',
+    overflow: 'hidden',
+    borderWidth: 3,
+    borderColor: '#fff',
+  },
+  profileAvatarImage: {
+    width: '100%',
+    height: '100%',
   },
   greetingBlock: { flex: 1 },
   greeting: {
     fontSize: 22,
     fontWeight: '700',
     color: '#1e293b',
+    textShadowColor: 'rgba(255,255,255,0.9)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   greetingSubtitle: {
     fontSize: 14,
-    color: '#64748b',
+    color: '#475569',
     marginTop: 4,
+    textShadowColor: 'rgba(255,255,255,0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: INPUT_BG,
+    backgroundColor: 'rgba(255,255,255,0.96)',
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingRight: 10,
