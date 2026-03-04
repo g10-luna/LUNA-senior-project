@@ -31,6 +31,7 @@ from book.services import (
     create_book,
     delete_book,
     get_book,
+    get_book_by_isbn,
     get_book_catalog_stats,
     import_books_from_open_library,
     list_books,
@@ -121,6 +122,18 @@ def list_books_route(
 def get_book_route(book_id: UUID, _user: UserResponse = Depends(get_current_user_dep)):
     try:
         book = get_book(book_id)
+        return _success({"book": BookResponse.model_validate(book).model_dump(mode="json")})
+    except BookNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.get("/isbn/{isbn}")
+def get_book_by_isbn_route(
+    isbn: str,
+    _user: UserResponse = Depends(get_current_user_dep),
+):
+    try:
+        book = get_book_by_isbn(isbn)
         return _success({"book": BookResponse.model_validate(book).model_dump(mode="json")})
     except BookNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

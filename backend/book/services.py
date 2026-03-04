@@ -85,6 +85,17 @@ def get_book(book_id: UUID):
         db.close()
 
 
+def get_book_by_isbn(isbn: str):
+    db = SessionLocal()
+    try:
+        book = repository.get_book_by_isbn(db, isbn)
+        if not book:
+            raise BookNotFoundError("Book not found")
+        return book
+    finally:
+        db.close()
+
+
 def create_book(
     *,
     isbn: str,
