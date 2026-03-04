@@ -124,6 +124,45 @@ def get_top_publication_years_route(
     return _success({"items": items, "count": len(items)})
 
 
+@router.get("/discover/overview")
+def get_discovery_overview_route(
+    books_limit: Annotated[int, Query(ge=1, le=40)] = 12,
+    top_limit: Annotated[int, Query(ge=1, le=20)] = 5,
+    _user: UserResponse = Depends(get_current_user_dep),
+):
+    random_books = get_random_discovery_books(limit=books_limit)
+    top_authors = get_top_authors(limit=top_limit)
+    top_publishers = get_top_publishers(limit=top_limit)
+    top_years = get_top_publication_years(limit=top_limit)
+    stats = get_book_catalog_stats()
+
+    return _success(
+        {
+            "random_books": [
+                BookResponse.model_validate(book).model_dump(mode="json")
+                for book in random_books
+            ],
+            "top_authors": [
+                AuthorCountResponse(author=author, count=count).model_dump(mode="json")
+                for author, count in top_authors
+            ],
+            "top_publishers": [
+                PublisherCountResponse(publisher=publisher, count=count).model_dump(
+                    mode="json"
+                )
+                for publisher, count in top_publishers
+            ],
+            "top_years": [
+                PublicationYearCountResponse(year=year, count=count).model_dump(
+                    mode="json"
+                )
+                for year, count in top_years
+            ],
+            "stats": CatalogStatsResponse(**stats).model_dump(mode="json"),
+        }
+    )
+
+
 @router.get("/")
 def list_books_route(
     page: Annotated[int, Query(ge=1)] = 1,
