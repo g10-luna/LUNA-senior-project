@@ -141,3 +141,11 @@ class CoverageResponse(BaseModel):
     with_cover_percent: float
     with_publication_year_percent: float
     with_description_percent: float
+
+
+class IsbnNormalizationResponse(BaseModel):
+    scanned: int
+    updated: int
+    skipped_invalid: int
+    skipped_conflict: int
+    dry_run: bool

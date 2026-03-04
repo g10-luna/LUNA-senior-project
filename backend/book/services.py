@@ -8,10 +8,15 @@ from datetime import datetime
 from uuid import UUID
 
 from shared.db import SessionLocal
-from shared.models import BookStatus
+from shared.models import Book, BookStatus
 
 from book import repository
-from book.import_openlibrary import DEFAULT_SUBJECTS, ImportStats, import_open_library
+from book.import_openlibrary import (
+    DEFAULT_SUBJECTS,
+    ImportStats,
+    import_open_library,
+    normalize_isbn,
+)
 
 
 class BookServiceError(Exception):
@@ -337,4 +342,52 @@ def get_coverage() -> dict[str, float | int]:
         "with_description_percent": round(
             (counts["with_description_count"] / total) * 100, 2
         ),
+    }
+
+
+def normalize_catalog_isbns(
+    *,
+    dry_run: bool,
+    limit: int,
+) -> dict[str, int | bool]:
+    db = SessionLocal()
+    scanned = 0
+    updated = 0
+    skipped_invalid = 0
+    skipped_conflict = 0
+    try:
+        books = db.query(Book).order_by(Book.updated_at.desc()).limit(limit).all()
+        for book in books:
+            scanned += 1
+            normalized = normalize_isbn(book.isbn)
+            if not normalized:
+                skipped_invalid += 1
+                continue
+            if normalized == book.isbn:
+                continue
+
+            conflict = repository.get_book_by_isbn(db, normalized)
+            if conflict and conflict.id != book.id:
+                skipped_conflict += 1
+                continue
+
+            if not dry_run:
+                book.isbn = normalized
+            updated += 1
+
+        if not dry_run:
+            db.commit()
+    except Exception:
+        if not dry_run:
+            db.rollback()
+        raise
+    finally:
+        db.close()
+
+    return {
+        "scanned": scanned,
+        "updated": updated,
+        "skipped_invalid": skipped_invalid,
+        "skipped_conflict": skipped_conflict,
+        "dry_run": dry_run,
     }

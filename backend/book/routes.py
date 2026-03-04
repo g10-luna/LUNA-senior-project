@@ -22,6 +22,7 @@ from book.schemas import (
     CatalogStatsResponse,
     CoverageResponse,
     FilterOptionsResponse,
+    IsbnNormalizationResponse,
     OpenLibraryImportRequest,
     OpenLibraryImportResponse,
     OpenLibraryImportStatsResponse,
@@ -49,6 +50,7 @@ from book.services import (
     get_related_books,
     import_books_from_open_library,
     list_books,
+    normalize_catalog_isbns,
     update_book,
     update_book_status,
 )
@@ -196,6 +198,17 @@ def get_filter_options_route(
 def get_coverage_route(_user: UserResponse = Depends(get_current_user_dep)):
     payload = CoverageResponse(**get_coverage()).model_dump(mode="json")
     return _success({"coverage": payload})
+
+
+@router.post("/maintenance/normalize-isbns")
+def normalize_isbns_route(
+    dry_run: bool = True,
+    limit: Annotated[int, Query(ge=1, le=20000)] = 5000,
+    _user: UserResponse = RequireLibrarianOrAdmin,
+):
+    result = normalize_catalog_isbns(dry_run=dry_run, limit=limit)
+    payload = IsbnNormalizationResponse(**result).model_dump(mode="json")
+    return _success({"normalization": payload})
 
 
 @router.get("/")

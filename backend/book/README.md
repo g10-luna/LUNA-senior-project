@@ -81,6 +81,11 @@ Important fields:
   - returns catalog data coverage counts + percentages
   - includes cover/year/description completeness
 
+- `POST /api/v1/books/maintenance/normalize-isbns` (Librarian/Admin)
+  - normalizes ISBN formatting for existing rows (digits + optional trailing X)
+  - query: `dry_run` (default true), `limit` (default 5000, max 20000)
+  - returns scanned/updated/skipped counts
+
 - `GET /api/v1/books/authors/top`
   - returns top authors by catalog count
   - query: `limit` (default 10, max 50)
