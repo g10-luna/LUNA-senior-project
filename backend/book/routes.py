@@ -11,12 +11,16 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from auth.schemas import UserResponse
+from book.import_openlibrary import DEFAULT_SUBJECTS
 from book.schemas import (
     BookCreateRequest,
     BookListQuery,
     BookResponse,
     BookStatusUpdateRequest,
     BookUpdateRequest,
+    OpenLibraryImportRequest,
+    OpenLibraryImportResponse,
+    OpenLibraryImportStatsResponse,
     PaginationResponse,
 )
 from book.services import (
@@ -26,6 +30,7 @@ from book.services import (
     create_book,
     delete_book,
     get_book,
+    import_books_from_open_library,
     list_books,
     update_book,
     update_book_status,
@@ -165,3 +170,38 @@ def delete_book_route(book_id: UUID, _user: UserResponse = RequireLibrarianOrAdm
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except BookConflictError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+
+
+@router.post("/import/open-library")
+def import_open_library_route(
+    req: OpenLibraryImportRequest,
+    _user: UserResponse = RequireLibrarianOrAdmin,
+):
+    try:
+        effective_subjects = [s.strip() for s in req.subjects if s.strip()] or list(
+            DEFAULT_SUBJECTS
+        )
+        stats = import_books_from_open_library(
+            subjects=effective_subjects,
+            pages_per_subject=req.pages_per_subject,
+            limit=req.limit,
+            sleep_seconds=req.sleep_seconds,
+            dry_run=req.dry_run,
+            max_books=req.max_books,
+        )
+        response = OpenLibraryImportResponse(
+            mode="DRY_RUN" if req.dry_run else "WRITE",
+            subjects=effective_subjects,
+            stats=OpenLibraryImportStatsResponse(
+                fetched_docs=stats.fetched_docs,
+                inserted=stats.inserted,
+                skipped_missing_required=stats.skipped_missing_required,
+                skipped_invalid_isbn=stats.skipped_invalid_isbn,
+                skipped_duplicate_isbn=stats.skipped_duplicate_isbn,
+                skipped_invalid_year=stats.skipped_invalid_year,
+                failed_requests=stats.failed_requests,
+            ),
+        )
+        return _success({"import": response.model_dump(mode="json")})
+    except BookServiceError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

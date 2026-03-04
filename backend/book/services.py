@@ -11,6 +11,7 @@ from shared.db import SessionLocal
 from shared.models import BookStatus
 
 from book import repository
+from book.import_openlibrary import DEFAULT_SUBJECTS, ImportStats, import_open_library
 
 
 class BookServiceError(Exception):
@@ -202,3 +203,29 @@ def delete_book(*, book_id: UUID):
         raise
     finally:
         db.close()
+
+
+def import_books_from_open_library(
+    *,
+    subjects: list[str],
+    pages_per_subject: int,
+    limit: int,
+    sleep_seconds: float,
+    dry_run: bool,
+    max_books: int | None,
+) -> ImportStats:
+    clean_subjects = [s.strip() for s in subjects if s.strip()]
+    if not clean_subjects:
+        clean_subjects = list(DEFAULT_SUBJECTS)
+
+    try:
+        return import_open_library(
+            subjects=clean_subjects,
+            pages_per_subject=pages_per_subject,
+            limit=limit,
+            sleep_seconds=sleep_seconds,
+            dry_run=dry_run,
+            max_books=max_books,
+        )
+    except Exception as exc:
+        raise BookServiceError(f"Open Library import failed: {exc}") from exc

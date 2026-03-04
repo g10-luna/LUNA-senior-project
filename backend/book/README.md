@@ -184,3 +184,24 @@ Import behavior:
 - prefers ISBN-13 when available
 - skips records missing required fields (`isbn`, `title`, `author`)
 - defaults status to `AVAILABLE`
+
+### API Trigger (Librarian/Admin)
+
+You can also trigger import via API:
+
+```text
+POST /api/v1/books/import/open-library
+```
+
+Example payload:
+
+```json
+{
+  "subjects": ["fantasy", "mystery"],
+  "pages_per_subject": 2,
+  "limit": 100,
+  "sleep_seconds": 0.2,
+  "max_books": 500,
+  "dry_run": true
+}
+```

@@ -70,3 +70,28 @@ class PaginationResponse(BaseModel):
     limit: int
     total: int
     total_pages: int
+
+
+class OpenLibraryImportRequest(BaseModel):
+    subjects: list[str] = Field(default_factory=list)
+    pages_per_subject: int = Field(default=3, ge=1, le=20)
+    limit: int = Field(default=100, ge=1, le=100)
+    sleep_seconds: float = Field(default=0.2, ge=0.0, le=5.0)
+    max_books: int | None = Field(default=None, ge=1, le=10000)
+    dry_run: bool = False
+
+
+class OpenLibraryImportStatsResponse(BaseModel):
+    fetched_docs: int
+    inserted: int
+    skipped_missing_required: int
+    skipped_invalid_isbn: int
+    skipped_duplicate_isbn: int
+    skipped_invalid_year: int
+    failed_requests: int
+
+
+class OpenLibraryImportResponse(BaseModel):
+    mode: str
+    subjects: list[str]
+    stats: OpenLibraryImportStatsResponse
