@@ -64,6 +64,10 @@ Important fields:
   - returns random AVAILABLE books for discovery/home sections
   - query: `limit` (default 12, max 40)
 
+- `GET /api/v1/books/authors/top`
+  - returns top authors by catalog count
+  - query: `limit` (default 10, max 50)
+
 - `GET /api/v1/books/{book_id}/related`
   - returns related books using shared author/publisher
   - query: `limit` (default 10, max 20)

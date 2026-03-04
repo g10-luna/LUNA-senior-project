@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from auth.schemas import UserResponse
 from book.import_openlibrary import DEFAULT_SUBJECTS
 from book.schemas import (
+    AuthorCountResponse,
     BookCreateRequest,
     BookListQuery,
     BookResponse,
@@ -34,6 +35,7 @@ from book.services import (
     get_book_by_isbn,
     get_book_catalog_stats,
     get_random_discovery_books,
+    get_top_authors,
     get_related_books,
     import_books_from_open_library,
     list_books,
@@ -80,6 +82,18 @@ def get_random_discovery_books_route(
             "count": len(items),
         }
     )
+
+
+@router.get("/authors/top")
+def get_top_authors_route(
+    limit: Annotated[int, Query(ge=1, le=50)] = 10,
+    _user: UserResponse = Depends(get_current_user_dep),
+):
+    items = [
+        AuthorCountResponse(author=author, count=count).model_dump(mode="json")
+        for author, count in get_top_authors(limit=limit)
+    ]
+    return _success({"items": items, "count": len(items)})
 
 
 @router.get("/")

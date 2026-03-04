@@ -105,3 +105,8 @@ class CatalogStatsResponse(BaseModel):
     unavailable_books: int
     missing_cover_count: int
     missing_publication_year_count: int
+
+
+class AuthorCountResponse(BaseModel):
+    author: str
+    count: int

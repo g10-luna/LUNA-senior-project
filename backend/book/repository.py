@@ -232,3 +232,13 @@ def get_random_available_books(db: Session, *, limit: int) -> Sequence[Book]:
         .limit(limit)
     )
     return db.scalars(stmt).all()
+
+
+def get_top_authors(db: Session, *, limit: int) -> list[tuple[str, int]]:
+    rows = db.execute(
+        select(Book.author, func.count())
+        .group_by(Book.author)
+        .order_by(func.count().desc(), Book.author.asc())
+        .limit(limit)
+    ).all()
+    return [(author, int(count)) for author, count in rows if author]

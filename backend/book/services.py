@@ -267,3 +267,11 @@ def get_random_discovery_books(*, limit: int):
         return list(repository.get_random_available_books(db, limit=limit))
     finally:
         db.close()
+
+
+def get_top_authors(*, limit: int) -> list[tuple[str, int]]:
+    db = SessionLocal()
+    try:
+        return repository.get_top_authors(db, limit=limit)
+    finally:
+        db.close()
