@@ -3,12 +3,13 @@ Business logic layer for Book Service.
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
 from shared.db import SessionLocal
-from shared.models import Book, BookStatus
+from shared.models import AuditLog, Book, BookStatus
 
 from book import repository
 from book.import_openlibrary import (
@@ -17,6 +18,8 @@ from book.import_openlibrary import (
     import_open_library,
     normalize_isbn,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class BookServiceError(Exception):
@@ -37,6 +40,44 @@ class BookListResult:
     total: int
     page: int
     limit: int
+
+
+def log_audit_event(
+    *,
+    actor_user_id: UUID | None,
+    action: str,
+    resource_type: str,
+    resource_id: UUID | None,
+    changes: dict | None = None,
+    ip_address: str | None = None,
+) -> None:
+    """
+    Best-effort audit logging for book-domain write/maintenance actions.
+    Failures are logged but do not fail the caller operation.
+    """
+    db = SessionLocal()
+    try:
+        db.add(
+            AuditLog(
+                user_id=actor_user_id,
+                action=action,
+                resource_type=resource_type,
+                resource_id=resource_id,
+                changes=changes,
+                ip_address=ip_address,
+            )
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception(
+            "Audit log write failed action=%s resource_type=%s resource_id=%s",
+            action,
+            resource_type,
+            resource_id,
+        )
+    finally:
+        db.close()
 
 
 def _validate_publication_year(year: int | None) -> None:

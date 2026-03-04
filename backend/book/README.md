@@ -173,6 +173,22 @@ Use consistent error semantics:
 - avoid unbounded text scans without limit/offset
 - add optional Redis caching later for hot catalog queries
 
+## Audit Logging
+
+Write and maintenance actions emit audit events to:
+
+```text
+ops.audit_logs
+```
+
+Current actions logged:
+- `book.create`
+- `book.update`
+- `book.update_status`
+- `book.delete`
+- `book.import_open_library`
+- `book.normalize_isbns`
+
 ## Phased Implementation Plan
 
 ### Phase 1: Read-only Catalog

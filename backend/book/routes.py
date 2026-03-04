@@ -50,6 +50,7 @@ from book.services import (
     get_related_books,
     import_books_from_open_library,
     list_books,
+    log_audit_event,
     normalize_catalog_isbns,
     update_book,
     update_book_status,
@@ -204,9 +205,16 @@ def get_coverage_route(_user: UserResponse = Depends(get_current_user_dep)):
 def normalize_isbns_route(
     dry_run: bool = True,
     limit: Annotated[int, Query(ge=1, le=20000)] = 5000,
-    _user: UserResponse = RequireLibrarianOrAdmin,
+    user: UserResponse = RequireLibrarianOrAdmin,
 ):
     result = normalize_catalog_isbns(dry_run=dry_run, limit=limit)
+    log_audit_event(
+        actor_user_id=user.id,
+        action="book.normalize_isbns",
+        resource_type="book_catalog",
+        resource_id=None,
+        changes=result,
+    )
     payload = IsbnNormalizationResponse(**result).model_dump(mode="json")
     return _success({"normalization": payload})
 
@@ -308,10 +316,17 @@ def get_related_books_route(
 @router.post("/")
 def create_book_route(
     req: BookCreateRequest,
-    _user: UserResponse = RequireLibrarianOrAdmin,
+    user: UserResponse = RequireLibrarianOrAdmin,
 ):
     try:
         book = create_book(**req.model_dump())
+        log_audit_event(
+            actor_user_id=user.id,
+            action="book.create",
+            resource_type="book",
+            resource_id=book.id,
+            changes=req.model_dump(mode="json"),
+        )
         return _success({"book": BookResponse.model_validate(book).model_dump(mode="json")})
     except BookConflictError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
@@ -323,10 +338,17 @@ def create_book_route(
 def update_book_route(
     book_id: UUID,
     req: BookUpdateRequest,
-    _user: UserResponse = RequireLibrarianOrAdmin,
+    user: UserResponse = RequireLibrarianOrAdmin,
 ):
     try:
         book = update_book(book_id=book_id, **req.model_dump())
+        log_audit_event(
+            actor_user_id=user.id,
+            action="book.update",
+            resource_type="book",
+            resource_id=book.id,
+            changes=req.model_dump(mode="json"),
+        )
         return _success({"book": BookResponse.model_validate(book).model_dump(mode="json")})
     except BookNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -340,19 +362,33 @@ def update_book_route(
 def update_book_status_route(
     book_id: UUID,
     req: BookStatusUpdateRequest,
-    _user: UserResponse = RequireLibrarianOrAdmin,
+    user: UserResponse = RequireLibrarianOrAdmin,
 ):
     try:
         book = update_book_status(book_id=book_id, status=req.status)
+        log_audit_event(
+            actor_user_id=user.id,
+            action="book.update_status",
+            resource_type="book",
+            resource_id=book.id,
+            changes={"status": req.status.value},
+        )
         return _success({"book": BookResponse.model_validate(book).model_dump(mode="json")})
     except BookNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.delete("/{book_id}")
-def delete_book_route(book_id: UUID, _user: UserResponse = RequireLibrarianOrAdmin):
+def delete_book_route(book_id: UUID, user: UserResponse = RequireLibrarianOrAdmin):
     try:
         delete_book(book_id=book_id)
+        log_audit_event(
+            actor_user_id=user.id,
+            action="book.delete",
+            resource_type="book",
+            resource_id=book_id,
+            changes={"deleted": True},
+        )
         return _success({"message": "Book deleted"})
     except BookNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -363,7 +399,7 @@ def delete_book_route(book_id: UUID, _user: UserResponse = RequireLibrarianOrAdm
 @router.post("/import/open-library")
 def import_open_library_route(
     req: OpenLibraryImportRequest,
-    _user: UserResponse = RequireLibrarianOrAdmin,
+    user: UserResponse = RequireLibrarianOrAdmin,
 ):
     try:
         effective_subjects = [s.strip() for s in req.subjects if s.strip()] or list(
@@ -389,6 +425,13 @@ def import_open_library_route(
                 skipped_invalid_year=stats.skipped_invalid_year,
                 failed_requests=stats.failed_requests,
             ),
+        )
+        log_audit_event(
+            actor_user_id=user.id,
+            action="book.import_open_library",
+            resource_type="book_catalog",
+            resource_id=None,
+            changes=response.model_dump(mode="json"),
         )
         return _success({"import": response.model_dump(mode="json")})
     except BookServiceError as e:
