@@ -33,6 +33,7 @@ from book.services import (
     get_book,
     get_book_by_isbn,
     get_book_catalog_stats,
+    get_random_discovery_books,
     get_related_books,
     import_books_from_open_library,
     list_books,
@@ -65,6 +66,20 @@ def get_catalog_stats_route(_user: UserResponse = Depends(get_current_user_dep))
     stats = get_book_catalog_stats()
     payload = CatalogStatsResponse(**stats).model_dump(mode="json")
     return _success({"stats": payload})
+
+
+@router.get("/discover/random")
+def get_random_discovery_books_route(
+    limit: Annotated[int, Query(ge=1, le=40)] = 12,
+    _user: UserResponse = Depends(get_current_user_dep),
+):
+    items = get_random_discovery_books(limit=limit)
+    return _success(
+        {
+            "items": [BookResponse.model_validate(book).model_dump(mode="json") for book in items],
+            "count": len(items),
+        }
+    )
 
 
 @router.get("/")

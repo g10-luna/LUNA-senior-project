@@ -60,6 +60,10 @@ Important fields:
 - `GET /api/v1/books/isbn/{isbn}`
   - returns a single book by ISBN or `404`
 
+- `GET /api/v1/books/discover/random`
+  - returns random AVAILABLE books for discovery/home sections
+  - query: `limit` (default 12, max 40)
+
 - `GET /api/v1/books/{book_id}/related`
   - returns related books using shared author/publisher
   - query: `limit` (default 10, max 20)

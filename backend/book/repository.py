@@ -222,3 +222,13 @@ def get_related_books(
         .limit(limit)
     )
     return db.scalars(stmt).all()
+
+
+def get_random_available_books(db: Session, *, limit: int) -> Sequence[Book]:
+    stmt = (
+        select(Book)
+        .where(Book.status == BookStatus.AVAILABLE)
+        .order_by(func.random())
+        .limit(limit)
+    )
+    return db.scalars(stmt).all()

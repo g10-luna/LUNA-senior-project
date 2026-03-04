@@ -259,3 +259,11 @@ def get_related_books(*, book_id: UUID, limit: int):
         return list(repository.get_related_books(db, book=book, limit=limit))
     finally:
         db.close()
+
+
+def get_random_discovery_books(*, limit: int):
+    db = SessionLocal()
+    try:
+        return list(repository.get_random_available_books(db, limit=limit))
+    finally:
+        db.close()
