@@ -115,3 +115,8 @@ class AuthorCountResponse(BaseModel):
 class PublisherCountResponse(BaseModel):
     publisher: str
     count: int
+
+
+class PublicationYearCountResponse(BaseModel):
+    year: int
+    count: int

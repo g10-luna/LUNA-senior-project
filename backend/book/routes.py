@@ -24,6 +24,7 @@ from book.schemas import (
     OpenLibraryImportResponse,
     OpenLibraryImportStatsResponse,
     PaginationResponse,
+    PublicationYearCountResponse,
     PublisherCountResponse,
 )
 from book.services import (
@@ -37,6 +38,7 @@ from book.services import (
     get_book_catalog_stats,
     get_random_discovery_books,
     get_top_authors,
+    get_top_publication_years,
     get_top_publishers,
     get_related_books,
     import_books_from_open_library,
@@ -106,6 +108,18 @@ def get_top_publishers_route(
     items = [
         PublisherCountResponse(publisher=publisher, count=count).model_dump(mode="json")
         for publisher, count in get_top_publishers(limit=limit)
+    ]
+    return _success({"items": items, "count": len(items)})
+
+
+@router.get("/years/top")
+def get_top_publication_years_route(
+    limit: Annotated[int, Query(ge=1, le=50)] = 10,
+    _user: UserResponse = Depends(get_current_user_dep),
+):
+    items = [
+        PublicationYearCountResponse(year=year, count=count).model_dump(mode="json")
+        for year, count in get_top_publication_years(limit=limit)
     ]
     return _success({"items": items, "count": len(items)})
 

@@ -283,3 +283,11 @@ def get_top_publishers(*, limit: int) -> list[tuple[str, int]]:
         return repository.get_top_publishers(db, limit=limit)
     finally:
         db.close()
+
+
+def get_top_publication_years(*, limit: int) -> list[tuple[int, int]]:
+    db = SessionLocal()
+    try:
+        return repository.get_top_publication_years(db, limit=limit)
+    finally:
+        db.close()

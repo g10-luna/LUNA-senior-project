@@ -72,6 +72,10 @@ Important fields:
   - returns top publishers by catalog count
   - query: `limit` (default 10, max 50)
 
+- `GET /api/v1/books/years/top`
+  - returns most common publication years by catalog count
+  - query: `limit` (default 10, max 50)
+
 - `GET /api/v1/books/{book_id}/related`
   - returns related books using shared author/publisher
   - query: `limit` (default 10, max 20)

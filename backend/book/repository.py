@@ -253,3 +253,14 @@ def get_top_publishers(db: Session, *, limit: int) -> list[tuple[str, int]]:
         .limit(limit)
     ).all()
     return [(publisher, int(count)) for publisher, count in rows if publisher]
+
+
+def get_top_publication_years(db: Session, *, limit: int) -> list[tuple[int, int]]:
+    rows = db.execute(
+        select(Book.publication_year, func.count())
+        .where(Book.publication_year.is_not(None))
+        .group_by(Book.publication_year)
+        .order_by(func.count().desc(), Book.publication_year.desc())
+        .limit(limit)
+    ).all()
+    return [(int(year), int(count)) for year, count in rows if year is not None]
