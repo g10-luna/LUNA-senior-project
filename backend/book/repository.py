@@ -201,3 +201,24 @@ def get_catalog_stats(db: Session) -> dict[str, int]:
         "missing_cover_count": int(missing_cover_count),
         "missing_publication_year_count": int(missing_publication_year_count),
     }
+
+
+def get_related_books(
+    db: Session,
+    *,
+    book: Book,
+    limit: int,
+) -> Sequence[Book]:
+    stmt = (
+        select(Book)
+        .where(Book.id != book.id)
+        .where(
+            or_(
+                Book.author == book.author,
+                Book.publisher == book.publisher,
+            )
+        )
+        .order_by(Book.updated_at.desc())
+        .limit(limit)
+    )
+    return db.scalars(stmt).all()

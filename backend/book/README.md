@@ -60,6 +60,10 @@ Important fields:
 - `GET /api/v1/books/isbn/{isbn}`
   - returns a single book by ISBN or `404`
 
+- `GET /api/v1/books/{book_id}/related`
+  - returns related books using shared author/publisher
+  - query: `limit` (default 10, max 20)
+
 - `GET /api/v1/books/stats`
   - returns catalog summary counts:
     - total books

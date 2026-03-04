@@ -248,3 +248,14 @@ def get_book_catalog_stats() -> dict[str, int]:
         return repository.get_catalog_stats(db)
     finally:
         db.close()
+
+
+def get_related_books(*, book_id: UUID, limit: int):
+    db = SessionLocal()
+    try:
+        book = repository.get_book_by_id(db, book_id)
+        if not book:
+            raise BookNotFoundError("Book not found")
+        return list(repository.get_related_books(db, book=book, limit=limit))
+    finally:
+        db.close()
