@@ -27,6 +27,7 @@ from book.schemas import (
     OpenLibraryImportResponse,
     OpenLibraryImportStatsResponse,
     PaginationResponse,
+    PerfBaselineResponse,
     PublicationYearCountResponse,
     PublisherCountResponse,
     SearchSuggestionResponse,
@@ -49,9 +50,11 @@ from book.services import (
     get_top_publishers,
     get_related_books,
     import_books_from_open_library,
+    invalidate_book_caches,
     list_books,
     log_audit_event,
     normalize_catalog_isbns,
+    run_perf_baseline,
     update_book,
     update_book_status,
 )
@@ -208,6 +211,8 @@ def normalize_isbns_route(
     user: UserResponse = RequireLibrarianOrAdmin,
 ):
     result = normalize_catalog_isbns(dry_run=dry_run, limit=limit)
+    if not dry_run and result.get("updated", 0) > 0:
+        invalidate_book_caches()
     log_audit_event(
         actor_user_id=user.id,
         action="book.normalize_isbns",
@@ -217,6 +222,17 @@ def normalize_isbns_route(
     )
     payload = IsbnNormalizationResponse(**result).model_dump(mode="json")
     return _success({"normalization": payload})
+
+
+@router.get("/perf/baseline")
+def perf_baseline_route(
+    iterations: Annotated[int, Query(ge=1, le=30)] = 5,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    _user: UserResponse = RequireLibrarianOrAdmin,
+):
+    result = run_perf_baseline(iterations=iterations, limit=limit)
+    payload = PerfBaselineResponse(**result.__dict__).model_dump(mode="json")
+    return _success({"perf": payload})
 
 
 @router.get("/")
@@ -320,6 +336,7 @@ def create_book_route(
 ):
     try:
         book = create_book(**req.model_dump())
+        invalidate_book_caches()
         log_audit_event(
             actor_user_id=user.id,
             action="book.create",
@@ -342,6 +359,7 @@ def update_book_route(
 ):
     try:
         book = update_book(book_id=book_id, **req.model_dump())
+        invalidate_book_caches()
         log_audit_event(
             actor_user_id=user.id,
             action="book.update",
@@ -366,6 +384,7 @@ def update_book_status_route(
 ):
     try:
         book = update_book_status(book_id=book_id, status=req.status)
+        invalidate_book_caches()
         log_audit_event(
             actor_user_id=user.id,
             action="book.update_status",
@@ -382,6 +401,7 @@ def update_book_status_route(
 def delete_book_route(book_id: UUID, user: UserResponse = RequireLibrarianOrAdmin):
     try:
         delete_book(book_id=book_id)
+        invalidate_book_caches()
         log_audit_event(
             actor_user_id=user.id,
             action="book.delete",
@@ -426,6 +446,8 @@ def import_open_library_route(
                 failed_requests=stats.failed_requests,
             ),
         )
+        if not req.dry_run and response.stats.inserted > 0:
+            invalidate_book_caches()
         log_audit_event(
             actor_user_id=user.id,
             action="book.import_open_library",

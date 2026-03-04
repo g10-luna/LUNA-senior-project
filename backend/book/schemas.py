@@ -149,3 +149,12 @@ class IsbnNormalizationResponse(BaseModel):
     skipped_invalid: int
     skipped_conflict: int
     dry_run: bool
+
+
+class PerfBaselineResponse(BaseModel):
+    iterations: int
+    limit: int
+    avg_ms: float
+    min_ms: float
+    max_ms: float
+    p95_ms: float

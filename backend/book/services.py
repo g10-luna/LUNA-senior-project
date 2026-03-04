@@ -4,12 +4,15 @@ Business logic layer for Book Service.
 from __future__ import annotations
 
 import logging
+import json
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
 from shared.db import SessionLocal
 from shared.models import AuditLog, Book, BookStatus
+from shared.redis_client import cache_delete_prefix, cache_get, cache_set
 
 from book import repository
 from book.import_openlibrary import (
@@ -40,6 +43,41 @@ class BookListResult:
     total: int
     page: int
     limit: int
+
+
+@dataclass
+class PerfBaselineResult:
+    iterations: int
+    limit: int
+    avg_ms: float
+    min_ms: float
+    max_ms: float
+    p95_ms: float
+
+
+def _book_cache_get(key: str):
+    raw = cache_get(f"book:{key}")
+    if not raw:
+        return None
+    try:
+        return json.loads(raw)
+    except Exception:
+        return None
+
+
+def _book_cache_set(key: str, value, ttl_seconds: int) -> None:
+    try:
+        cache_set(f"book:{key}", json.dumps(value), ttl_seconds)
+    except Exception:
+        logger.exception("Book cache set failed for key=%s", key)
+
+
+def invalidate_book_caches() -> None:
+    """Best-effort cache invalidation for book-domain reads."""
+    try:
+        cache_delete_prefix("book:")
+    except Exception:
+        logger.exception("Book cache invalidation failed")
 
 
 def log_audit_event(
@@ -289,9 +327,14 @@ def import_books_from_open_library(
 
 
 def get_book_catalog_stats() -> dict[str, int]:
+    cached = _book_cache_get("catalog_stats")
+    if cached is not None:
+        return cached
     db = SessionLocal()
     try:
-        return repository.get_catalog_stats(db)
+        value = repository.get_catalog_stats(db)
+        _book_cache_set("catalog_stats", value, ttl_seconds=120)
+        return value
     finally:
         db.close()
 
@@ -316,25 +359,43 @@ def get_random_discovery_books(*, limit: int):
 
 
 def get_top_authors(*, limit: int) -> list[tuple[str, int]]:
+    cache_key = f"top_authors:{limit}"
+    cached = _book_cache_get(cache_key)
+    if cached is not None:
+        return [(item[0], int(item[1])) for item in cached]
     db = SessionLocal()
     try:
-        return repository.get_top_authors(db, limit=limit)
+        value = repository.get_top_authors(db, limit=limit)
+        _book_cache_set(cache_key, value, ttl_seconds=300)
+        return value
     finally:
         db.close()
 
 
 def get_top_publishers(*, limit: int) -> list[tuple[str, int]]:
+    cache_key = f"top_publishers:{limit}"
+    cached = _book_cache_get(cache_key)
+    if cached is not None:
+        return [(item[0], int(item[1])) for item in cached]
     db = SessionLocal()
     try:
-        return repository.get_top_publishers(db, limit=limit)
+        value = repository.get_top_publishers(db, limit=limit)
+        _book_cache_set(cache_key, value, ttl_seconds=300)
+        return value
     finally:
         db.close()
 
 
 def get_top_publication_years(*, limit: int) -> list[tuple[int, int]]:
+    cache_key = f"top_years:{limit}"
+    cached = _book_cache_get(cache_key)
+    if cached is not None:
+        return [(int(item[0]), int(item[1])) for item in cached]
     db = SessionLocal()
     try:
-        return repository.get_top_publication_years(db, limit=limit)
+        value = repository.get_top_publication_years(db, limit=limit)
+        _book_cache_set(cache_key, value, ttl_seconds=300)
+        return value
     finally:
         db.close()
 
@@ -351,14 +412,23 @@ def get_search_suggestions(*, q: str, limit: int) -> list[tuple[str, str]]:
 
 
 def get_filter_options(*, limit: int) -> dict[str, list]:
+    cache_key = f"filter_options:{limit}"
+    cached = _book_cache_get(cache_key)
+    if cached is not None:
+        return cached
     db = SessionLocal()
     try:
-        return repository.get_filter_options(db, limit=limit)
+        value = repository.get_filter_options(db, limit=limit)
+        _book_cache_set(cache_key, value, ttl_seconds=300)
+        return value
     finally:
         db.close()
 
 
 def get_coverage() -> dict[str, float | int]:
+    cached = _book_cache_get("coverage")
+    if cached is not None:
+        return cached
     db = SessionLocal()
     try:
         counts = repository.get_coverage_stats(db)
@@ -374,7 +444,7 @@ def get_coverage() -> dict[str, float | int]:
             "with_description_percent": 0.0,
         }
 
-    return {
+    value = {
         **counts,
         "with_cover_percent": round((counts["with_cover_count"] / total) * 100, 2),
         "with_publication_year_percent": round(
@@ -384,6 +454,8 @@ def get_coverage() -> dict[str, float | int]:
             (counts["with_description_count"] / total) * 100, 2
         ),
     }
+    _book_cache_set("coverage", value, ttl_seconds=120)
+    return value
 
 
 def normalize_catalog_isbns(
@@ -432,3 +504,35 @@ def normalize_catalog_isbns(
         "skipped_conflict": skipped_conflict,
         "dry_run": dry_run,
     }
+
+
+def run_perf_baseline(*, iterations: int, limit: int) -> PerfBaselineResult:
+    """Measure list query latency (ms) under current dataset/indexes."""
+    timings_ms: list[float] = []
+    for _ in range(iterations):
+        start = time.perf_counter()
+        list_books(
+            page=1,
+            limit=limit,
+            sort="title",
+            order="asc",
+            status=None,
+            author=None,
+            publisher=None,
+            year=None,
+            q=None,
+        )
+        elapsed = (time.perf_counter() - start) * 1000
+        timings_ms.append(elapsed)
+
+    timings_ms.sort()
+    avg_ms = round(sum(timings_ms) / len(timings_ms), 2)
+    p95_index = max(0, int(round(0.95 * len(timings_ms))) - 1)
+    return PerfBaselineResult(
+        iterations=iterations,
+        limit=limit,
+        avg_ms=avg_ms,
+        min_ms=round(timings_ms[0], 2),
+        max_ms=round(timings_ms[-1], 2),
+        p95_ms=round(timings_ms[p95_index], 2),
+    )

@@ -86,6 +86,11 @@ Important fields:
   - query: `dry_run` (default true), `limit` (default 5000, max 20000)
   - returns scanned/updated/skipped counts
 
+- `GET /api/v1/books/perf/baseline` (Librarian/Admin)
+  - runs a lightweight latency baseline for list queries
+  - query: `iterations` (default 5, max 30), `limit` (default 20, max 100)
+  - returns avg/min/max/p95 in milliseconds
+
 - `GET /api/v1/books/authors/top`
   - returns top authors by catalog count
   - query: `limit` (default 10, max 50)
@@ -171,7 +176,12 @@ Use consistent error semantics:
 - rely on DB indexes (`isbn`, `title`, `author`)
 - default paginated responses only
 - avoid unbounded text scans without limit/offset
-- add optional Redis caching later for hot catalog queries
+- Redis-backed TTL caching is enabled for heavy read aggregations:
+  - catalog stats
+  - coverage metrics
+  - top authors/publishers/years
+  - filter options
+- write/maintenance/import actions invalidate book cache keys
 
 ## Audit Logging
 
