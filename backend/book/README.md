@@ -68,6 +68,10 @@ Important fields:
   - returns top authors by catalog count
   - query: `limit` (default 10, max 50)
 
+- `GET /api/v1/books/publishers/top`
+  - returns top publishers by catalog count
+  - query: `limit` (default 10, max 50)
+
 - `GET /api/v1/books/{book_id}/related`
   - returns related books using shared author/publisher
   - query: `limit` (default 10, max 20)

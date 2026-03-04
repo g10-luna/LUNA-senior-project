@@ -242,3 +242,14 @@ def get_top_authors(db: Session, *, limit: int) -> list[tuple[str, int]]:
         .limit(limit)
     ).all()
     return [(author, int(count)) for author, count in rows if author]
+
+
+def get_top_publishers(db: Session, *, limit: int) -> list[tuple[str, int]]:
+    rows = db.execute(
+        select(Book.publisher, func.count())
+        .where(Book.publisher.is_not(None))
+        .group_by(Book.publisher)
+        .order_by(func.count().desc(), Book.publisher.asc())
+        .limit(limit)
+    ).all()
+    return [(publisher, int(count)) for publisher, count in rows if publisher]

@@ -110,3 +110,8 @@ class CatalogStatsResponse(BaseModel):
 class AuthorCountResponse(BaseModel):
     author: str
     count: int
+
+
+class PublisherCountResponse(BaseModel):
+    publisher: str
+    count: int
