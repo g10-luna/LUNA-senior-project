@@ -291,3 +291,14 @@ def get_top_publication_years(*, limit: int) -> list[tuple[int, int]]:
         return repository.get_top_publication_years(db, limit=limit)
     finally:
         db.close()
+
+
+def get_search_suggestions(*, q: str, limit: int) -> list[tuple[str, str]]:
+    db = SessionLocal()
+    try:
+        clean_q = q.strip()
+        if not clean_q:
+            return []
+        return repository.get_search_suggestions(db, q=clean_q, limit=limit)
+    finally:
+        db.close()

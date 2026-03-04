@@ -264,3 +264,47 @@ def get_top_publication_years(db: Session, *, limit: int) -> list[tuple[int, int
         .limit(limit)
     ).all()
     return [(int(year), int(count)) for year, count in rows if year is not None]
+
+
+def get_search_suggestions(
+    db: Session,
+    *,
+    q: str,
+    limit: int,
+) -> list[tuple[str, str]]:
+    like_q = f"%{q}%"
+    # Pull candidates from each dimension, then de-duplicate while preserving order.
+    titles = db.scalars(
+        select(Book.title)
+        .where(Book.title.ilike(like_q))
+        .order_by(Book.updated_at.desc())
+        .limit(limit)
+    ).all()
+    authors = db.scalars(
+        select(Book.author)
+        .where(Book.author.ilike(like_q))
+        .order_by(Book.updated_at.desc())
+        .limit(limit)
+    ).all()
+    isbns = db.scalars(
+        select(Book.isbn)
+        .where(Book.isbn.ilike(like_q))
+        .order_by(Book.updated_at.desc())
+        .limit(limit)
+    ).all()
+
+    seen: set[tuple[str, str]] = set()
+    out: list[tuple[str, str]] = []
+    for value, value_type in (
+        *((v, "title") for v in titles if v),
+        *((v, "author") for v in authors if v),
+        *((v, "isbn") for v in isbns if v),
+    ):
+        key = (value, value_type)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(key)
+        if len(out) >= limit:
+            break
+    return out

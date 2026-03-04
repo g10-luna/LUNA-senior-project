@@ -120,3 +120,8 @@ class PublisherCountResponse(BaseModel):
 class PublicationYearCountResponse(BaseModel):
     year: int
     count: int
+
+
+class SearchSuggestionResponse(BaseModel):
+    label: str
+    type: Literal["title", "author", "isbn"]

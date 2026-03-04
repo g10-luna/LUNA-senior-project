@@ -69,6 +69,10 @@ Important fields:
   - includes random books, top authors, top publishers, top years, and stats
   - query: `books_limit` (default 12, max 40), `top_limit` (default 5, max 20)
 
+- `GET /api/v1/books/search/suggestions`
+  - lightweight autocomplete suggestions across title/author/isbn
+  - query: `q` (required), `limit` (default 10, max 25)
+
 - `GET /api/v1/books/authors/top`
   - returns top authors by catalog count
   - query: `limit` (default 10, max 50)

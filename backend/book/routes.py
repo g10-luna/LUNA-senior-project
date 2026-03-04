@@ -26,6 +26,7 @@ from book.schemas import (
     PaginationResponse,
     PublicationYearCountResponse,
     PublisherCountResponse,
+    SearchSuggestionResponse,
 )
 from book.services import (
     BookConflictError,
@@ -37,6 +38,7 @@ from book.services import (
     get_book_by_isbn,
     get_book_catalog_stats,
     get_random_discovery_books,
+    get_search_suggestions,
     get_top_authors,
     get_top_publication_years,
     get_top_publishers,
@@ -161,6 +163,19 @@ def get_discovery_overview_route(
             "stats": CatalogStatsResponse(**stats).model_dump(mode="json"),
         }
     )
+
+
+@router.get("/search/suggestions")
+def get_search_suggestions_route(
+    q: str = Query(..., min_length=1),
+    limit: Annotated[int, Query(ge=1, le=25)] = 10,
+    _user: UserResponse = Depends(get_current_user_dep),
+):
+    items = [
+        SearchSuggestionResponse(label=label, type=item_type).model_dump(mode="json")
+        for label, item_type in get_search_suggestions(q=q, limit=limit)
+    ]
+    return _success({"items": items, "count": len(items)})
 
 
 @router.get("/")
