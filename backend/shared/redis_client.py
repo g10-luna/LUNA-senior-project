@@ -2,6 +2,8 @@
 Redis client for token storage and cache.
 """
 import os
+from typing import Iterator
+
 from redis import Redis
 
 from dotenv import load_dotenv
@@ -13,6 +15,7 @@ _redis: Redis | None = None
 # Redis key prefixes
 REFRESH_TOKEN_PREFIX = "refresh_token:"
 REFRESH_TOKEN_TTL = 7 * 24 * 3600  # 7 days
+CACHE_PREFIX = "cache:"
 
 
 def get_redis() -> Redis:
@@ -44,3 +47,33 @@ def invalidate_refresh_token(user_id: str) -> None:
     r = get_redis()
     key = f"{REFRESH_TOKEN_PREFIX}{user_id}"
     r.delete(key)
+
+
+def cache_get(key: str) -> str | None:
+    """Get a cached string value by key."""
+    r = get_redis()
+    return r.get(f"{CACHE_PREFIX}{key}")
+
+
+def cache_set(key: str, value: str, ttl_seconds: int) -> None:
+    """Set a cached string value with TTL."""
+    r = get_redis()
+    r.setex(f"{CACHE_PREFIX}{key}", ttl_seconds, value)
+
+
+def cache_delete_prefix(prefix: str) -> int:
+    """Delete cache entries matching prefix; returns deleted count."""
+    r = get_redis()
+    pattern = f"{CACHE_PREFIX}{prefix}*"
+    keys: list[str] = list(_scan_keys(r, pattern))
+    if not keys:
+        return 0
+    return int(r.delete(*keys))
+
+
+def _scan_keys(r: Redis, pattern: str) -> Iterator[str]:
+    for key in r.scan_iter(match=pattern, count=500):
+        if isinstance(key, bytes):
+            yield key.decode("utf-8")
+        else:
+            yield str(key)

@@ -44,10 +44,10 @@ def get_current_user_dep(
     """Require valid JWT. Raises 401 if missing or invalid."""
     try:
         return get_current_user(token)
-    except ValueError as e:
+    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e),
+            detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
