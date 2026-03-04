@@ -73,6 +73,10 @@ Important fields:
   - lightweight autocomplete suggestions across title/author/isbn
   - query: `q` (required), `limit` (default 10, max 25)
 
+- `GET /api/v1/books/filters/options`
+  - returns distinct values for catalog filters (authors, publishers, years)
+  - query: `limit` (default 100, max 500)
+
 - `GET /api/v1/books/authors/top`
   - returns top authors by catalog count
   - query: `limit` (default 10, max 50)

@@ -20,6 +20,7 @@ from book.schemas import (
     BookStatusUpdateRequest,
     BookUpdateRequest,
     CatalogStatsResponse,
+    FilterOptionsResponse,
     OpenLibraryImportRequest,
     OpenLibraryImportResponse,
     OpenLibraryImportStatsResponse,
@@ -34,6 +35,7 @@ from book.services import (
     BookServiceError,
     create_book,
     delete_book,
+    get_filter_options,
     get_book,
     get_book_by_isbn,
     get_book_catalog_stats,
@@ -176,6 +178,16 @@ def get_search_suggestions_route(
         for label, item_type in get_search_suggestions(q=q, limit=limit)
     ]
     return _success({"items": items, "count": len(items)})
+
+
+@router.get("/filters/options")
+def get_filter_options_route(
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
+    _user: UserResponse = Depends(get_current_user_dep),
+):
+    options = get_filter_options(limit=limit)
+    payload = FilterOptionsResponse(**options).model_dump(mode="json")
+    return _success({"options": payload})
 
 
 @router.get("/")

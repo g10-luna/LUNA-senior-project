@@ -308,3 +308,36 @@ def get_search_suggestions(
         if len(out) >= limit:
             break
     return out
+
+
+def get_filter_options(
+    db: Session,
+    *,
+    limit: int,
+) -> dict[str, list]:
+    authors = db.scalars(
+        select(Book.author)
+        .where(Book.author.is_not(None))
+        .group_by(Book.author)
+        .order_by(Book.author.asc())
+        .limit(limit)
+    ).all()
+    publishers = db.scalars(
+        select(Book.publisher)
+        .where(Book.publisher.is_not(None))
+        .group_by(Book.publisher)
+        .order_by(Book.publisher.asc())
+        .limit(limit)
+    ).all()
+    years = db.scalars(
+        select(Book.publication_year)
+        .where(Book.publication_year.is_not(None))
+        .group_by(Book.publication_year)
+        .order_by(Book.publication_year.desc())
+        .limit(limit)
+    ).all()
+    return {
+        "authors": [a for a in authors if a],
+        "publishers": [p for p in publishers if p],
+        "years": [int(y) for y in years if y is not None],
+    }

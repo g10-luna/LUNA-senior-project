@@ -125,3 +125,9 @@ class PublicationYearCountResponse(BaseModel):
 class SearchSuggestionResponse(BaseModel):
     label: str
     type: Literal["title", "author", "isbn"]
+
+
+class FilterOptionsResponse(BaseModel):
+    authors: list[str]
+    publishers: list[str]
+    years: list[int]

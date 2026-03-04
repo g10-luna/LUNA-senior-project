@@ -302,3 +302,11 @@ def get_search_suggestions(*, q: str, limit: int) -> list[tuple[str, str]]:
         return repository.get_search_suggestions(db, q=clean_q, limit=limit)
     finally:
         db.close()
+
+
+def get_filter_options(*, limit: int) -> dict[str, list]:
+    db = SessionLocal()
+    try:
+        return repository.get_filter_options(db, limit=limit)
+    finally:
+        db.close()
