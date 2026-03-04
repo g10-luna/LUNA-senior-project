@@ -229,3 +229,11 @@ def import_books_from_open_library(
         )
     except Exception as exc:
         raise BookServiceError(f"Open Library import failed: {exc}") from exc
+
+
+def get_book_catalog_stats() -> dict[str, int]:
+    db = SessionLocal()
+    try:
+        return repository.get_catalog_stats(db)
+    finally:
+        db.close()

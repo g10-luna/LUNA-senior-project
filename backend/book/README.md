@@ -57,6 +57,13 @@ Important fields:
 - `GET /api/v1/books/{book_id}`
   - returns a single book or `404`
 
+- `GET /api/v1/books/stats`
+  - returns catalog summary counts:
+    - total books
+    - counts by status (`AVAILABLE`, `CHECKED_OUT`, `RESERVED`, `UNAVAILABLE`)
+    - missing cover URL count
+    - missing publication year count
+
 ### Write Endpoints (Librarian/Admin)
 
 - `POST /api/v1/books`

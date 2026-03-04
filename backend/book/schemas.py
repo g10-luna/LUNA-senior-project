@@ -95,3 +95,13 @@ class OpenLibraryImportResponse(BaseModel):
     mode: str
     subjects: list[str]
     stats: OpenLibraryImportStatsResponse
+
+
+class CatalogStatsResponse(BaseModel):
+    total_books: int
+    available_books: int
+    checked_out_books: int
+    reserved_books: int
+    unavailable_books: int
+    missing_cover_count: int
+    missing_publication_year_count: int

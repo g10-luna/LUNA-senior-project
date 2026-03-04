@@ -18,6 +18,7 @@ from book.schemas import (
     BookResponse,
     BookStatusUpdateRequest,
     BookUpdateRequest,
+    CatalogStatsResponse,
     OpenLibraryImportRequest,
     OpenLibraryImportResponse,
     OpenLibraryImportStatsResponse,
@@ -30,6 +31,7 @@ from book.services import (
     create_book,
     delete_book,
     get_book,
+    get_book_catalog_stats,
     import_books_from_open_library,
     list_books,
     update_book,
@@ -54,6 +56,13 @@ def _success(data: dict) -> dict:
 @router.get("/health")
 def books_health():
     return {"status": "healthy"}
+
+
+@router.get("/stats")
+def get_catalog_stats_route(_user: UserResponse = Depends(get_current_user_dep)):
+    stats = get_book_catalog_stats()
+    payload = CatalogStatsResponse(**stats).model_dump(mode="json")
+    return _success({"stats": payload})
 
 
 @router.get("/")

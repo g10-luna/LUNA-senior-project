@@ -176,3 +176,28 @@ def count_book_references(db: Session, *, book_id: UUID) -> int:
 
 def delete_book(db: Session, *, book: Book) -> None:
     db.delete(book)
+
+
+def get_catalog_stats(db: Session) -> dict[str, int]:
+    total_books = db.scalar(select(func.count()).select_from(Book)) or 0
+    missing_cover_count = db.scalar(
+        select(func.count()).select_from(Book).where(Book.cover_image_url.is_(None))
+    ) or 0
+    missing_publication_year_count = db.scalar(
+        select(func.count()).select_from(Book).where(Book.publication_year.is_(None))
+    ) or 0
+
+    status_counts_raw = db.execute(
+        select(Book.status, func.count()).group_by(Book.status)
+    ).all()
+    status_counts = {status.value: count for status, count in status_counts_raw}
+
+    return {
+        "total_books": int(total_books),
+        "available_books": int(status_counts.get(BookStatus.AVAILABLE.value, 0)),
+        "checked_out_books": int(status_counts.get(BookStatus.CHECKED_OUT.value, 0)),
+        "reserved_books": int(status_counts.get(BookStatus.RESERVED.value, 0)),
+        "unavailable_books": int(status_counts.get(BookStatus.UNAVAILABLE.value, 0)),
+        "missing_cover_count": int(missing_cover_count),
+        "missing_publication_year_count": int(missing_publication_year_count),
+    }
