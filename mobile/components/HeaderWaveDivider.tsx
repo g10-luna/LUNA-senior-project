@@ -46,8 +46,8 @@ export default function HeaderWaveDivider({
   const strokePath = variant === 'wave' ? waveLine : variant === 'arc' ? arcLine : concaveLine;
 
   return (
-    <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height }} pointerEvents="none">
-      <Svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ position: 'absolute', bottom: 0 }}>
+    <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, width: '100%', height }} pointerEvents="none">
+      <Svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ position: 'absolute', bottom: 0, left: 0 }}>
         <Defs>
           <LinearGradient id="headerWaveGrad" x1="0" y1="0" x2="1" y2="0">
             <Stop offset="0" stopColor={HOWARD_BLUE} stopOpacity="1" />

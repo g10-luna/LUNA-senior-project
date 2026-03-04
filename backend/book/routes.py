@@ -38,6 +38,7 @@ from book.services import (
     BookServiceError,
     create_book,
     delete_book,
+    get_author_image_url,
     get_coverage,
     get_filter_options,
     get_book,
@@ -105,9 +106,14 @@ def get_top_authors_route(
     limit: Annotated[int, Query(ge=1, le=50)] = 10,
     _user: UserResponse = Depends(get_current_user_dep),
 ):
+    authors_with_counts = get_top_authors(limit=limit)
     items = [
-        AuthorCountResponse(author=author, count=count).model_dump(mode="json")
-        for author, count in get_top_authors(limit=limit)
+        AuthorCountResponse(
+            author=author,
+            count=count,
+            author_image_url=get_author_image_url(author),
+        ).model_dump(mode="json")
+        for author, count in authors_with_counts
     ]
     return _success({"items": items, "count": len(items)})
 
@@ -155,7 +161,11 @@ def get_discovery_overview_route(
                 for book in random_books
             ],
             "top_authors": [
-                AuthorCountResponse(author=author, count=count).model_dump(mode="json")
+                AuthorCountResponse(
+                    author=author,
+                    count=count,
+                    author_image_url=get_author_image_url(author),
+                ).model_dump(mode="json")
                 for author, count in top_authors
             ],
             "top_publishers": [
