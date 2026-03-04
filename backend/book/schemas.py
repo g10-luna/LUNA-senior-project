@@ -131,3 +131,13 @@ class FilterOptionsResponse(BaseModel):
     authors: list[str]
     publishers: list[str]
     years: list[int]
+
+
+class CoverageResponse(BaseModel):
+    total_books: int
+    with_cover_count: int
+    with_publication_year_count: int
+    with_description_count: int
+    with_cover_percent: float
+    with_publication_year_percent: float
+    with_description_percent: float

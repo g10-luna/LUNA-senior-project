@@ -310,3 +310,31 @@ def get_filter_options(*, limit: int) -> dict[str, list]:
         return repository.get_filter_options(db, limit=limit)
     finally:
         db.close()
+
+
+def get_coverage() -> dict[str, float | int]:
+    db = SessionLocal()
+    try:
+        counts = repository.get_coverage_stats(db)
+    finally:
+        db.close()
+
+    total = counts["total_books"] or 0
+    if total == 0:
+        return {
+            **counts,
+            "with_cover_percent": 0.0,
+            "with_publication_year_percent": 0.0,
+            "with_description_percent": 0.0,
+        }
+
+    return {
+        **counts,
+        "with_cover_percent": round((counts["with_cover_count"] / total) * 100, 2),
+        "with_publication_year_percent": round(
+            (counts["with_publication_year_count"] / total) * 100, 2
+        ),
+        "with_description_percent": round(
+            (counts["with_description_count"] / total) * 100, 2
+        ),
+    }

@@ -341,3 +341,28 @@ def get_filter_options(
         "publishers": [p for p in publishers if p],
         "years": [int(y) for y in years if y is not None],
     }
+
+
+def get_coverage_stats(db: Session) -> dict[str, int]:
+    total_books = db.scalar(select(func.count()).select_from(Book)) or 0
+    with_cover_count = db.scalar(
+        select(func.count())
+        .select_from(Book)
+        .where(Book.cover_image_url.is_not(None))
+        .where(Book.cover_image_url != "")
+    ) or 0
+    with_publication_year_count = db.scalar(
+        select(func.count()).select_from(Book).where(Book.publication_year.is_not(None))
+    ) or 0
+    with_description_count = db.scalar(
+        select(func.count())
+        .select_from(Book)
+        .where(Book.description.is_not(None))
+        .where(Book.description != "")
+    ) or 0
+    return {
+        "total_books": int(total_books),
+        "with_cover_count": int(with_cover_count),
+        "with_publication_year_count": int(with_publication_year_count),
+        "with_description_count": int(with_description_count),
+    }

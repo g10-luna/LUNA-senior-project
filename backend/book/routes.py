@@ -20,6 +20,7 @@ from book.schemas import (
     BookStatusUpdateRequest,
     BookUpdateRequest,
     CatalogStatsResponse,
+    CoverageResponse,
     FilterOptionsResponse,
     OpenLibraryImportRequest,
     OpenLibraryImportResponse,
@@ -35,6 +36,7 @@ from book.services import (
     BookServiceError,
     create_book,
     delete_book,
+    get_coverage,
     get_filter_options,
     get_book,
     get_book_by_isbn,
@@ -188,6 +190,12 @@ def get_filter_options_route(
     options = get_filter_options(limit=limit)
     payload = FilterOptionsResponse(**options).model_dump(mode="json")
     return _success({"options": payload})
+
+
+@router.get("/coverage")
+def get_coverage_route(_user: UserResponse = Depends(get_current_user_dep)):
+    payload = CoverageResponse(**get_coverage()).model_dump(mode="json")
+    return _success({"coverage": payload})
 
 
 @router.get("/")
