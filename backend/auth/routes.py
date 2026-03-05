@@ -2,9 +2,6 @@
 Auth API routes - System Design Section 6.1.1.
 Base path: /api/v1/auth
 """
-import uuid
-from datetime import datetime, timezone
-
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from auth.schemas import (
@@ -19,7 +16,6 @@ from auth.schemas import (
 )
 from auth.services import (
     change_password,
-    get_current_user,
     login_user,
     logout_user,
     refresh_tokens,
@@ -27,26 +23,9 @@ from auth.services import (
     update_user_profile,
 )
 from shared.auth_dependencies import get_access_token, get_current_user_dep
+from shared.response_utils import api_success
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
-
-
-def _success(data: dict) -> dict:
-    """Standard success response per Section 6.2.2."""
-    return {
-        "success": True,
-        "data": data,
-        "meta": {"timestamp": datetime.now(timezone.utc).isoformat(), "request_id": str(uuid.uuid4())[:8]},
-    }
-
-
-def _error(code: str, message: str, details: dict | None = None) -> dict:
-    """Standard error response per Section 6.2.2."""
-    return {
-        "success": False,
-        "error": {"code": code, "message": message, "details": details or {}},
-        "meta": {"timestamp": datetime.now(timezone.utc).isoformat(), "request_id": str(uuid.uuid4())[:8]},
-    }
 
 
 @router.post("/register")
@@ -69,11 +48,11 @@ def register(req: RegisterRequest):
         traceback.print_exc()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     if access_token is None:
-        return _success({
+        return api_success({
             "user": user.model_dump(mode="json"),
             "message": "Registration successful. Please check your email to confirm your account.",
         })
-    return _success({
+    return api_success({
         "user": user.model_dump(mode="json"),
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -88,7 +67,7 @@ def login(req: LoginRequest):
         access_token, refresh_token, expires_in = login_user(req.email, req.password)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
-    return _success({
+    return api_success({
         "access_token": access_token,
         "refresh_token": refresh_token,
         "expires_in": expires_in,
@@ -100,7 +79,7 @@ def login(req: LoginRequest):
 def logout(user: UserResponse = Depends(get_current_user_dep)):
     """Logout and invalidate refresh token."""
     logout_user(str(user.id))
-    return _success({"message": "Logged out successfully"})
+    return api_success({"message": "Logged out successfully"})
 
 
 @router.post("/refresh")
@@ -110,7 +89,7 @@ def refresh(req: RefreshRequest):
         access_token, new_refresh_token, expires_in = refresh_tokens(req.refresh_token)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
-    return _success({
+    return api_success({
         "access_token": access_token,
         "refresh_token": new_refresh_token,
         "expires_in": expires_in,
@@ -126,7 +105,7 @@ def forgot_password(req: ForgotPasswordRequest):
         get_supabase().auth.reset_password_for_email(req.email)
     except Exception:
         pass  # Don't reveal if email exists
-    return _success({"message": "If the email exists, a password reset link has been sent."})
+    return api_success({"message": "If the email exists, a password reset link has been sent."})
 
 
 @router.post("/reset-password")
@@ -141,13 +120,13 @@ def reset_password(req: ResetPasswordRequest):
         supabase.auth.update_user({"password": req.new_password})
     except Exception:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
-    return _success({"message": "Password has been reset."})
+    return api_success({"message": "Password has been reset."})
 
 
 @router.get("/me", response_model=dict)
 def get_me(user: UserResponse = Depends(get_current_user_dep)):
     """Get current user profile."""
-    return _success({"user": user.model_dump(mode="json")})
+    return api_success({"user": user.model_dump(mode="json")})
 
 
 @router.put("/me")
@@ -166,7 +145,7 @@ def update_me(
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    return _success({"user": updated.model_dump(mode="json")})
+    return api_success({"user": updated.model_dump(mode="json")})
 
 
 @router.put("/change-password")
@@ -180,4 +159,4 @@ def change_pwd(
         change_password(token, req.current_password, req.new_password)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    return _success({"message": "Password changed successfully"})
+    return api_success({"message": "Password changed successfully"})
