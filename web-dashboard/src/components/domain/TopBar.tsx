@@ -1,74 +1,29 @@
 import { useNavigate, useLocation } from "react-router-dom";
+import { logout } from "../../lib/authApi";
 import { ROUTES } from "../../lib/routes";
+import "./TopBar.css";
 
-interface TopBarProps {
-  title: string;
-}
-
-export default function TopBar({ title }: TopBarProps) {
+export default function TopBar({ title }: { title: string }) {
   const navigate = useNavigate();
-  const location = useLocation();
-
-  const handleBack = () => {
-    navigate("/dashboard");
-  };
-
-  const showBackButton = location.pathname !== "/dashboard";
+  const { pathname } = useLocation();
+  const showBack = pathname !== ROUTES.DASHBOARD;
 
   return (
-    <div style={styles.container}>
-      <div style={styles.left}>
-        {showBackButton && (
-          <button onClick={handleBack} style={styles.button}>
-            ← Back
-          </button>
+    <div className="topbar">
+      <div className="topbar-left">
+        {showBack && (
+          <button type="button" className="topbar-back topbar-icon" onClick={() => navigate(ROUTES.DASHBOARD)}>← Back</button>
         )}
-        <h2 style={styles.title}>{title}</h2>
+        <h2 className="topbar-title">{title}</h2>
       </div>
-
-      <div style={styles.right}>
-        <button className="topbar-icon" onClick={() => navigate(ROUTES.OPTIONS)}>
-            ☰
+      <div className="topbar-right">
+        <button type="button" className="topbar-icon" onClick={() => navigate(ROUTES.OPTIONS)} title="Menu">☰</button>
+        <button type="button" className="topbar-icon" title="Notifications">🔔</button>
+        <button type="button" className="topbar-icon" title="Refresh">⟳</button>
+        <button type="button" className="topbar-icon" onClick={() => { logout(); navigate(ROUTES.LOGIN, { replace: true }); }} title="Log out">
+          Log out
         </button>
-        <button className="topbar-icon" >🔔</button>
-        <button className="topbar-icon" >⟳</button>
       </div>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "12px 30px",
-    backgroundColor: "var(--navy-light)",
-    color: "var(--text-light)",
-    fontWeight: 600,
-    fontSize: "20px",
-  },
-  left: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px"
-  },
-  right: {
-    display: "flex",
-    gap: "10px"
-  },
-  title: {
-    margin: 0
-  },
-  button: {
-    cursor: "pointer"
-  },
-  iconButton: {
-    background: "rgba(255,255,255,0.15)",
-    border: "none",
-    color: "white",
-    padding: "8px 10px",
-    borderRadius: "8px",
-    cursor: "pointer",
-  },
-};

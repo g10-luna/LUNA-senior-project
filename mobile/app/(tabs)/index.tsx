@@ -1,14 +1,13 @@
-import { StyleSheet } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 
-import EditScreenInfo from '@/components/EditScreenInfo';
-import { Text, View } from '@/components/Themed';
-
-export default function TabOneScreen() {
+export default function SearchScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Tab One</Text>
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      <EditScreenInfo path="app/(tabs)/index.tsx" />
+      <FontAwesome name="search" size={48} color="#ccc" style={styles.icon} />
+      <Text style={styles.title}>Search</Text>
+      <Text style={styles.placeholder}>Search the catalog (coming soon)</Text>
     </View>
   );
 }
@@ -18,14 +17,9 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    padding: 24,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  separator: {
-    marginVertical: 30,
-    height: 1,
-    width: '80%',
-  },
+  icon: { marginBottom: 16 },
+  title: { fontSize: 22, fontWeight: '600', color: '#333', marginBottom: 8 },
+  placeholder: { fontSize: 15, color: '#888' },
 });

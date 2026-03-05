@@ -2,7 +2,11 @@
 Auth API routes - System Design Section 6.1.1.
 Base path: /api/v1/auth
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+import logging
+import os
+from typing import Any
+
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 
 from auth.schemas import (
     ChangePasswordRequest,
@@ -16,6 +20,8 @@ from auth.schemas import (
 )
 from auth.services import (
     change_password,
+    delete_user_account,
+    delete_local_user_profile,
     login_user,
     logout_user,
     refresh_tokens,
@@ -26,12 +32,41 @@ from shared.auth_dependencies import get_access_token, get_current_user_dep
 from shared.response_utils import api_success
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+logger = logging.getLogger(__name__)
+
+
+def _extract_deleted_user_id(payload: dict[str, Any]) -> str | None:
+    """
+    Extract user id from common Supabase webhook payload variants.
+
+    Supports:
+    - DB webhook style: {"type":"DELETE","schema":"auth","table":"users","old_record":{"id":"..."}}
+    - DB webhook style: {"type":"DELETE","record":{"id":"..."}}
+    - App event style: {"event":"user.deleted","user":{"id":"..."}}
+    """
+    event_type = str(payload.get("type") or payload.get("event") or "").upper()
+    schema = str(payload.get("schema") or "").lower()
+    table = str(payload.get("table") or "").lower()
+
+    if event_type in {"DELETE", "USER.DELETED", "USER_DELETED"}:
+        if schema and schema != "auth":
+            return None
+        if table and table != "users":
+            return None
+        old_record = payload.get("old_record")
+        record = payload.get("record")
+        user = payload.get("user")
+        for source in (old_record, record, user):
+            if isinstance(source, dict):
+                uid = source.get("id")
+                if uid:
+                    return str(uid)
+    return None
 
 
 @router.post("/register")
 def register(req: RegisterRequest):
     """Register new user account."""
-    import traceback
     try:
         result = register_user(
             email=req.email,
@@ -45,8 +80,14 @@ def register(req: RegisterRequest):
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        logger.exception("Unexpected registration failure")
+        detail = "Registration failed due to an internal error"
+        if os.getenv("DEBUG", "").lower() in ("1", "true", "yes"):
+            detail = f"{detail}: {type(e).__name__}: {e}"
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=detail,
+        )
     if access_token is None:
         return api_success({
             "user": user.model_dump(mode="json"),
@@ -64,10 +105,20 @@ def register(req: RegisterRequest):
 def login(req: LoginRequest):
     """Authenticate user and get tokens."""
     try:
-        access_token, refresh_token, expires_in = login_user(req.email, req.password)
+        user, access_token, refresh_token, expires_in = login_user(
+            req.email,
+            req.password,
+        )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+    except Exception:
+        logger.exception("Unexpected login failure")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Login failed due to an internal error",
+        )
     return api_success({
+        "user": user.model_dump(mode="json"),
         "access_token": access_token,
         "refresh_token": refresh_token,
         "expires_in": expires_in,
@@ -104,7 +155,8 @@ def forgot_password(req: ForgotPasswordRequest):
     try:
         get_supabase().auth.reset_password_for_email(req.email)
     except Exception:
-        pass  # Don't reveal if email exists
+        # Keep response generic to avoid user-enumeration; log for operators.
+        logger.exception("Password reset email request failed")
     return api_success({"message": "If the email exists, a password reset link has been sent."})
 
 
@@ -160,3 +212,40 @@ def change_pwd(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     return api_success({"message": "Password changed successfully"})
+
+
+@router.delete("/me")
+def delete_me(user: UserResponse = Depends(get_current_user_dep)):
+    """Delete current authenticated user account."""
+    try:
+        delete_user_account(str(user.id))
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return api_success({"message": "User account deleted"})
+
+
+@router.post("/webhooks/supabase-user-deleted")
+def supabase_user_deleted_webhook(
+    payload: dict[str, Any],
+    x_webhook_secret: str | None = Header(default=None, alias="X-Webhook-Secret"),
+):
+    """
+    Handle Supabase user deletion events and remove mirrored local profile.
+    Configure the same secret in Supabase webhook headers and backend .env.
+    """
+    expected_secret = os.getenv("SUPABASE_WEBHOOK_SECRET")
+    if not expected_secret:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="SUPABASE_WEBHOOK_SECRET is not configured",
+        )
+    if x_webhook_secret != expected_secret:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid webhook secret")
+
+    user_id = _extract_deleted_user_id(payload)
+    if not user_id:
+        # Acknowledge unrelated/unsupported events so webhook retries do not pile up.
+        return api_success({"handled": False, "reason": "No supported user deletion payload found"})
+
+    deleted = delete_local_user_profile(user_id)
+    return api_success({"handled": True, "user_id": user_id, "deleted": deleted})

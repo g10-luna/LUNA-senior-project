@@ -1,0 +1,29 @@
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 30px;
+  background-color: var(--navy-light);
+  color: var(--text-light);
+  font-weight: 600;
+  font-size: 20px;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbar-right {
+  display: flex;
+  gap: 10px;
+}
+
+.topbar-title {
+  margin: 0;
+}
+
+.topbar-back {
+  cursor: pointer;
+}
