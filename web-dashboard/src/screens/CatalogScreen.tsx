@@ -1,285 +1,331 @@
-import { useEffect, useState, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { ROUTES } from "../lib/routes";
+import { useEffect, useState } from "react";
 import {
-  fetchBooks,
-  getMockBooks,
-  createMockBook,
-  getDisplayStatus,
-} from "../lib/catalogApi";
-import type { Book, CatalogFilter } from "../lib/catalogTypes";
-import "./Catalog.css";
+  fetchBookList,
+  fetchCatalogStats,
+  type Book,
+  type BookListParams,
+  type BookStatus,
+} from "../lib/bookApi";
 
-const FILTERS: { value: CatalogFilter; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "available", label: "Available" },
-  { value: "unavailable", label: "Unavailable" },
-  { value: "low_stock", label: "Low Stock" },
-  { value: "custom", label: "Custom..." },
-];
+const PAGE_SIZE = 20;
+const STATUS_LABELS: Record<BookStatus, string> = {
+  AVAILABLE: "Available",
+  CHECKED_OUT: "Checked out",
+  RESERVED: "Reserved",
+  UNAVAILABLE: "Unavailable",
+};
 
-function BookCard({
-  book,
-  onToggleStatus,
-  onDelete,
-}: {
-  book: Book;
-  onToggleStatus: (id: string) => void;
-  onDelete: (id: string) => void;
-}) {
-  const displayStatus = getDisplayStatus(book);
-  const available = book.available_copies ?? 0;
-  const total = book.total_copies ?? 1;
-  const isAvailable = displayStatus === "available" || (displayStatus === "low_stock" && available > 0);
-
+function BookCard({ book }: { book: Book }) {
   return (
-    <article className="catalog-card card">
-      <div className="catalog-card-icon" aria-hidden>
-        📚
-      </div>
-      <div className="catalog-card-details">
-        <h3 className="catalog-card-title">{book.title}</h3>
-        <p className="catalog-card-author">by {book.author}</p>
-        <p className="catalog-card-meta">ISBN {book.isbn}</p>
-        <p className="catalog-card-meta">
-          {available}/{total} copies available
-        </p>
-      </div>
-      <div className="catalog-card-actions">
-        <span
-          className={`catalog-status-tag catalog-status-tag--${displayStatus}`}
+    <div className="card" style={{ textAlign: "left" }}>
+      {book.cover_image_url ? (
+        <img
+          src={book.cover_image_url}
+          alt=""
+          style={{
+            width: "100%",
+            maxHeight: 180,
+            objectFit: "cover",
+            borderRadius: 8,
+            marginBottom: 12,
+          }}
+        />
+      ) : (
+        <div
+          style={{
+            height: 120,
+            background: "var(--surface-soft)",
+            borderRadius: 8,
+            marginBottom: 12,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "var(--text-muted)",
+            fontSize: 14,
+          }}
         >
-          {displayStatus === "low_stock" && isAvailable
-            ? "Low Stock Available"
-            : displayStatus === "available"
-              ? "Available"
-              : "Unavailable"}
-        </span>
-        <p className="catalog-card-location">
-          <span className="catalog-card-location-icon" aria-hidden>📍</span>
-          {book.shelf_location}
-        </p>
-        <div className="catalog-card-buttons">
-          <button
-            type="button"
-            className="catalog-btn catalog-btn-outline"
-            onClick={() => onToggleStatus(book.id)}
-          >
-            {isAvailable ? "Mark Unavailable" : "Mark Available"}
-          </button>
-          <button
-            type="button"
-            className="catalog-btn catalog-btn-icon"
-            onClick={() => onDelete(book.id)}
-            aria-label="Delete book"
-            title="Delete"
-          >
-            🗑️
-          </button>
+          No cover
         </div>
-      </div>
-    </article>
+      )}
+      <h4 style={{ margin: "0 0 4px 0", fontSize: "1.1rem" }}>{book.title}</h4>
+      <p style={{ margin: 0, color: "var(--text-muted)", fontSize: 14 }}>
+        {book.author}
+      </p>
+      {book.publisher && (
+        <p style={{ margin: "4px 0 0 0", fontSize: 13, color: "var(--text-muted)" }}>
+          {book.publisher}
+          {book.publication_year != null ? ` (${book.publication_year})` : ""}
+        </p>
+      )}
+      <p
+        style={{
+          margin: "8px 0 0 0",
+          fontSize: 12,
+          fontWeight: 600,
+          color:
+            book.status === "AVAILABLE"
+              ? "var(--green)"
+              : book.status === "CHECKED_OUT"
+                ? "var(--gold)"
+                : "var(--text-muted)",
+        }}
+      >
+        {STATUS_LABELS[book.status]}
+      </p>
+      {book.shelf_location && (
+        <p style={{ margin: "4px 0 0 0", fontSize: 12, color: "var(--text-muted)" }}>
+          Shelf: {book.shelf_location}
+        </p>
+      )}
+    </div>
   );
 }
 
 export default function CatalogScreen() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const initialQuery = searchParams.get("q") ?? "";
-
-  const [books, setBooks] = useState<Book[]>([]);
+  const [items, setItems] = useState<Book[]>([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState(initialQuery);
-  const [filter, setFilter] = useState<CatalogFilter>("all");
-  const [addBookOpen, setAddBookOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [statusFilter, setStatusFilter] = useState<BookStatus | "">("");
+  const [stats, setStats] = useState<{
+    total_books: number;
+    available_books: number;
+    checked_out_books: number;
+  } | null>(null);
+
+  const loadBooks = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params: BookListParams = {
+        page,
+        limit: PAGE_SIZE,
+        sort: "title",
+        order: "asc",
+      };
+      if (search.trim()) params.q = search.trim();
+      if (statusFilter) params.status = statusFilter as BookStatus;
+
+      const res = await fetchBookList(params);
+      setItems(res.data.items);
+      setTotal(res.data.pagination.total);
+      setTotalPages(res.data.pagination.total_pages);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load catalog");
+      setItems([]);
+      setTotal(0);
+      setTotalPages(0);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadStats = async () => {
+    try {
+      const res = await fetchCatalogStats();
+      if (res.success && res.data.stats) {
+        setStats(res.data.stats);
+      }
+    } catch {
+      // Stats are optional; catalog list is primary
+    }
+  };
 
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    fetchBooks()
-      .then((data) => {
-        if (!cancelled) setBooks(data);
-      })
-      .catch(() => {
-        if (!cancelled) setBooks(getMockBooks());
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+    loadBooks();
+  }, [page, search, statusFilter]);
+
+  useEffect(() => {
+    loadStats();
   }, []);
 
-  const filteredBooks = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    let list = books;
-    if (q) {
-      list = list.filter(
-        (b: Book) =>
-          b.title.toLowerCase().includes(q) ||
-          b.author.toLowerCase().includes(q) ||
-          b.isbn.toLowerCase().includes(q) ||
-          (b.shelf_location && b.shelf_location.toLowerCase().includes(q))
-      );
-    }
-    if (filter === "all") return list;
-    return list.filter((b: Book) => {
-      const status = getDisplayStatus(b);
-      if (filter === "available") return status === "available";
-      if (filter === "unavailable") return status === "unavailable";
-      if (filter === "low_stock") return status === "low_stock";
-      return true;
-    });
-  }, [books, searchQuery, filter]);
-
-  const handleToggleStatus = (id: string) => {
-    setBooks((prev: Book[]) =>
-      prev.map((b) => {
-        if (b.id !== id) return b;
-        const next =
-          b.status === "AVAILABLE" || b.status === "LOW_STOCK"
-            ? "UNAVAILABLE"
-            : "AVAILABLE";
-        const avail = b.available_copies ?? 0;
-        const total = b.total_copies ?? 1;
-        return {
-          ...b,
-          status: next as Book["status"],
-          available_copies:
-            next === "AVAILABLE" ? Math.min(avail + 1, total) : Math.max(0, avail - 1),
-        };
-      })
-    );
-  };
-
-  const handleDelete = (id: string) => {
-    if (window.confirm("Remove this book from the catalog?")) {
-      setBooks((prev: Book[]) => prev.filter((b: Book) => b.id !== id));
-    }
-  };
-
-  const handleAddBook = (e: React.FormEvent<HTMLFormElement>): void => {
+  const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const form = e.currentTarget;
-    const title = (form.querySelector('[name="title"]') as HTMLInputElement)?.value?.trim();
-    const author = (form.querySelector('[name="author"]') as HTMLInputElement)?.value?.trim();
-    const isbn = (form.querySelector('[name="isbn"]') as HTMLInputElement)?.value?.trim();
-    const shelf_location = (form.querySelector('[name="shelf_location"]') as HTMLInputElement)?.value?.trim() || "—";
-    if (!title || !author || !isbn) return;
-    const newBook = createMockBook({
-      title,
-      author,
-      isbn,
-      shelf_location,
-      status: "AVAILABLE",
-      total_copies: 1,
-      available_copies: 1,
-    });
-    setBooks((prev: Book[]) => [newBook, ...prev]);
-    setAddBookOpen(false);
-    form.reset();
+    setSearch(searchInput);
+    setPage(1);
   };
 
   return (
-    <div className="catalog-page">
-      <header className="catalog-header">
-        <button
-          type="button"
-          className="catalog-back"
-          onClick={() => navigate(ROUTES.DASHBOARD)}
+    <div style={{ padding: "0 0 2rem 0" }}>
+      <h1 className="section-title" style={{ marginBottom: 16 }}>
+        Library Catalog
+      </h1>
+
+      {stats != null && (
+        <div
+          className="card"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+            gap: 16,
+            marginBottom: 24,
+          }}
         >
-          <span className="catalog-back-icon" aria-hidden>←</span>
-          Back to Dashboard
-        </button>
-        <h1 className="catalog-title">Library Catalog</h1>
-      </header>
-
-      <div className="catalog-toolbar">
-        <div className="catalog-search-wrap">
-          <span className="catalog-search-icon-left" aria-hidden>☰</span>
-          <input
-            type="search"
-            className="catalog-search"
-            placeholder="Search by Title, Author, ISBN, Location..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            aria-label="Search catalog"
-          />
-          <span className="catalog-search-icon-right" aria-hidden>🔍</span>
-        </div>
-        <button
-          type="button"
-          className="catalog-add-btn"
-          onClick={() => setAddBookOpen(true)}
-        >
-          + add book
-        </button>
-      </div>
-
-      <div className="catalog-filters">
-        {FILTERS.map(({ value, label }) => (
-          <button
-            key={value}
-            type="button"
-            className={`catalog-filter-pill ${filter === value ? "catalog-filter-pill--active" : ""}`}
-            onClick={() => setFilter(value)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {addBookOpen && (
-        <div className="catalog-modal-backdrop" onClick={() => setAddBookOpen(false)} role="presentation">
-          <div className="catalog-modal card" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-            <h2 className="catalog-modal-title">Add book</h2>
-            <form onSubmit={handleAddBook}>
-              <label className="catalog-form-label">
-                Title
-                <input type="text" name="title" required className="catalog-form-input" />
-              </label>
-              <label className="catalog-form-label">
-                Author
-                <input type="text" name="author" required className="catalog-form-input" />
-              </label>
-              <label className="catalog-form-label">
-                ISBN
-                <input type="text" name="isbn" required className="catalog-form-input" />
-              </label>
-              <label className="catalog-form-label">
-                Shelf location
-                <input type="text" name="shelf_location" className="catalog-form-input" placeholder="e.g. Shelf B-20" />
-              </label>
-              <div className="catalog-modal-actions">
-                <button type="button" className="catalog-btn catalog-btn-outline" onClick={() => setAddBookOpen(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="catalog-btn catalog-btn-primary">
-                  Add book
-                </button>
-              </div>
-            </form>
+          <div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Total books</div>
+            <div style={{ fontWeight: 600 }}>{stats.total_books}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Available</div>
+            <div style={{ fontWeight: 600, color: "var(--green)" }}>
+              {stats.available_books}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Checked out</div>
+            <div style={{ fontWeight: 600 }}>{stats.checked_out_books}</div>
           </div>
         </div>
       )}
 
+      <div className="card" style={{ marginBottom: 24 }}>
+        <form onSubmit={handleSearchSubmit} style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <input
+            type="search"
+            placeholder="Search by title, author, or ISBN..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            style={{
+              flex: "1 1 200px",
+              padding: "10px 14px",
+              borderRadius: 8,
+              border: "1px solid var(--border)",
+              fontSize: 14,
+            }}
+          />
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter((e.target.value || "") as BookStatus | "");
+              setPage(1);
+            }}
+            style={{
+              padding: "10px 14px",
+              borderRadius: 8,
+              border: "1px solid var(--border)",
+              fontSize: 14,
+              minWidth: 140,
+            }}
+          >
+            <option value="">All statuses</option>
+            {(Object.keys(STATUS_LABELS) as BookStatus[]).map((s) => (
+              <option key={s} value={s}>
+                {STATUS_LABELS[s]}
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            style={{
+              padding: "10px 20px",
+              borderRadius: 8,
+              border: "none",
+              background: "var(--navy)",
+              color: "var(--text-light)",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Search
+          </button>
+        </form>
+      </div>
+
+      {error && (
+        <div
+          className="card"
+          style={{
+            marginBottom: 24,
+            borderColor: "var(--red)",
+            background: "rgba(191, 49, 51, 0.08)",
+          }}
+        >
+          <p style={{ margin: 0, color: "var(--red)" }}>{error}</p>
+          {error.includes("text/html") || error.includes("frontend") ? (
+            <p style={{ margin: "12px 0 0 0", fontSize: 14, color: "var(--text-dark)" }}>
+              <strong>Fix:</strong> In the <code>web-dashboard</code> folder, create or edit <code>.env</code> with{" "}
+              <code>VITE_API_BASE_URL=http://localhost:8000</code> (or your backend URL), then restart <code>npm run dev</code>.
+            </p>
+          ) : null}
+        </div>
+      )}
+
       {loading ? (
-        <p className="catalog-loading">Loading catalog…</p>
-      ) : filteredBooks.length === 0 ? (
-        <p className="catalog-empty">No books match your search or filter.</p>
+        <div className="card" style={{ textAlign: "center", color: "var(--text-muted)" }}>
+          Loading catalog…
+        </div>
+      ) : items.length === 0 ? (
+        <div className="card" style={{ textAlign: "center", color: "var(--text-muted)" }}>
+          No books found. Try changing your search or filters.
+        </div>
       ) : (
-        <ul className="catalog-list">
-          {filteredBooks.map((book) => (
-            <li key={book.id}>
-              <BookCard
-                book={book}
-                onToggleStatus={handleToggleStatus}
-                onDelete={handleDelete}
-              />
-            </li>
-          ))}
-        </ul>
+        <>
+          <p style={{ marginBottom: 12, color: "var(--text-muted)", fontSize: 14 }}>
+            Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of{" "}
+            {total}
+          </p>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+              gap: 20,
+            }}
+          >
+            {items.map((book) => (
+              <BookCard key={book.id} book={book} />
+            ))}
+          </div>
+
+          {totalPages > 1 && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                marginTop: 24,
+                flexWrap: "wrap",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: 8,
+                  border: "1px solid var(--border)",
+                  background: "var(--surface)",
+                  cursor: page <= 1 ? "not-allowed" : "pointer",
+                  opacity: page <= 1 ? 0.6 : 1,
+                }}
+              >
+                Previous
+              </button>
+              <span style={{ color: "var(--text-muted)", fontSize: 14 }}>
+                Page {page} of {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: 8,
+                  border: "1px solid var(--border)",
+                  background: "var(--surface)",
+                  cursor: page >= totalPages ? "not-allowed" : "pointer",
+                  opacity: page >= totalPages ? 0.6 : 1,
+                }}
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
