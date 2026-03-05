@@ -10,6 +10,7 @@ import LoginScreen from "../screens/LoginScreen";
 import MaintenanceScreen from "../screens/MaintenanceScreen";
 import MapScreen from "../screens/MapScreen";
 import OptionsScreen from "../screens/OptionsScreen";
+import SetupAccountScreen from "../screens/SetupAccountScreen";
 
 const RootRedirect = () => <Navigate to={tokenStorage.isAuthenticated() ? ROUTES.DASHBOARD : ROUTES.LOGIN} replace />;
 
@@ -19,6 +20,7 @@ export default function AppRouter() {
       <Route path="/" element={<RootRedirect />} />
       <Route element={<PublicOnlyRoute />}>
         <Route path={ROUTES.LOGIN} element={<LoginScreen />} />
+        <Route path={ROUTES.SETUP_ACCOUNT} element={<SetupAccountScreen />} />
       </Route>
       <Route element={<ProtectedRoute />}>
         <Route element={<TopBarLayout />}>
