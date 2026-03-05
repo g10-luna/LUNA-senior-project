@@ -11,7 +11,7 @@
   --red: #BF3133;
 
   /* Surfaces */
-  --bg: #184468;          /* main app background */
+  --bg: #e1ebf3;          /* main app background */
   --surface: #F5F5F5;    /* card background */
   --surface-soft: #F5F5F5aa; /* card background with 66% opacity */
 
@@ -95,7 +95,7 @@ button:focus-visible {
 }
 
 .card button:hover {
-  background: var(--navy);
+  background: var(--bg);
   box-shadow: 0 6px 14px rgba(0,0,0,0.10);
 }
 
