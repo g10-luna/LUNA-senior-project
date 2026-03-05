@@ -71,7 +71,7 @@ export default function DashboardScreen() {
         <div className="card">
           <div className="dashboard-card-header">
             <h2 className="dashboard-card-title">System Status</h2>
-            <button type="button" className="dashboard-card-link" onClick={() => navigate(ROUTES.OPTIONS)} >
+            <button type="button" className="dashboard-card-link" onClick={() => navigate(ROUTES.MAINTENANCE)} >
               View details →
             </button>
           </div>
