@@ -11,7 +11,7 @@
   --red: #BF3133;
 
   /* Surfaces */
-  --bg: #e1ebf3;          /* main app background */
+  --bg: #184468;          /* main app background */
   --surface: #F5F5F5;    /* card background */
   --surface-soft: #F5F5F5aa; /* card background with 66% opacity */
 
@@ -125,10 +125,10 @@ button:focus-visible {
 
 .card {
   background: var(--surface);
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 18px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-  border: 1px solid var(--border);
+  border: none;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
 }
 
 .section-title {
