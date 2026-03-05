@@ -32,17 +32,17 @@ REDIS_URL=redis://redis:6379/0
 REDIS_CELERY_BROKER_URL=redis://redis:6379/1
 ```
 
-4. Start the full stack:
+4. Start the full stack (from `backend/docker`; `backend/.env` is loaded automatically via `env_file`):
 
 ```bash
 cd docker
-docker compose --env-file ../.env up -d --build
+docker compose up -d --build
 ```
 
 5. Check health:
 
 ```bash
-docker compose --env-file ../.env ps
+docker compose ps
 curl http://localhost:8000/health
 ```
 
@@ -69,20 +69,20 @@ Detailed auth setup, auth smoke tests, profile sync behavior, and Supabase webho
 
 ## Useful Commands
 
-From `backend/docker`:
+From `backend/docker` (services load `backend/.env` via `env_file` in the compose file; no need to pass `--env-file`):
 
 ```bash
 # start / rebuild
-docker compose --env-file ../.env up -d --build
+docker compose up -d --build
 
 # stop
-docker compose --env-file ../.env down
+docker compose down
 
 # logs
-docker compose --env-file ../.env logs -f
+docker compose logs -f
 
 # check db users
-docker compose --env-file ../.env exec -T postgres \
+docker compose exec -T postgres \
   psql -U luna_user -d luna_db -c "SELECT COUNT(*) FROM app.user_profiles;"
 ```
 
@@ -91,7 +91,7 @@ docker compose --env-file ../.env exec -T postgres \
 - Service connection refused errors:
   - Ensure Docker env values use `redis`/`postgres` hostnames, not `localhost`.
 - Use service-specific logs:
-  - `docker compose --env-file ../.env logs --tail=200 <service-name>`
+  - `docker compose logs --tail=200 <service-name>`
 
 ## Project Layout
 

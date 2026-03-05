@@ -2,12 +2,12 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
-export default function SearchScreen() {
+export default function EResourcesScreen() {
   return (
     <View style={styles.container}>
-      <FontAwesome name="search" size={48} color="#ccc" style={styles.icon} />
-      <Text style={styles.title}>Search</Text>
-      <Text style={styles.placeholder}>Search the catalog (coming soon)</Text>
+      <FontAwesome name="book" size={48} color="#ccc" style={styles.icon} />
+      <Text style={styles.title}>E-Resources</Text>
+      <Text style={styles.placeholder}>Coming soon</Text>
     </View>
   );
 }

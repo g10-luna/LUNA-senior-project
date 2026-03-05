@@ -99,11 +99,14 @@ def register(req: RegisterRequest):
         user, access_token, refresh_token, expires_in = result
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except Exception:
+    except Exception as e:
         logger.exception("Unexpected registration failure")
+        detail = "Registration failed due to an internal error"
+        if os.getenv("DEBUG", "").lower() in ("1", "true", "yes"):
+            detail = f"{detail}: {type(e).__name__}: {e}"
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Registration failed due to an internal error",
+            detail=detail,
         )
     if access_token is None:
         return _success({
