@@ -123,8 +123,10 @@ def register_user(
     role: UserRole,
 ):
     """Register new user via Supabase Auth."""
+    logger.info("register_user: starting for email=%s", email)
     supabase = get_supabase()
-    response = supabase.auth.sign_up(
+    try:
+        response = supabase.auth.sign_up(
         {
             "email": email,
             "password": password,
@@ -138,20 +140,32 @@ def register_user(
             },
         }
     )
+    except Exception as e:
+        logger.exception("register_user: Supabase sign_up failed for email=%s", email)
+        raise
     if response.user is None:
         raise ValueError("Registration failed")
+    logger.info("register_user: sign_up ok, syncing profile for user_id=%s", getattr(response.user, "id", response.user.get("id") if isinstance(response.user, dict) else None))
     user = response.user
     user_id = user.id if hasattr(user, "id") else user["id"]
     # Supabase may require email confirmation - check session
     session = response.session
     if session:
         user_response = _supabase_user_to_response(user)
-        _sync_user_profile(user_response)
-        store_refresh_token(str(user_id), session.refresh_token)
+        try:
+            _sync_user_profile(user_response)
+            store_refresh_token(str(user_id), session.refresh_token)
+        except Exception:
+            logger.exception("register_user: sync profile or store_refresh_token failed for user_id=%s", user_id)
+            raise
         return user_response, session.access_token, session.refresh_token, session.expires_in or 3600
     # Email confirmation required
     user_response = _supabase_user_to_response(user)
-    _sync_user_profile(user_response)
+    try:
+        _sync_user_profile(user_response)
+    except Exception as e:
+        logger.exception("register_user: _sync_user_profile failed for user_id=%s", user_id)
+        raise
     return user_response, None, None, None
 
 
