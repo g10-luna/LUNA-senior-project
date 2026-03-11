@@ -1,5 +1,6 @@
 export const ROUTES = {
   LOGIN: "/login",
+  SETUP_ACCOUNT: "/set-up-account",
   DASHBOARD: "/dashboard",
   CATALOG: "/catalog",
   MAINTENANCE: "/maintenance",
@@ -17,4 +18,5 @@ export const ROUTE_TITLES: Record<string, string> = {
   [ROUTES.MAP]: "Library Map",
   [ROUTES.OPTIONS]: "Options",
   [ROUTES.ACCOUNT]: "Account Settings",
+  [ROUTES.SETUP_ACCOUNT]: "Set up account",
 };

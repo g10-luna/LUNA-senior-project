@@ -4,11 +4,23 @@ import { login } from "../lib/authApi";
 import { ROUTES } from "../lib/routes";
 import "./LoginScreen.css";
 import { loginSchema } from "../lib/loginSchema";
-const prevent = (e: React.MouseEvent) => e.preventDefault();
+import lunaIcon from "../assets/luna-icon.png";
 
 const FIELDS = [
-  { key: "email", type: "email", label: "Email", placeholder: "Email", autoComplete: "email" as const },
-  { key: "password", type: "password", label: "Password", placeholder: "Password", autoComplete: "current-password" as const },
+  {
+    key: "email",
+    type: "email",
+    label: "Student ID / Email",
+    placeholder: "Student ID or email",
+    autoComplete: "email" as const,
+  },
+  {
+    key: "password",
+    type: "password",
+    label: "Password",
+    placeholder: "Password",
+    autoComplete: "current-password" as const,
+  },
 ] as const;
 
 export default function LoginScreen() {
@@ -50,7 +62,16 @@ export default function LoginScreen() {
   return (
     <div className="login-screen">
       <div className="card login-card">
-        <h1 className="login-title">Welcome</h1>
+        <div className="login-header">
+          <div className="login-logo-circle">
+            <img src={lunaIcon} alt="LUNA" className="login-logo-img" />
+          </div>
+          <div className="login-header-text">
+            <div className="login-app-name">LUNA</div>
+            <div className="login-app-underline" />
+            <div className="login-app-tagline">Library utility and navigation assistant</div>
+          </div>
+        </div>
         <form onSubmit={onSubmit} className="login-form">
           {FIELDS.map(({ key, type, label, placeholder, autoComplete }) => (
             <label key={key} className="login-label">
@@ -72,11 +93,38 @@ export default function LoginScreen() {
           </button>
         </form>
         <div className="login-links">
-          <a href="#" className="login-link" onClick={prevent}>Forgot Password?</a>
+          <a
+            href="#"
+            className="login-link"
+            onClick={(e) => {
+              e.preventDefault();
+            }}
+          >
+            Forgot Password?
+          </a>
           <span className="login-signup-text">
-            Don&apos;t have account? <a href="#" className="login-signup-link" onClick={prevent}>Sign Up</a>
+            First time here?{" "}
+            <a
+              href="#"
+              className="login-signup-link"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate(ROUTES.SETUP_ACCOUNT);
+              }}
+            >
+              Set up account
+            </a>
           </span>
         </div>
+        <button
+          type="button"
+          className="login-sso-button"
+          onClick={(e) => {
+            e.preventDefault();
+          }}
+        >
+          Sign in with HU Single Sign-On (SSO)
+        </button>
       </div>
     </div>
   );
