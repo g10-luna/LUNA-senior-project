@@ -92,9 +92,9 @@
 }
 
 .login-title {
-  margin: 8px 0 4px;
-  color: var(--navy);
-  font-size: 1.4rem;
+  margin: 0 0 24px;
+  color: var(--bg);
+  font-size: 1.75rem;
   font-weight: 700;
   text-align: left;
 }

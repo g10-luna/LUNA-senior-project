@@ -1,0 +1,393 @@
+.dashboard-page {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+
+.dashboard-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("/campus.jpeg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: blur(1px);
+  transform: scale(1.05);
+  z-index: -2;
+}
+
+.dashboard-page::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.85);
+  z-index: -1;
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dashboard-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dashboard-greeting {
+  font-size: 20px;
+  font-weight: 500;
+  color: #4a5568;
+}
+
+.dashboard-greeting-strong {
+  font-weight: 700;
+  color: #1a202c;
+}
+
+.dashboard-subtitle {
+  font-size: 14px;
+  color: #6a7b8e;
+}
+
+.dashboard-date-btn {
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #4a5568;
+  font-size: 14px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+}
+
+.dashboard-date-icon {
+  font-size: 16px;
+}
+
+.dashboard-main-grid {
+  display: grid;
+  grid-template-columns: 2fr 1.3fr 1.1fr;
+  gap: 20px;
+}
+
+.dashboard-lower-grid {
+  display: grid;
+  grid-template-columns: 2fr 1.4fr 1.2fr;
+  gap: 20px;
+}
+
+.dashboard-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.dashboard-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a202c;
+}
+
+.dashboard-card-link {
+  font-size: 13px;
+  color: #3182ce;
+  cursor: pointer;
+}
+
+.dashboard-system-pills {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dashboard-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 999px;
+  background: #f7fafc;
+  font-size: 13px;
+  color: #4a5568;
+}
+
+.dashboard-pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.dashboard-pill-dot.green {
+  background: #38a169;
+}
+
+.dashboard-pill-dot.blue {
+  background: #3182ce;
+}
+
+.dashboard-pill-label-strong {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.dashboard-pill-label-sub {
+  font-size: 12px;
+  color: #718096;
+}
+
+.dashboard-activity-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dashboard-activity-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dashboard-activity-label {
+  font-size: 12px;
+  color: #718096;
+}
+
+.dashboard-activity-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a202c;
+}
+
+.dashboard-activity-sub {
+  font-size: 12px;
+  color: #718096;
+}
+
+.dashboard-quick-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dashboard-quick-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #1a2a44;
+  background: #1a2a44;
+  color: #f7fafc;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.35);
+}
+
+.dashboard-quick-button-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dashboard-quick-button-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.dashboard-quick-button-plus {
+  font-size: 18px;
+}
+
+.dashboard-recent-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dashboard-recent-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: #4a5568;
+}
+
+.dashboard-recent-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dashboard-recent-title {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.dashboard-recent-meta {
+  font-size: 12px;
+  color: #718096;
+}
+
+.dashboard-recent-time {
+  font-size: 12px;
+  color: #718096;
+}
+.dashboard-inventory {
+ display: flex;
+ align-items: center;
+ gap: 24px;
+}
+
+.dashboard-inventory-chart {
+ width: 140px;
+ height: 140px;
+ border-radius: 50%;
+ background: conic-gradient(
+   #3182ce 0 60%,
+   #e53e3e 60% 80%,
+   #141cb8 80% 100%
+ );
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+}
+
+.dashboard-inventory-chart-inner {
+ width: 92px;
+ height: 92px;
+ border-radius: 50%;
+ background: #ffffff;
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ justify-content: center;
+ text-align: center;
+ gap: 2px;
+}
+
+.dashboard-inventory-total {
+ font-size: 20px;
+ font-weight: 700;
+ color: #1a202c;
+}
+
+.dashboard-inventory-total-label {
+ font-size: 12px;
+ color: #718096;
+}
+
+.dashboard-inventory-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dashboard-inventory-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dashboard-inventory-label {
+  font-size: 12px;
+  font-weight: 600;
+}
+/* Available (blue segment: #3182ce) */
+.dashboard-inventory-item--available .dashboard-inventory-label {
+ color: #000000;
+}
+
+/* Checked Out (red segment: #e53e3e) */
+.dashboard-inventory-item--checkedout .dashboard-inventory-label {
+ color: #e53e3e;
+}
+
+/* Reserved (purple segment: #805ad5) */
+.dashboard-inventory-item--reserved .dashboard-inventory-label {
+ color: #092fad;
+}
+
+.dashboard-inventory-value {
+   margin-left: 14px; 
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a202c;
+}
+
+.dashboard-inventory-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.dashboard-inventory-dot.available {
+  background: #3182ce;
+}
+
+.dashboard-inventory-dot.checkedout {
+  background: #e53e3e;
+}
+
+.dashboard-inventory-dot.reserved {
+  background: #805ad5;
+}
+
+.dashboard-upcoming-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dashboard-upcoming-item {
+  font-size: 13px;
+  color: #4a5568;
+}
+
+.dashboard-upcoming-label {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.dashboard-upcoming-meta {
+  font-size: 12px;
+  color: #718096;
+}
+
+@media (max-width: 960px) {
+  .dashboard-main-grid,
+  .dashboard-lower-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
