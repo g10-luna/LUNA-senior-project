@@ -461,28 +461,10 @@ export default function TabIndexScreen() {
           <Text style={styles.loadingMoreText}>Loading more…</Text>
         </View>
       )}
-      <View style={styles.section}>
-        <SectionHeader title="Browse by Year" />
-        <View style={styles.chipRow}>
-          {(overview?.top_years ?? []).length === 0 ? (
-            <Text style={styles.emptySection}>No years yet</Text>
-          ) : (
-            (overview?.top_years ?? []).map((item, i) => (
-              <TouchableOpacity key={`${item.year}-${i}`} style={styles.chip} activeOpacity={0.8}>
-                <Text style={styles.chipText}>{item.year}</Text>
-                <Text style={styles.chipCount}>{item.count}</Text>
-              </TouchableOpacity>
-            ))
-          )}
-        </View>
-      </View>
-      {overview?.stats && (
-        <View style={styles.statsWrap}>
-          <Text style={styles.statsTitle}>Catalog</Text>
-          <View style={styles.statsRow}>
-            <Text style={styles.statsText}>{overview.stats.total_books} total</Text>
-            <Text style={styles.statsText}>{overview.stats.available_books} available</Text>
-          </View>
+      {!loadingMoreBooks && allBooks.length > 0 && (
+        <View style={styles.endOfListWrap}>
+          <Text style={styles.endOfListText}>That’s all the books</Text>
+          <Text style={styles.endOfListSubtext}>You’ve reached the end of the catalog</Text>
         </View>
       )}
     </>
@@ -842,6 +824,21 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   loadingMoreText: {
+    fontSize: 14,
+    color: '#64748b',
+  },
+  endOfListWrap: {
+    alignItems: 'center',
+    paddingVertical: 28,
+    paddingHorizontal: 24,
+  },
+  endOfListText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#334155',
+    marginBottom: 4,
+  },
+  endOfListSubtext: {
     fontSize: 14,
     color: '#64748b',
   },
