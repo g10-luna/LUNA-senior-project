@@ -5,16 +5,17 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
   Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { getBook, type Book, type BookStatus, BooksApiError } from '@/src/services/books';
+import { getCoverUrl } from '@/src/utils/covers';
 import BottomTabBar, { BOTTOM_TAB_BAR_HEIGHT } from '@/components/BottomTabBar';
 
 const HOWARD_BLUE = '#003A63';
@@ -131,9 +132,10 @@ export default function BookDetailScreen() {
         <View style={StyleSheet.absoluteFill}>
           {hasCover ? (
             <Image
-              source={{ uri: book.cover_image_url! }}
+              source={{ uri: getCoverUrl(book.cover_image_url, 'full')! }}
               style={StyleSheet.absoluteFill}
-              resizeMode="cover"
+              contentFit="cover"
+              transition={300}
             />
           ) : (
             <LinearGradient
@@ -162,9 +164,10 @@ export default function BookDetailScreen() {
           <View style={[styles.coverCard, { width: COVER_WIDTH, height: COVER_HEIGHT }]}>
             {hasCover ? (
               <Image
-                source={{ uri: book.cover_image_url! }}
+                source={{ uri: getCoverUrl(book.cover_image_url, 'full')! }}
                 style={StyleSheet.absoluteFill}
-                resizeMode="cover"
+                contentFit="cover"
+                transition={300}
               />
             ) : (
               <LinearGradient

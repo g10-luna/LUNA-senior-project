@@ -69,6 +69,12 @@ export interface BookListResponse {
   };
 }
 
+/** Search suggestion item from GET /api/v1/books/search/suggestions. */
+export interface SearchSuggestion {
+  label: string;
+  type: 'title' | 'author' | 'isbn';
+}
+
 /** API error for non-2xx. */
 export class BooksApiError extends Error {
   constructor(
@@ -137,6 +143,16 @@ export async function getDiscoverOverview(
 }
 
 /**
+ * Fetch random books from the catalog (for "Popular Right Now" / discovery).
+ * Requires auth.
+ */
+export async function getRandomBooks(limit: number = 6): Promise<Book[]> {
+  const res = await authenticatedFetch(`${BOOKS_BASE}/discover/random?limit=${limit}`);
+  const data = await parseApiResponse<{ items: Book[]; count: number }>(res);
+  return data?.items ?? [];
+}
+
+/**
  * Fetch top authors by book count (dedicated endpoint, supports limit up to 50).
  * Requires auth.
  */
@@ -189,4 +205,18 @@ export async function getBook(bookId: string): Promise<Book> {
   const res = await authenticatedFetch(`${BOOKS_BASE}/${bookId}`);
   const data = await parseApiResponse<{ book: Book }>(res);
   return data.book;
+}
+
+/**
+ * Fetch search suggestions (title/author/isbn matches).
+ * Requires auth.
+ */
+export async function getSearchSuggestions(
+  q: string,
+  limit: number = 10
+): Promise<SearchSuggestion[]> {
+  const params = new URLSearchParams({ q: q.trim(), limit: String(limit) });
+  const res = await authenticatedFetch(`${BOOKS_BASE}/search/suggestions?${params}`);
+  const data = await parseApiResponse<{ items: SearchSuggestion[]; count: number }>(res);
+  return data?.items ?? [];
 }
