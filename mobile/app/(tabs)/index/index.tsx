@@ -17,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import HeaderWaveDivider from '@/components/HeaderWaveDivider';
 import {
@@ -96,16 +97,22 @@ function BookCard({
   book,
   accentColor,
   cardWidth,
+  onPress,
 }: {
   book: Book;
   accentColor: string;
   cardWidth?: number;
+  onPress?: () => void;
 }) {
   const hasCover = Boolean(book.cover_image_url?.trim());
   const w = cardWidth ?? 130;
   const h = cardWidth ? Math.round(w * (175 / 130)) : 175;
   return (
-    <TouchableOpacity style={[styles.bookCard, cardWidth ? { width: w } : undefined]} activeOpacity={0.85}>
+    <TouchableOpacity
+      style={[styles.bookCard, cardWidth ? { width: w } : undefined]}
+      activeOpacity={0.85}
+      onPress={onPress}
+    >
       <View style={[styles.bookCover, { width: w, height: h, backgroundColor: accentColor + '15' }]}>
         {hasCover ? (
           <Image
@@ -209,6 +216,7 @@ function PublisherCard({ item, accentColor }: { item: PublisherCount; accentColo
 }
 
 export default function TabIndexScreen() {
+  const router = useRouter();
   const { hasToken, refreshAuth } = useAuth();
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
@@ -376,7 +384,12 @@ export default function TabIndexScreen() {
                   <Text style={styles.emptySection}>No books right now</Text>
                 ) : (
                   (overview?.random_books ?? []).map((book) => (
-                    <BookCard key={book.id} book={book} accentColor="#f59e0b" />
+                    <BookCard
+                      key={book.id}
+                      book={book}
+                      accentColor="#f59e0b"
+                      onPress={() => router.push(`/book/${book.id}`)}
+                    />
                   ))
                 )}
               </ScrollView>
@@ -389,7 +402,14 @@ export default function TabIndexScreen() {
                 {newArrivals.length === 0 ? (
                   <Text style={styles.emptySection}>No new arrivals</Text>
                 ) : (
-                  newArrivals.map((book) => <BookCard key={book.id} book={book} accentColor="#06b6d4" />)
+                  newArrivals.map((book) => (
+                  <BookCard
+                    key={book.id}
+                    book={book}
+                    accentColor="#06b6d4"
+                    onPress={() => router.push(`/book/${book.id}`)}
+                  />
+                ))
                 )}
               </ScrollView>
             </View>
@@ -402,7 +422,12 @@ export default function TabIndexScreen() {
                   <Text style={styles.emptySection}>No books right now</Text>
                 ) : (
                   availableNow.map((book) => (
-                    <BookCard key={book.id} book={book} accentColor="#16a34a" />
+                    <BookCard
+                      key={book.id}
+                      book={book}
+                      accentColor="#16a34a"
+                      onPress={() => router.push(`/book/${book.id}`)}
+                    />
                   ))
                 )}
               </ScrollView>
@@ -478,7 +503,7 @@ export default function TabIndexScreen() {
         <View style={styles.topThirdWrap}>
           <View style={styles.header}>
             <ImageBackground
-              source={require('../../assets/images/galaxy.jpg')}
+              source={require('../../../assets/images/galaxy.jpg')}
               style={styles.headerBgImage}
               resizeMode="cover"
             />
@@ -502,7 +527,7 @@ export default function TabIndexScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.headerProfileAvatar} activeOpacity={0.7}>
                   <Image
-                    source={require('../../assets/images/placeholder_profile.jpeg')}
+                    source={require('../../../assets/images/placeholder_profile.jpeg')}
                     style={styles.headerProfileAvatarImage}
                     resizeMode="cover"
                   />
@@ -517,7 +542,12 @@ export default function TabIndexScreen() {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <View style={styles.allBooksCardWrap}>
-            <BookCard book={item} accentColor="#64748b" cardWidth={GRID_CARD_WIDTH} />
+            <BookCard
+              book={item}
+              accentColor="#64748b"
+              cardWidth={GRID_CARD_WIDTH}
+              onPress={() => router.push(`/book/${item.id}`)}
+            />
           </View>
         )}
         numColumns={3}

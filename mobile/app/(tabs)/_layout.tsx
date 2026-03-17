@@ -1,8 +1,8 @@
 import React from 'react';
+import { View, StyleSheet } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Tabs } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '@/contexts/AuthContext';
+import BottomTabBar from '@/components/BottomTabBar';
 
 const HOWARD_RED = '#E31837';
 
@@ -14,29 +14,26 @@ function TabBarIcon(props: {
 }
 
 export default function TabLayout() {
-  const { hasToken } = useAuth();
-  const insets = useSafeAreaInsets();
-
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: HOWARD_RED,
-        tabBarInactiveTintColor: '#94a3b8',
-        headerShown: false,
-        tabBarStyle: {
-          borderTopWidth: 1,
-          borderTopColor: '#e2e8f0',
-          backgroundColor: '#fff',
-          height: 56 + insets.bottom,
-          paddingBottom: insets.bottom,
-          paddingTop: 8,
-        },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-        },
-      }}
-    >
+    <View style={styles.wrapper}>
+      <Tabs
+        screenOptions={{
+          tabBarActiveTintColor: HOWARD_RED,
+          tabBarInactiveTintColor: '#94a3b8',
+          headerShown: false,
+          tabBar: () => null,
+          tabBarStyle: {
+            position: 'absolute',
+            height: 0,
+            overflow: 'hidden',
+            opacity: 0,
+          },
+          tabBarLabelStyle: {
+            fontSize: 11,
+            fontWeight: '600',
+          },
+        }}
+      >
       <Tabs.Screen
         name="index"
         options={{
@@ -79,6 +76,14 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen name="two" options={{ href: null }} />
-    </Tabs>
+      </Tabs>
+      <BottomTabBar />
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  wrapper: {
+    flex: 1,
+  },
+});

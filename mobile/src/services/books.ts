@@ -180,3 +180,13 @@ export async function getBooks(params: GetBooksParams = {}): Promise<BookListRes
   const res = await authenticatedFetch(path);
   return parseApiResponse<BookListResponse>(res);
 }
+
+/**
+ * Fetch a single book by ID.
+ * Requires auth.
+ */
+export async function getBook(bookId: string): Promise<Book> {
+  const res = await authenticatedFetch(`${BOOKS_BASE}/${bookId}`);
+  const data = await parseApiResponse<{ book: Book }>(res);
+  return data.book;
+}
