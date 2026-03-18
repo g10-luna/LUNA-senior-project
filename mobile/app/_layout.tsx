@@ -57,6 +57,10 @@ function RootLayoutNav() {
         <Stack.Screen name="setup-account" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="book/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="home/discover" options={{ headerShown: false }} />
+        <Stack.Screen name="home/new-arrivals" options={{ headerShown: false }} />
+        <Stack.Screen name="home/available-now" options={{ headerShown: false }} />
+        <Stack.Screen name="home/browse-authors" options={{ headerShown: false }} />
         <Stack.Screen name="account-info" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>

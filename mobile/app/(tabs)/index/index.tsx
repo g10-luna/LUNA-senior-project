@@ -305,7 +305,7 @@ export default function TabIndexScreen() {
             ) : null}
             {/* 1. Discover / For you */}
             <View style={styles.section}>
-              <SectionHeader title="Discover" onSeeAll={() => {}} />
+              <SectionHeader title="Discover" onSeeAll={() => router.push('/home/discover')} />
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.bookList}>
                 {(overview?.random_books ?? []).length === 0 ? (
                   <Text style={styles.emptySection}>No books right now</Text>
@@ -324,7 +324,7 @@ export default function TabIndexScreen() {
 
             {/* 2. New arrivals */}
             <View style={styles.section}>
-              <SectionHeader title="New Arrivals" onSeeAll={() => {}} />
+              <SectionHeader title="New Arrivals" onSeeAll={() => router.push('/home/new-arrivals')} />
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.bookList}>
                 {newArrivals.length === 0 ? (
                   <Text style={styles.emptySection}>No new arrivals</Text>
@@ -343,7 +343,7 @@ export default function TabIndexScreen() {
 
             {/* 3. Available now (separate list so it differs from Discover) */}
             <View style={styles.section}>
-              <SectionHeader title="Available Now" onSeeAll={() => {}} />
+              <SectionHeader title="Available Now" onSeeAll={() => router.push('/home/available-now')} />
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.bookList}>
                 {availableNow.length === 0 ? (
                   <Text style={styles.emptySection}>No books right now</Text>
@@ -362,7 +362,7 @@ export default function TabIndexScreen() {
 
             {/* 4. Browse by author – horizontal scroll */}
             <View style={styles.section}>
-              <SectionHeader title="Browse by Author" onSeeAll={() => {}} />
+              <SectionHeader title="Browse by Author" onSeeAll={() => router.push('/home/browse-authors')} />
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -452,7 +452,11 @@ export default function TabIndexScreen() {
                     <Text style={styles.badgeText}>1</Text>
                   </View>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.headerProfileAvatar} activeOpacity={0.7}>
+                <TouchableOpacity
+                  style={styles.headerProfileAvatar}
+                  activeOpacity={0.7}
+                  onPress={() => router.push('/(tabs)/my-account')}
+                >
                   <Image
                     source={require('../../../assets/images/placeholder_profile.jpeg')}
                     style={styles.headerProfileAvatarImage}
