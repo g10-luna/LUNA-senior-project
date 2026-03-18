@@ -1,5 +1,5 @@
-import React, { useRef, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image as RNImage } from 'react-native';
+import React, { useMemo, useRef, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image as RNImage, Animated, PanResponder } from 'react-native';
 import { Image } from 'expo-image';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +9,8 @@ const MAP_IMAGE_SOURCE = require('../../assets/images/Founders_Library_Image.png
 const MAP_IMAGE_META = RNImage.resolveAssetSource(MAP_IMAGE_SOURCE);
 const MAP_IMAGE_ASPECT_RATIO =
   MAP_IMAGE_META?.width && MAP_IMAGE_META?.height ? MAP_IMAGE_META.width / MAP_IMAGE_META.height : 1;
+const MAP_IMAGE_WIDTH = MAP_IMAGE_META?.width ?? 1000;
+const MAP_IMAGE_HEIGHT = MAP_IMAGE_META?.height ?? Math.round(MAP_IMAGE_WIDTH / MAP_IMAGE_ASPECT_RATIO);
 
 type MapMarker = {
   id: string;
@@ -23,11 +25,41 @@ type MapMarker = {
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const bottomPad = 24 + BOTTOM_TAB_BAR_HEIGHT + insets.bottom;
-  const DEFAULT_ZOOM_SCALE = 1.5;
-  const MAP_BASE_WIDTH = 1000;
-  const MAP_BASE_HEIGHT = MAP_BASE_WIDTH / MAP_IMAGE_ASPECT_RATIO;
-  const mapScrollRef = useRef<ScrollView | null>(null);
-  const didApplyInitialZoom = useRef(false);
+  const DEFAULT_ZOOM_SCALE = 0.5;
+  const MAP_CANVAS_MULTIPLIER = 2.4;
+  const MAP_BASE_WIDTH = MAP_IMAGE_WIDTH * MAP_CANVAS_MULTIPLIER;
+  const MAP_BASE_HEIGHT = MAP_IMAGE_HEIGHT * MAP_CANVAS_MULTIPLIER;
+  const MAP_RENDER_WIDTH = MAP_BASE_WIDTH * DEFAULT_ZOOM_SCALE;
+  const MAP_RENDER_HEIGHT = MAP_BASE_HEIGHT * DEFAULT_ZOOM_SCALE;
+  const [viewportSize, setViewportSize] = useState({ width: 1, height: 1 });
+  const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+  const panStart = useRef({ x: 0, y: 0 });
+
+  const maxPanX = Math.max(0, (MAP_RENDER_WIDTH - viewportSize.width) / 2);
+  const maxPanY = Math.max(0, (MAP_RENDER_HEIGHT - viewportSize.height) / 2);
+  const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_, gestureState) =>
+          Math.abs(gestureState.dx) + Math.abs(gestureState.dy) > 3,
+        onPanResponderGrant: () => {
+          panStart.current = {
+            x: (pan.x as any)._value ?? 0,
+            y: (pan.y as any)._value ?? 0,
+          };
+        },
+        onPanResponderMove: (_, gestureState) => {
+          pan.setValue({
+            x: clamp(panStart.current.x + gestureState.dx, -maxPanX, maxPanX),
+            y: clamp(panStart.current.y + gestureState.dy, -maxPanY, maxPanY),
+          });
+        },
+      }),
+    [maxPanX, maxPanY, pan]
+  );
 
   const markers: MapMarker[] = useMemo(
     () => [
@@ -95,23 +127,26 @@ export default function MapScreen() {
       </View>
 
       <View style={styles.mapCard}>
-        <ScrollView
-          ref={mapScrollRef}
+        <View
           style={styles.mapViewport}
-          minimumZoomScale={1}
-          maximumZoomScale={4}
-          bouncesZoom={false}
-          onLayout={() => {
-            if (didApplyInitialZoom.current) return;
-            didApplyInitialZoom.current = true;
-            requestAnimationFrame(() => {
-              (mapScrollRef.current as any)?.setNativeProps?.({ zoomScale: DEFAULT_ZOOM_SCALE });
-            });
-          }}
-          showsHorizontalScrollIndicator={false}
-          showsVerticalScrollIndicator={false}
+          onLayout={(e) =>
+            setViewportSize({
+              width: e.nativeEvent.layout.width,
+              height: e.nativeEvent.layout.height,
+            })
+          }
+          {...panResponder.panHandlers}
         >
-          <View style={[styles.mapContent, { width: MAP_BASE_WIDTH, height: MAP_BASE_HEIGHT }]}>
+          <Animated.View
+            style={[
+              styles.mapContent,
+              {
+                width: MAP_RENDER_WIDTH,
+                height: MAP_RENDER_HEIGHT,
+                transform: [{ translateX: pan.x }, { translateY: pan.y }],
+              },
+            ]}
+          >
             <Image
               source={MAP_IMAGE_SOURCE}
               style={styles.mapImage}
@@ -151,8 +186,8 @@ export default function MapScreen() {
                 </TouchableOpacity>
               );
             })}
-          </View>
-        </ScrollView>
+          </Animated.View>
+        </View>
 
         {/* Subtle legend (fixed; does not zoom) */}
         <View style={styles.legend}>
@@ -259,6 +294,8 @@ const styles = StyleSheet.create({
   mapViewport: {
     flex: 1,
     overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   mapContent: {
     position: 'relative',
