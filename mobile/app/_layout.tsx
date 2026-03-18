@@ -57,6 +57,7 @@ function RootLayoutNav() {
         <Stack.Screen name="setup-account" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="book/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="account-info" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
       </AuthProvider>

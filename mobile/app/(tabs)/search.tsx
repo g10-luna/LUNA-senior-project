@@ -39,12 +39,12 @@ const SUGGEST_DEBOUNCE_MS = 300;
 const POPULAR_LIMIT = 4;
 
 const CATEGORIES = [
-  { label: 'Science', icon: 'flask' as const, color: '#06b6d4', bg: '#ecfeff' },
-  { label: 'Fiction', icon: 'magic' as const, color: '#8b5cf6', bg: '#f5f3ff' },
-  { label: 'Technology', icon: 'microchip' as const, color: HOWARD_BLUE, bg: '#eff6ff' },
-  { label: 'History', icon: 'globe' as const, color: '#f59e0b', bg: '#fffbeb' },
-  { label: 'Biography', icon: 'user' as const, color: '#10b981', bg: '#ecfdf5' },
-  { label: 'Art & Design', icon: 'paint-brush' as const, color: HOWARD_RED, bg: '#fff1f2' },
+  { label: 'Science', subtitle: 'Lab, Research', icon: 'flask' as const, color: '#06b6d4', bg: '#ecfeff' },
+  { label: 'Fiction', subtitle: 'Stories, Novels', icon: 'magic' as const, color: '#8b5cf6', bg: '#f5f3ff' },
+  { label: 'Technology', subtitle: 'AI, Systems', icon: 'microchip' as const, color: HOWARD_BLUE, bg: '#eff6ff' },
+  { label: 'History', subtitle: 'Archives', icon: 'globe' as const, color: '#f59e0b', bg: '#fffbeb' },
+  { label: 'Biography', subtitle: 'Memoirs, Life', icon: 'user' as const, color: '#10b981', bg: '#ecfdf5' },
+  { label: 'Art & Design', subtitle: 'Creative', icon: 'paint-brush' as const, color: HOWARD_RED, bg: '#fff1f2' },
 ];
 
 function statusLabel(s: BookStatus): string {
@@ -120,6 +120,7 @@ export default function SearchScreen() {
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [popularBooks, setPopularBooks] = useState<Book[]>([]);
   const [popularLoading, setPopularLoading] = useState(true);
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
   const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -129,6 +130,26 @@ export default function SearchScreen() {
       .then((books) => { if (!cancelled) setPopularBooks(books); })
       .catch(() => { if (!cancelled) setPopularBooks([]); })
       .finally(() => { if (!cancelled) setPopularLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all(
+      CATEGORIES.map((cat) =>
+        getBooks({ q: cat.label, page: 1, limit: 1, sort: 'title', order: 'asc' })
+          .then((res) => ({ label: cat.label, total: res.pagination?.total ?? 0 }))
+          .catch(() => ({ label: cat.label, total: 0 }))
+      )
+    ).then((results) => {
+      if (cancelled) return;
+      setCategoryCounts(
+        results.reduce<Record<string, number>>((acc, { label, total }) => {
+          acc[label] = total;
+          return acc;
+        }, {})
+      );
+    });
     return () => { cancelled = true; };
   }, []);
 
@@ -401,10 +422,22 @@ export default function SearchScreen() {
                   activeOpacity={0.8}
                   onPress={() => runSearch(cat.label, 1)}
                 >
-                  <View style={[styles.catIcon, { backgroundColor: cat.color + '20' }]}>
-                    <FontAwesome name={cat.icon} size={20} color={cat.color} />
+                  <View style={[styles.catIconWrap, { backgroundColor: cat.color + '22' }]}>
+                    <FontAwesome name={cat.icon} size={22} color={cat.color} />
                   </View>
-                  <Text style={[styles.catLabel, { color: cat.color }]}>{cat.label}</Text>
+                  <View style={styles.catTextWrap}>
+                    <Text style={[styles.catLabel, { color: cat.color }]} numberOfLines={1}>{cat.label}</Text>
+                    <Text style={styles.catSubtitle} numberOfLines={1}>{cat.subtitle}</Text>
+                    <View style={styles.catDetailRow}>
+                      <FontAwesome name="check" size={10} color="#22c55e" style={styles.catDetailIcon} />
+                      <Text style={styles.catDetail} numberOfLines={1}>
+                        {categoryCounts[cat.label] !== undefined
+                          ? `${categoryCounts[cat.label]} ${categoryCounts[cat.label] === 1 ? 'book' : 'books'}`
+                          : '…'}
+                      </Text>
+                    </View>
+                  </View>
+                  <FontAwesome name="chevron-right" size={14} color={cat.color} style={styles.catArrow} />
                 </TouchableOpacity>
               ))}
             </View>
@@ -500,13 +533,30 @@ const styles = StyleSheet.create({
   catCard: {
     width: '47%',
     borderRadius: 16,
-    padding: 16,
+    padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  catIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  catLabel: { fontSize: 15, fontWeight: '700' },
+  catIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  catTextWrap: { flex: 1, minWidth: 0 },
+  catLabel: { fontSize: 15, fontWeight: '700', marginBottom: 2 },
+  catSubtitle: { fontSize: 12, color: '#64748b', marginBottom: 4 },
+  catDetailRow: { flexDirection: 'row', alignItems: 'center' },
+  catDetailIcon: { marginRight: 4 },
+  catDetail: { fontSize: 11, color: '#64748b', fontWeight: '500' },
+  catArrow: { marginLeft: 4 },
   resultRow: {
     flexDirection: 'row',
     alignItems: 'center',
