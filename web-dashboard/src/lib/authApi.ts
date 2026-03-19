@@ -1,7 +1,7 @@
 import { apiFetch } from "./api";
 import { tokenStorage } from "./tokenStorage";
 
-// Use mock auth when explicitly set, or in dev when no API URL is configured (backend may not be running)
+// Use mock auth when explicitly set, or in dev when no API URL is configured
 const USE_MOCK_AUTH =
   import.meta.env.VITE_USE_MOCK_AUTH === "true" ||
   (import.meta.env.DEV && !import.meta.env.VITE_API_BASE_URL);
@@ -15,7 +15,9 @@ function parseTokenPayload(json: Record<string, unknown>) {
 
 export async function login(email: string, password: string) {
   if (USE_MOCK_AUTH) {
-    if (!email.trim() || !password.trim()) throw new Error("Invalid credentials");
+    const e = email?.trim() ?? "";
+    const p = password?.trim() ?? "";
+    if (!e || !p) throw new Error("Invalid credentials");
     const t = `mock_${Date.now()}`;
     tokenStorage.setAccess(t);
     tokenStorage.setRefresh(t);

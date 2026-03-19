@@ -43,7 +43,7 @@ export default function SetupAccountScreen() {
       return;
     }
     if (!form.email.trim()) {
-      setError("Please enter your email or student ID.");
+      setError("Please enter your email or librarian ID.");
       return;
     }
     if (form.password.length < 8) {
@@ -74,7 +74,7 @@ export default function SetupAccountScreen() {
           Back
         </button>
         <h1 className="login-title setup-title">Set up account</h1>
-        <p className="login-subtitle setup-subtitle">Create your LUNA student account.</p>
+        <p className="login-subtitle setup-subtitle">Create your LUNA librarian account.</p>
         <form onSubmit={onSubmit} className="login-form">
           <IconTextInput
             type="text"
@@ -118,7 +118,7 @@ export default function SetupAccountScreen() {
             type="email"
             value={form.email}
             onChange={onChange("email")}
-            placeholder="Email (Student ID / university email)"
+            placeholder="Email (Librarian ID / university email)"
             autoComplete="email"
             disabled={loading}
             icon={

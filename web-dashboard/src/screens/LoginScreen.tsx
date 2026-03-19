@@ -10,8 +10,8 @@ const FIELDS = [
   {
     key: "email",
     type: "email",
-    label: "Student ID / Email",
-    placeholder: "Student ID or email",
+    label: "Librarian ID / Email",
+    placeholder: "Librarian ID or email",
     autoComplete: "email" as const,
   },
   {
