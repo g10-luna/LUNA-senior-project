@@ -128,7 +128,11 @@ export default function DashboardScreen() {
             <h2 className="dashboard-card-title">Quick Actions</h2>
           </div>
           <div className="dashboard-quick-actions">
-            <button type="button" className="dashboard-quick-button" onClick={() => navigate(ROUTES.CATALOG)}>
+            <button
+              type="button"
+              className="dashboard-quick-button"
+              onClick={() => navigate(`${ROUTES.CATALOG}?add=1`)}
+            >
               <span className="dashboard-quick-button-label">
                 <span className="dashboard-quick-button-icon" aria-hidden>📚</span>
                 <span>Add Book</span>

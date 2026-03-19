@@ -1,331 +1,451 @@
-import { useEffect, useState } from "react";
-import {
-  fetchBookList,
-  fetchCatalogStats,
-  type Book,
-  type BookListParams,
-  type BookStatus,
-} from "../lib/bookApi";
+import { useEffect, useMemo, useState } from "react";
+import { getMockBooks } from "../lib/catalogApi";
+import type { Book } from "../lib/catalogTypes";
+import "./Catalog.css";
+import { useSearchParams } from "react-router-dom";
 
-const PAGE_SIZE = 20;
-const STATUS_LABELS: Record<BookStatus, string> = {
-  AVAILABLE: "Available",
-  CHECKED_OUT: "Checked out",
-  RESERVED: "Reserved",
-  UNAVAILABLE: "Unavailable",
-};
+type StatusFilter = "all" | "available" | "unavailable" | "low_stock" | "custom";
 
-function BookCard({ book }: { book: Book }) {
-  return (
-    <div className="card" style={{ textAlign: "left" }}>
-      {book.cover_image_url ? (
-        <img
-          src={book.cover_image_url}
-          alt=""
-          style={{
-            width: "100%",
-            maxHeight: 180,
-            objectFit: "cover",
-            borderRadius: 8,
-            marginBottom: 12,
-          }}
-        />
-      ) : (
-        <div
-          style={{
-            height: 120,
-            background: "var(--surface-soft)",
-            borderRadius: 8,
-            marginBottom: 12,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "var(--text-muted)",
-            fontSize: 14,
-          }}
-        >
-          No cover
-        </div>
-      )}
-      <h4 style={{ margin: "0 0 4px 0", fontSize: "1.1rem" }}>{book.title}</h4>
-      <p style={{ margin: 0, color: "var(--text-muted)", fontSize: 14 }}>
-        {book.author}
-      </p>
-      {book.publisher && (
-        <p style={{ margin: "4px 0 0 0", fontSize: 13, color: "var(--text-muted)" }}>
-          {book.publisher}
-          {book.publication_year != null ? ` (${book.publication_year})` : ""}
-        </p>
-      )}
-      <p
-        style={{
-          margin: "8px 0 0 0",
-          fontSize: 12,
-          fontWeight: 600,
-          color:
-            book.status === "AVAILABLE"
-              ? "var(--green)"
-              : book.status === "CHECKED_OUT"
-                ? "var(--gold)"
-                : "var(--text-muted)",
-        }}
-      >
-        {STATUS_LABELS[book.status]}
-      </p>
-      {book.shelf_location && (
-        <p style={{ margin: "4px 0 0 0", fontSize: 12, color: "var(--text-muted)" }}>
-          Shelf: {book.shelf_location}
-        </p>
-      )}
-    </div>
-  );
+const STATUS_FILTERS: Array<{ key: StatusFilter; label: string }> = [
+  { key: "all", label: "All" },
+  { key: "available", label: "Available" },
+  { key: "unavailable", label: "Unavailable" },
+  { key: "low_stock", label: "Low Stock" },
+  { key: "custom", label: "Custom..." },
+];
+
+function getCounts(book: Book) {
+  // Mock data provides these, but keep fallbacks so the UI doesn't break.
+  const totalCopies =
+    book.total_copies ??
+    (book.status === "LOW_STOCK" ? 2 : book.status === "AVAILABLE" ? 1 : 1);
+
+  const availableCopies =
+    book.available_copies ??
+    (book.status === "AVAILABLE" ? totalCopies : book.status === "LOW_STOCK" ? Math.min(1, totalCopies) : 0);
+
+  return { totalCopies, availableCopies };
+}
+
+function getStatusFlags(book: Book) {
+  const { totalCopies, availableCopies } = getCounts(book);
+  const isUnavailable = availableCopies <= 0 || book.status === "UNAVAILABLE" || book.status === "CHECKED_OUT" || book.status === "RESERVED";
+  const isLowStock = !isUnavailable && totalCopies > 0 && availableCopies > 0 && availableCopies < totalCopies;
+  const isAvailable = availableCopies > 0 && !isUnavailable;
+
+  return {
+    isUnavailable,
+    isLowStock,
+    isAvailable,
+    totalCopies,
+    availableCopies,
+  };
+}
+
+function getBookIcon(book: Book) {
+  const { isUnavailable, isLowStock } = getStatusFlags(book);
+  if (isUnavailable) return "\u{1F4D5}"; // BOOK_ABC
+  if (isLowStock) return "\u23F3"; // HOURGLASS_NOT_DONE
+  return "\u{1F4D8}"; // BLUE_BOOK
 }
 
 export default function CatalogScreen() {
-  const [items, setItems] = useState<Book[]>([]);
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [searchInput, setSearchInput] = useState("");
-  const [statusFilter, setStatusFilter] = useState<BookStatus | "">("");
-  const [stats, setStats] = useState<{
-    total_books: number;
-    available_books: number;
-    checked_out_books: number;
-  } | null>(null);
+  const [books, setBooks] = useState<Book[]>(() => getMockBooks());
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [editBookId, setEditBookId] = useState<string | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
 
-  const loadBooks = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params: BookListParams = {
-        page,
-        limit: PAGE_SIZE,
-        sort: "title",
-        order: "asc",
-      };
-      if (search.trim()) params.q = search.trim();
-      if (statusFilter) params.status = statusFilter as BookStatus;
+  const [searchParams] = useSearchParams();
+  const addParam = searchParams.get("add");
 
-      const res = await fetchBookList(params);
-      setItems(res.data.items);
-      setTotal(res.data.pagination.total);
-      setTotalPages(res.data.pagination.total_pages);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load catalog");
-      setItems([]);
-      setTotal(0);
-      setTotalPages(0);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (addParam === "1") {
+      setEditBookId(null);
+      setIsAdding(true);
     }
-  };
+  }, [addParam]);
 
-  const loadStats = async () => {
+  const clearAddParam = () => {
+    if (addParam !== "1") return;
+    // Remove ?add=1 so modal doesn't auto-open after cancel/save.
     try {
-      const res = await fetchCatalogStats();
-      if (res.success && res.data.stats) {
-        setStats(res.data.stats);
-      }
+      const url = new URL(window.location.href);
+      url.searchParams.delete("add");
+      window.history.replaceState({}, "", url.toString());
     } catch {
-      // Stats are optional; catalog list is primary
+      // no-op
     }
   };
 
-  useEffect(() => {
-    loadBooks();
-  }, [page, search, statusFilter]);
+  const filteredBooks = useMemo(() => {
+    const q = query.trim().toLowerCase();
+
+    return books.filter((b: Book) => {
+      const flags = getStatusFlags(b);
+
+      if (statusFilter === "unavailable" && !flags.isUnavailable) return false;
+      if (statusFilter === "low_stock" && !flags.isLowStock) return false;
+      if (statusFilter === "available" && !flags.isAvailable) return false;
+      // "custom" currently behaves like "all" (search still includes location).
+
+      if (!q) return true;
+      const haystack = `${b.title} ${b.author} ${b.isbn} ${b.shelf_location ?? ""}`.toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [books, query, statusFilter]);
+
+  const editingBook = useMemo(
+    () => (editBookId ? books.find((b: Book) => b.id === editBookId) ?? null : null),
+    [books, editBookId],
+  );
+
+  const [editForm, setEditForm] = useState<{
+    title: string;
+    author: string;
+    isbn: string;
+    shelf_location: string;
+    total_copies: number;
+    available_copies: number;
+  }>({
+    title: "",
+    author: "",
+    isbn: "",
+    shelf_location: "",
+    total_copies: 0,
+    available_copies: 0,
+  });
 
   useEffect(() => {
-    loadStats();
-  }, []);
+    if (!editingBook || isAdding) return;
+    const counts = getCounts(editingBook);
+    setEditForm({
+      title: editingBook.title,
+      author: editingBook.author,
+      isbn: editingBook.isbn,
+      shelf_location: editingBook.shelf_location ?? "",
+      total_copies: counts.totalCopies,
+      available_copies: counts.availableCopies,
+    });
+  }, [editingBook, isAdding]);
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSearch(searchInput);
-    setPage(1);
+  useEffect(() => {
+    if (!isAdding) return;
+    setEditForm({
+      title: "",
+      author: "",
+      isbn: "",
+      shelf_location: "",
+      total_copies: 1,
+      available_copies: 1,
+    });
+  }, [isAdding]);
+
+  const markAvailability = (bookId: string, makeAvailable: boolean) => {
+    setBooks((prev: Book[]) =>
+      prev.map((b: Book) => {
+        if (b.id !== bookId) return b;
+        const { totalCopies } = getCounts(b);
+
+        if (makeAvailable) {
+          return {
+            ...b,
+            status: "AVAILABLE",
+            total_copies: totalCopies,
+            available_copies: totalCopies,
+          };
+        }
+
+        return {
+          ...b,
+          status: "UNAVAILABLE",
+          total_copies: totalCopies,
+          available_copies: 0,
+        };
+      }),
+    );
+  };
+
+  const deleteBook = (bookId: string) => {
+    setBooks((prev: Book[]) => prev.filter((b: Book) => b.id !== bookId));
+  };
+
+  const saveEdit = () => {
+    if (!editingBook && !isAdding) return;
+
+    const total = Math.max(0, Math.floor(editForm.total_copies));
+    const available = Math.max(0, Math.min(Math.floor(editForm.available_copies), total));
+    const nextStatus: Book["status"] =
+      available <= 0 ? "UNAVAILABLE" : available < total ? "LOW_STOCK" : "AVAILABLE";
+
+    if (isAdding) {
+      const newBook: Book = {
+        id: crypto.randomUUID(),
+        title: editForm.title.trim(),
+        author: editForm.author.trim(),
+        isbn: editForm.isbn.trim(),
+        shelf_location: editForm.shelf_location.trim(),
+        status: nextStatus,
+        total_copies: total,
+        available_copies: available,
+      };
+
+      setBooks((prev: Book[]) => [newBook, ...prev]);
+      setIsAdding(false);
+      setEditBookId(null);
+      clearAddParam();
+      return;
+    }
+
+    if (!editingBook) return;
+    setBooks((prev: Book[]) =>
+      prev.map((b: Book) => {
+        if (b.id !== editingBook.id) return b;
+
+        return {
+          ...b,
+          title: editForm.title.trim(),
+          author: editForm.author.trim(),
+          isbn: editForm.isbn.trim(),
+          shelf_location: editForm.shelf_location.trim(),
+          status: nextStatus,
+          total_copies: total,
+          available_copies: available,
+        };
+      }),
+    );
+
+    setEditBookId(null);
+    clearAddParam();
   };
 
   return (
-    <div style={{ padding: "0 0 2rem 0" }}>
-      <h1 className="section-title" style={{ marginBottom: 16 }}>
-        Library Catalog
-      </h1>
+    <div className="catalog-page">
+      <div className="catalog-sticky">
+        <div className="card">
+        <div className="catalog-toolbar" style={{ flex: 1 }}>
+          <div className="catalog-search-wrap">
+            <span className="catalog-search-icon-left" aria-hidden>
+              {"\u{1F50E}"}
+            </span>
+            <input
+              className="catalog-search"
+              type="search"
+              placeholder="Search by Title, Author, ISBN, Location..."
+              value={query}
+              onChange={(e: { target: { value: string } }) => setQuery(e.target.value)}
+            />
+            <span className="catalog-search-icon-right" aria-hidden>
+              {"\u{1F50D}"}
+            </span>
+          </div>
 
-      {stats != null && (
-        <div
-          className="card"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
-            gap: 16,
-            marginBottom: 24,
-          }}
-        >
-          <div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Total books</div>
-            <div style={{ fontWeight: 600 }}>{stats.total_books}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Available</div>
-            <div style={{ fontWeight: 600, color: "var(--green)" }}>
-              {stats.available_books}
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Checked out</div>
-            <div style={{ fontWeight: 600 }}>{stats.checked_out_books}</div>
-          </div>
-        </div>
-      )}
-
-      <div className="card" style={{ marginBottom: 24 }}>
-        <form onSubmit={handleSearchSubmit} style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <input
-            type="search"
-            placeholder="Search by title, author, or ISBN..."
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            style={{
-              flex: "1 1 200px",
-              padding: "10px 14px",
-              borderRadius: 8,
-              border: "1px solid var(--border)",
-              fontSize: 14,
-            }}
-          />
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter((e.target.value || "") as BookStatus | "");
-              setPage(1);
-            }}
-            style={{
-              padding: "10px 14px",
-              borderRadius: 8,
-              border: "1px solid var(--border)",
-              fontSize: 14,
-              minWidth: 140,
-            }}
-          >
-            <option value="">All statuses</option>
-            {(Object.keys(STATUS_LABELS) as BookStatus[]).map((s) => (
-              <option key={s} value={s}>
-                {STATUS_LABELS[s]}
-              </option>
-            ))}
-          </select>
           <button
-            type="submit"
-            style={{
-              padding: "10px 20px",
-              borderRadius: 8,
-              border: "none",
-              background: "var(--navy)",
-              color: "var(--text-light)",
-              fontWeight: 600,
-              cursor: "pointer",
+            type="button"
+            className="catalog-add-btn"
+            onClick={() => {
+              setEditBookId(null);
+              setIsAdding(true);
             }}
           >
-            Search
+            + add book
           </button>
-        </form>
+        </div>
+
+        <div className="catalog-filters">
+          {STATUS_FILTERS.map((f) => {
+            const active = statusFilter === f.key;
+            return (
+              <button
+                key={f.key}
+                type="button"
+                className={`catalog-filter-pill ${active ? "catalog-filter-pill--active" : ""}`}
+                onClick={() => setStatusFilter(f.key)}
+              >
+                {f.label}
+              </button>
+            );
+          })}
+        </div>
+        </div>
       </div>
 
-      {error && (
-        <div
-          className="card"
-          style={{
-            marginBottom: 24,
-            borderColor: "var(--red)",
-            background: "rgba(191, 49, 51, 0.08)",
-          }}
-        >
-          <p style={{ margin: 0, color: "var(--red)" }}>{error}</p>
-          {error.includes("text/html") || error.includes("frontend") ? (
-            <p style={{ margin: "12px 0 0 0", fontSize: 14, color: "var(--text-dark)" }}>
-              <strong>Fix:</strong> In the <code>web-dashboard</code> folder, create or edit <code>.env</code> with{" "}
-              <code>VITE_API_BASE_URL=http://localhost:8000</code> (or your backend URL), then restart <code>npm run dev</code>.
-            </p>
-          ) : null}
-        </div>
+      {filteredBooks.length === 0 ? (
+        <p className="catalog-empty">No books found. Try changing your search or filters.</p>
+      ) : (
+        <ul className="catalog-list">
+          {filteredBooks.map((book: Book) => {
+            const flags = getStatusFlags(book);
+            const showAvailableChip = flags.isAvailable;
+            const showLowStockChip = flags.isLowStock;
+            const showUnavailableChip = flags.isUnavailable;
+
+            const markLabel = showUnavailableChip ? "Mark Available" : "Mark Unavailable";
+
+            return (
+              <li key={book.id} className="catalog-card card">
+                <div className="catalog-card-icon" aria-hidden>
+                  {getBookIcon(book)}
+                </div>
+
+                <div className="catalog-card-details">
+                  <h3 className="catalog-card-title">{book.title}</h3>
+                  <p className="catalog-card-author">by {book.author}</p>
+                  <p className="catalog-card-meta">ISBN {book.isbn}</p>
+                  <p className="catalog-card-meta">
+                    {flags.availableCopies}/{flags.totalCopies} copies available
+                  </p>
+                </div>
+
+                <div className="catalog-card-actions">
+                  {showAvailableChip ? (
+                    <span className="catalog-status-tag catalog-status-tag--available">Available</span>
+                  ) : null}
+                  {showLowStockChip ? (
+                    <span className="catalog-status-tag catalog-status-tag--low_stock">Low Stock</span>
+                  ) : null}
+                  {showUnavailableChip ? (
+                    <span className="catalog-status-tag catalog-status-tag--unavailable">Unavailable</span>
+                  ) : null}
+
+                  <p className="catalog-card-location">
+                    <span className="catalog-card-location-icon" aria-hidden>
+                      {"\u{1F4CD}"}
+                    </span>
+                    {book.shelf_location ?? "Shelf -"}
+                  </p>
+
+                  <div className="catalog-card-buttons">
+                    <button
+                      type="button"
+                      className="catalog-btn catalog-btn-outline"
+                      onClick={() => markAvailability(book.id, showUnavailableChip)}
+                    >
+                      {markLabel}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="catalog-btn catalog-btn-outline"
+                      onClick={() => {
+                        setIsAdding(false);
+                        setEditBookId(book.id);
+                      }}
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      type="button"
+                      className="catalog-btn catalog-btn-icon"
+                      aria-label="Delete book"
+                      onClick={() => deleteBook(book.id)}
+                    >
+                      {"\u{1F5D1}"}
+                    </button>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       )}
 
-      {loading ? (
-        <div className="card" style={{ textAlign: "center", color: "var(--text-muted)" }}>
-          Loading catalog…
-        </div>
-      ) : items.length === 0 ? (
-        <div className="card" style={{ textAlign: "center", color: "var(--text-muted)" }}>
-          No books found. Try changing your search or filters.
-        </div>
-      ) : (
-        <>
-          <p style={{ marginBottom: 12, color: "var(--text-muted)", fontSize: 14 }}>
-            Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of{" "}
-            {total}
-          </p>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-              gap: 20,
-            }}
-          >
-            {items.map((book) => (
-              <BookCard key={book.id} book={book} />
-            ))}
-          </div>
+      {(editingBook || isAdding) && (
+        <div
+          className="catalog-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          onMouseDown={(e: { target: EventTarget; currentTarget: EventTarget }) => {
+            if (e.target === e.currentTarget) {
+              setIsAdding(false);
+              setEditBookId(null);
+              clearAddParam();
+            }
+          }}
+        >
+          <div className="catalog-modal">
+            <h2 className="catalog-modal-title">{isAdding ? "Add book" : "Edit book"}</h2>
 
-          {totalPages > 1 && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                marginTop: 24,
-                flexWrap: "wrap",
+            <label className="catalog-form-label">Title</label>
+            <input
+              className="catalog-form-input"
+              value={editForm.title}
+              onChange={(e: { target: { value: string } }) => setEditForm((prev) => ({ ...prev, title: e.target.value }))}
+            />
+
+            <label className="catalog-form-label">Author</label>
+            <input
+              className="catalog-form-input"
+              value={editForm.author}
+              onChange={(e: { target: { value: string } }) => setEditForm((prev) => ({ ...prev, author: e.target.value }))}
+            />
+
+            <label className="catalog-form-label">ISBN</label>
+            <input
+              className="catalog-form-input"
+              value={editForm.isbn}
+              onChange={(e: { target: { value: string } }) => setEditForm((prev) => ({ ...prev, isbn: e.target.value }))}
+            />
+
+            <label className="catalog-form-label">Shelf location</label>
+            <input
+              className="catalog-form-input"
+              value={editForm.shelf_location}
+              onChange={(e: { target: { value: string } }) =>
+                setEditForm((prev) => ({ ...prev, shelf_location: e.target.value }))
+              }
+            />
+
+            <label className="catalog-form-label">Total books (copies)</label>
+            <input
+              className="catalog-form-input"
+              type="number"
+              min={0}
+              value={editForm.total_copies}
+              onChange={(e: { target: { value: string } }) => {
+                const nextTotal = Math.max(0, Math.floor(Number(e.target.value)));
+                setEditForm((prev) => ({
+                  ...prev,
+                  total_copies: nextTotal,
+                  available_copies: Math.min(prev.available_copies, nextTotal),
+                }));
               }}
-            >
+            />
+
+            <label className="catalog-form-label">Books available</label>
+            <input
+              className="catalog-form-input"
+              type="number"
+              min={0}
+              value={editForm.available_copies}
+              onChange={(e: { target: { value: string } }) => {
+                const nextAvailable = Math.max(0, Math.floor(Number(e.target.value)));
+                setEditForm((prev) => ({
+                  ...prev,
+                  available_copies: Math.min(nextAvailable, prev.total_copies),
+                }));
+              }}
+            />
+
+            <div className="catalog-modal-actions">
               <button
                 type="button"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1}
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: 8,
-                  border: "1px solid var(--border)",
-                  background: "var(--surface)",
-                  cursor: page <= 1 ? "not-allowed" : "pointer",
-                  opacity: page <= 1 ? 0.6 : 1,
+                className="catalog-btn catalog-btn-outline"
+                onClick={() => {
+                  setIsAdding(false);
+                  setEditBookId(null);
+                  clearAddParam();
                 }}
               >
-                Previous
+                Cancel
               </button>
-              <span style={{ color: "var(--text-muted)", fontSize: 14 }}>
-                Page {page} of {totalPages}
-              </span>
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: 8,
-                  border: "1px solid var(--border)",
-                  background: "var(--surface)",
-                  cursor: page >= totalPages ? "not-allowed" : "pointer",
-                  opacity: page >= totalPages ? 0.6 : 1,
-                }}
-              >
-                Next
+              <button type="button" className="catalog-btn catalog-btn-primary" onClick={saveEdit}>
+                Save
               </button>
             </div>
-          )}
-        </>
+          </div>
+        </div>
       )}
     </div>
   );
