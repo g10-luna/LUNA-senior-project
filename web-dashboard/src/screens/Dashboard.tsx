@@ -149,7 +149,7 @@ export default function DashboardScreen() {
             <button type="button" className="dashboard-quick-button">
               <span className="dashboard-quick-button-label">
                 <span className="dashboard-quick-button-icon" aria-hidden>🧾</span>
-                <span>Checkout</span>
+                <span>View Task Queue</span>
               </span>
               <span className="dashboard-quick-button-plus">＋</span>
             </button>
