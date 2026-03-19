@@ -32,7 +32,41 @@ body,
   height: 100%;
 }
 
-/* 2) Global page defaults */
+#root {
+  position: relative;
+  isolation: isolate; /* keep our background layers from affecting children */
+}
+
+/* Global "dashboard-like" campus background for all screens */
+#root::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("/campus.jpeg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: blur(1px) saturate(1.05) contrast(1.1) brightness(0.78);
+  transform: scale(1.05);
+  z-index: 0;
+  pointer-events: none;
+}
+
+#root::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(24, 68, 104, 0.25);
+  z-index: 1;
+  pointer-events: none;
+}
+
+#root > * {
+  position: relative;
+  z-index: 2;
+}
+
+/*Global page defaults */
 body {
   margin: 0;
   min-width: 320px;
@@ -62,7 +96,7 @@ a:hover {
 
 /* 5) Buttons*/
 button {
-  border-radius: 10px;
+  border-radius: 999px;
   border: 1px solid var(--border);
   padding: 10px 14px;
   font-size: 14px;
@@ -95,7 +129,7 @@ button:focus-visible {
 }
 
 .card button:hover {
-  background: var(--bg);
+  background: var(--red);
   box-shadow: 0 6px 14px rgba(0,0,0,0.10);
 }
 

@@ -1,0 +1,55 @@
+.options-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 16px;
+}
+
+.options-section-card {
+  background: rgba(255, 255, 255, 0.92);
+  border: 3px solid rgba(81, 129, 168, 0.7);
+  border-radius: 16px;
+  padding: 16px 18px;
+}
+
+.options-section-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--navy);
+  margin: 0 0 12px 0;
+}
+
+.options-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.options-item-pill {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid rgba(81, 129, 168, 0.85);
+  border-radius: 999px;
+  color: var(--navy);
+  text-decoration: none;
+}
+
+.options-item-pill:hover {
+  background: #ffffff;
+  border-color: rgba(24, 68, 104, 0.95);
+}
+
+.options-item-title {
+  font-weight: 800;
+}
+
+.options-item-desc {
+  font-weight: 500;
+  color: rgba(24, 68, 104, 0.75);
+  font-size: 14px;
+}
+

@@ -13,12 +13,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  background-image: url("/campus.jpeg");
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  filter: blur(1px);
-  transform: scale(1.05);
+  background: rgba(24, 68, 104, 0.10);
   z-index: -2;
 }
 
@@ -26,7 +21,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(245, 245, 245, 0.88);
   z-index: -1;
 }
 
