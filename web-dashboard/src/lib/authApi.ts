@@ -53,3 +53,69 @@ export async function refreshAccessToken(): Promise<string | null> {
 }
 
 export const logout = () => tokenStorage.clear();
+
+export type RegisterAccountInput = {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+};
+
+async function readRegisterError(res: Response): Promise<string> {
+  const text = await res.text();
+  try {
+    const j = JSON.parse(text) as { detail?: unknown };
+    const d = j.detail;
+    if (typeof d === "string") return d;
+    if (Array.isArray(d)) {
+      return d
+        .map((item) =>
+          typeof item === "object" && item !== null && "msg" in item
+            ? String((item as { msg: string }).msg)
+            : String(item)
+        )
+        .join(" ");
+    }
+  } catch {
+    /* ignore */
+  }
+  return text.trim() || "Unable to create account.";
+}
+
+/**
+ * Register a new account without signing the user in (no tokens stored).
+ * Mock mode: validates only. Real mode: POST /api/v1/auth/register.
+ */
+export async function registerAccount(input: RegisterAccountInput): Promise<void> {
+  const email = input.email.trim();
+  const password = input.password;
+  const first_name = input.firstName.trim();
+  const last_name = input.lastName.trim();
+  if (!email || !password || !first_name || !last_name) {
+    throw new Error("Please fill in all required fields.");
+  }
+  if (password.length < 8) {
+    throw new Error("Password must be at least 8 characters.");
+  }
+
+  if (USE_MOCK_AUTH) {
+    return;
+  }
+
+  const res = await apiFetch("/api/v1/auth/register", {
+    method: "POST",
+    skipAuthRedirect: true,
+    body: JSON.stringify({
+      email,
+      password,
+      first_name,
+      last_name,
+      phone_number: input.phone?.trim() || null,
+      role: "LIBRARIAN",
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(await readRegisterError(res));
+  }
+}

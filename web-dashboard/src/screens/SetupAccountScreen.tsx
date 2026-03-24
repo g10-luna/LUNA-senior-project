@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./LoginScreen.css";
 import { ROUTES } from "../lib/routes";
-import { login } from "../lib/authApi";
+import { registerAccount } from "../lib/authApi";
 import { IconTextInput } from "../components/forms/IconTextInput";
 
 type SetupFormState = {
@@ -26,6 +26,8 @@ export default function SetupAccountScreen() {
   });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [successOpen, setSuccessOpen] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState("");
 
   const onChange =
     (key: keyof SetupFormState) =>
@@ -57,18 +59,79 @@ export default function SetupAccountScreen() {
 
     try {
       setLoading(true);
-      // For now, reuse login after account creation is wired on the backend.
-      await login(form.email, form.password);
-      navigate(ROUTES.DASHBOARD, { replace: true });
-    } catch {
-      setError("Unable to create account. Please try again.");
+      await registerAccount({
+        email: form.email,
+        password: form.password,
+        firstName: form.firstName,
+        lastName: form.lastName,
+        phone: form.phone,
+      });
+      setRegisteredEmail(form.email.trim());
+      setForm((p) => ({
+        ...p,
+        password: "",
+        confirmPassword: "",
+      }));
+      setSuccessOpen(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to create account. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
+  const goToLogin = () => {
+    setSuccessOpen(false);
+    setRegisteredEmail("");
+    setForm({
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      password: "",
+      confirmPassword: "",
+    });
+    navigate(ROUTES.LOGIN);
+  };
+
+  useEffect(() => {
+    if (!successOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSuccessOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [successOpen]);
+
   return (
     <div className="login-screen">
+      {successOpen && (
+        <div className="setup-success-overlay" role="presentation" onClick={() => setSuccessOpen(false)}>
+          <div
+            className="setup-success-dialog card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="setup-success-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="setup-success-title" className="setup-success-title">
+              Account created
+            </h2>
+            <p className="setup-success-body">
+              Your LUNA account is ready. Use the email and password you just entered to sign in on the login screen.
+            </p>
+            {registeredEmail && (
+              <p className="setup-success-email">
+                <span className="setup-success-email-label">Email</span>
+                <span className="setup-success-email-value">{registeredEmail}</span>
+              </p>
+            )}
+            <button type="button" className="login-submit setup-success-primary" onClick={goToLogin}>
+              Go to sign in
+            </button>
+          </div>
+        </div>
+      )}
       <div className="card login-card">
         <button type="button" className="setup-back-button" onClick={() => navigate(ROUTES.LOGIN)}>
           Back
