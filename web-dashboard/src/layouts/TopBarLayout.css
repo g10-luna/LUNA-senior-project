@@ -1,8 +1,9 @@
 .topbar-layout {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   background-color: transparent;
+  overflow: hidden;
 }
 
 .topbar-layout-content {
@@ -14,8 +15,8 @@
 .sidebar {
   width: 220px;
   padding: 20px 16px;
-  background-color: var(--navy-light);
-  color: var(--text-light);
+  background-color: #090b2535;
+  color: var(--navy);
   border-right: 1px solid var(--border);
   box-sizing: border-box;
 }

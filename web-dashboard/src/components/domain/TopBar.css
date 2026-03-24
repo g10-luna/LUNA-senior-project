@@ -3,16 +3,19 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  padding: 12px 24px 14px;
+  gap: 16px;
+  padding: 10px 18px;
   min-height: 56px;
-  background: linear-gradient(135deg, #1a2a3a 0%, #2d3e50 50%, #1e2d3a 100%);
-  background-size: cover;
-  background-position: center;
-  color: rgba(255, 255, 255, 0.95);
+  background: var(--navy);
+  color: var(--text-dark);
   font-weight: 600;
-  position: relative;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  border-bottom: 1px solid rgba(24, 68, 104, 0.14);
+  box-shadow: none;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 /* Optional: subtle texture overlay (bookshelf feel) */
@@ -60,11 +63,8 @@
 
 .topbar-logo-img {
   height: 56px;
-  width: auto;
-  max-width: 200px;
-  object-fit: contain;
-  display: block;
-  flex-shrink: 0;
+  transform: scale(1.75);
+  transform-origin: center;
 }
 
 .topbar-brand {
@@ -75,7 +75,7 @@
 }
 
 .topbar-brand-university {
-  font-size: 14px;
+  font-size: 30px;
   font-weight: 700;
   letter-spacing: 0.04em;
   color: #fff;
@@ -95,8 +95,8 @@
   margin: 0 auto;
   display: flex;
   align-items: center;
-  background: rgba(60, 70, 85, 0.9);
-  border-radius: 10px;
+  background: var(--navy-light);
+  border-radius: 999px;
   padding: 0 12px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   transition: background 0.2s, border-color 0.2s;
@@ -187,12 +187,12 @@
   position: absolute;
   top: 6px;
   right: 6px;
-  min-width: 16px;
-  height: 16px;
+  min-width: 8px;
+  height: 10px;
   padding: 0 4px;
   font-size: 10px;
   font-weight: 700;
-  color: #fff;
+  color: var(--text-light);
   background: #BF3133;
   border-radius: 8px;
   display: flex;
@@ -212,7 +212,7 @@
   padding: 6px 10px 6px 6px;
   background: transparent;
   border: none;
-  color: rgba(255, 255, 255, 0.95);
+  color: var(--text-light);
   font-size: 14px;
   font-weight: 600;
   font-family: inherit;
@@ -230,7 +230,7 @@
   height: 36px;
   border-radius: 50%;
   background: var(--navy-light, #5181A8);
-  color: #fff;
+  color: var(--text-light);
   display: flex;
   align-items: center;
   justify-content: center;
