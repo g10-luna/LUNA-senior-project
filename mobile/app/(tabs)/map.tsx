@@ -26,17 +26,20 @@ export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const bottomPad = 24 + BOTTOM_TAB_BAR_HEIGHT + insets.bottom;
   const DEFAULT_ZOOM_SCALE = 0.5;
-  const MAP_CANVAS_MULTIPLIER = 2.4;
-  const MAP_BASE_WIDTH = MAP_IMAGE_WIDTH * MAP_CANVAS_MULTIPLIER;
-  const MAP_BASE_HEIGHT = MAP_IMAGE_HEIGHT * MAP_CANVAS_MULTIPLIER;
-  const MAP_RENDER_WIDTH = MAP_BASE_WIDTH * DEFAULT_ZOOM_SCALE;
-  const MAP_RENDER_HEIGHT = MAP_BASE_HEIGHT * DEFAULT_ZOOM_SCALE;
+  const MIN_PAN_WORLD_MULTIPLIER = 1.8;
+  const MAP_RENDER_WIDTH = MAP_IMAGE_WIDTH * DEFAULT_ZOOM_SCALE;
+  const MAP_RENDER_HEIGHT = MAP_IMAGE_HEIGHT * DEFAULT_ZOOM_SCALE;
   const [viewportSize, setViewportSize] = useState({ width: 1, height: 1 });
   const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   const panStart = useRef({ x: 0, y: 0 });
 
-  const maxPanX = Math.max(0, (MAP_RENDER_WIDTH - viewportSize.width) / 2);
-  const maxPanY = Math.max(0, (MAP_RENDER_HEIGHT - viewportSize.height) / 2);
+  // Pan bounds are intentionally independent from zoom:
+  // we keep a minimum pan-world size larger than the viewport,
+  // so changing DEFAULT_ZOOM_SCALE won't disable panning.
+  const panWorldWidth = Math.max(MAP_RENDER_WIDTH, viewportSize.width * MIN_PAN_WORLD_MULTIPLIER);
+  const panWorldHeight = Math.max(MAP_RENDER_HEIGHT, viewportSize.height * MIN_PAN_WORLD_MULTIPLIER);
+  const maxPanX = Math.max(0, (panWorldWidth - viewportSize.width) / 2);
+  const maxPanY = Math.max(0, (panWorldHeight - viewportSize.height) / 2);
   const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
   const panResponder = useMemo(
@@ -141,51 +144,63 @@ export default function MapScreen() {
             style={[
               styles.mapContent,
               {
-                width: MAP_RENDER_WIDTH,
-                height: MAP_RENDER_HEIGHT,
+                width: panWorldWidth,
+                height: panWorldHeight,
                 transform: [{ translateX: pan.x }, { translateY: pan.y }],
               },
             ]}
           >
-            <Image
-              source={MAP_IMAGE_SOURCE}
-              style={styles.mapImage}
-              contentFit="cover"
-              transition={150}
-            />
+            <View
+              style={[
+                styles.mapLayer,
+                {
+                  width: MAP_RENDER_WIDTH,
+                  height: MAP_RENDER_HEIGHT,
+                  left: (panWorldWidth - MAP_RENDER_WIDTH) / 2,
+                  top: (panWorldHeight - MAP_RENDER_HEIGHT) / 2,
+                },
+              ]}
+            >
+              <Image
+                source={MAP_IMAGE_SOURCE}
+                style={styles.mapImage}
+                contentFit="cover"
+                transition={150}
+              />
 
-            {markers.map((m) => {
-              const isActive = m.id === selectedId;
-              return (
-                <TouchableOpacity
-                  key={m.id}
-                  style={[
-                    styles.marker,
-                    {
-                      left: m.xPct,
-                      top: m.yPct,
-                      backgroundColor: m.accent + (isActive ? '' : '1a'),
-                      borderColor: m.accent,
-                      transform: [{ translateX: -17 }, { translateY: -17 }],
-                    },
-                  ]}
-                  activeOpacity={0.9}
-                  onPress={() => setSelectedId(m.id)}
-                >
-                  <FontAwesome
-                    name={
-                      m.type === 'pickup'
-                        ? 'circle'
-                        : m.type === 'study'
-                          ? 'bookmark'
-                          : 'location-arrow'
-                    }
-                    size={isActive ? 14 : 12}
-                    color={m.type === 'entrance' ? '#0f172a' : '#fff'}
-                  />
-                </TouchableOpacity>
-              );
-            })}
+              {markers.map((m) => {
+                const isActive = m.id === selectedId;
+                return (
+                  <TouchableOpacity
+                    key={m.id}
+                    style={[
+                      styles.marker,
+                      {
+                        left: m.xPct,
+                        top: m.yPct,
+                        backgroundColor: m.accent + (isActive ? '' : '1a'),
+                        borderColor: m.accent,
+                        transform: [{ translateX: -17 }, { translateY: -17 }],
+                      },
+                    ]}
+                    activeOpacity={0.9}
+                    onPress={() => setSelectedId(m.id)}
+                  >
+                    <FontAwesome
+                      name={
+                        m.type === 'pickup'
+                          ? 'circle'
+                          : m.type === 'study'
+                            ? 'bookmark'
+                            : 'location-arrow'
+                      }
+                      size={isActive ? 14 : 12}
+                      color={m.type === 'entrance' ? '#0f172a' : '#fff'}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </Animated.View>
         </View>
 
@@ -299,6 +314,9 @@ const styles = StyleSheet.create({
   },
   mapContent: {
     position: 'relative',
+  },
+  mapLayer: {
+    position: 'absolute',
   },
   mapImage: {
     width: '100%',
