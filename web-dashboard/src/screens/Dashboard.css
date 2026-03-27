@@ -8,12 +8,11 @@
   overflow: hidden;
 }
 
-
 .dashboard-page::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: rgba(24, 68, 104, 0.10);
+  background: rgba(24, 68, 104, 0.1);
   z-index: -2;
 }
 
