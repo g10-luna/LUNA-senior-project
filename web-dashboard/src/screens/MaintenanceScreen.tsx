@@ -1,5 +1,135 @@
-/* placeholder. View by adding /maintenance to the URL*/
+import "./MaintenanceScreen.css";
+import { useRobotStatus } from "../lib/useRobotStatus";
+import { getRobotStateLabel } from "../lib/robotStateUi";
+
+function StatusBar({ label, value, unit = "%", color = "#184468" }: { label: string; value: number; unit?: string; color?: string }) {
+  const clamped = Math.max(0, Math.min(100, Math.round(value)));
+  return (
+    <div className="maint-metric">
+      <div className="maint-metric-header">
+        <span className="maint-metric-label">{label}</span>
+        <span className="maint-metric-value">
+          {clamped}
+          {unit}
+        </span>
+      </div>
+      <div className="maint-metric-bar">
+        <div className="maint-metric-bar-fill" style={{ width: `${clamped}%`, backgroundColor: color }} />
+      </div>
+    </div>
+  );
+}
 
 export default function MaintenanceScreen() {
-  return <h1 className="placeholder-text">Maintenance — Coming soon</h1>;
+  const { statuses, loading, error } = useRobotStatus();
+  const robot = statuses?.[0] ?? null;
+
+  const battery = robot?.batteryPercent ?? 0;
+  const isActive = robot && (robot.state === "NAVIGATING" || robot.state === "BUSY");
+
+  // Simple mock “health” metrics derived from battery + state so the UI has values.
+  const cpuUsage = 35 + (isActive ? 20 : 0);
+  const memoryUsage = 55 + (isActive ? 10 : 0);
+  const temperature = 40 + (isActive ? 5 : 0);
+  const navAccuracy = 90 - (battery < 30 ? 10 : 0);
+
+  return (
+    <div className="maint-page">
+      <h1 className="section-title" style={{ marginBottom: 16 }}>
+        Robot Maintenance
+      </h1>
+      {error && <p className="maint-text-error">{error.message}</p>}
+
+      <div className="maint-grid">
+        <section className="card maint-card">
+          <header className="maint-card-header maint-card-header--primary">
+            <div>
+              <div className="maint-card-title">Operational Status</div>
+              <div className="maint-card-subtitle">Battery &amp; current location</div>
+            </div>
+            <span className={`maint-pill ${isActive ? "maint-pill--active" : "maint-pill--idle"}`}>
+              {getRobotStateLabel(robot?.state ?? "IDLE")}
+            </span>
+          </header>
+
+          <div className="maint-card-body">
+            <div className="maint-row">
+              <span className="maint-row-label">Battery Level</span>
+              <span className="maint-row-value">{battery}%</span>
+            </div>
+            <div className="maint-battery-bar">
+              <div className="maint-battery-bar-fill" style={{ width: `${battery}%` }} />
+            </div>
+            <div className="maint-row">
+              <span className="maint-row-label">Current Location</span>
+              <span className="maint-row-value">{robot?.locationLabel ?? "Unknown"}</span>
+            </div>
+          </div>
+        </section>
+
+        <section className="card maint-card">
+          <header className="maint-card-header">
+            <div>
+              <div className="maint-card-title">System Health</div>
+              <div className="maint-card-subtitle">Live robot telemetry (mocked)</div>
+            </div>
+            <span className="maint-pill maint-pill--good">Good</span>
+          </header>
+          <div className="maint-card-body">
+            <StatusBar label="CPU Usage" value={cpuUsage} />
+            <StatusBar label="Memory Usage" value={memoryUsage} />
+            <StatusBar label="Temperature" value={temperature} unit="℃" color="#E29532" />
+            <StatusBar label="Navigation Accuracy" value={navAccuracy} />
+          </div>
+        </section>
+
+        <section className="card maint-card">
+          <header className="maint-card-header">
+            <div>
+              <div className="maint-card-title">Sensor Status</div>
+              <div className="maint-card-subtitle">Key robot subsystems</div>
+            </div>
+            <span className="maint-pill maint-pill--active">Active</span>
+          </header>
+          <div className="maint-card-body maint-sensor-list">
+            <div className="maint-row">
+              <span className="maint-row-label">Camera Sensor</span>
+              <span className="maint-sensor-chip maint-sensor-chip--ok">OK</span>
+            </div>
+            <div className="maint-row">
+              <span className="maint-row-label">Proximity / LIDAR</span>
+              <span className="maint-sensor-chip maint-sensor-chip--ok">OK</span>
+            </div>
+            <div className="maint-row">
+              <span className="maint-row-label">Drive Motors</span>
+              <span className="maint-sensor-chip maint-sensor-chip--warn">Warm</span>
+            </div>
+          </div>
+        </section>
+
+        <section className="card maint-card maint-card--wide">
+          <header className="maint-card-header">
+            <div>
+              <div className="maint-card-title">Maintenance Schedule</div>
+              <div className="maint-card-subtitle">Recent and upcoming service</div>
+            </div>
+          </header>
+          <div className="maint-card-body maint-schedule">
+            <div>
+              <div className="maint-label">System Uptime</div>
+              <div className="maint-value">342h</div>
+            </div>
+            <div>
+              <div className="maint-label">Last Maintenance</div>
+              <div className="maint-value maint-value--muted">1/28/2026</div>
+            </div>
+            <div>
+              <div className="maint-label">Next Scheduled</div>
+              <div className="maint-value maint-value--primary">2/27/2026</div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
 }

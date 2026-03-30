@@ -1,29 +1,144 @@
-import { useNavigate, useLocation } from "react-router-dom";
-import { logout } from "../../lib/authApi";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { fetchCurrentUser, logout } from "../../lib/authApi";
 import { ROUTES } from "../../lib/routes";
 import "./TopBar.css";
 
-export default function TopBar({ title }: { title: string }) {
+const USER_NAME_CACHE_KEY = "current_user_name";
+
+/** Logo next to the title. Put your image in web-dashboard/public/luna-logo.png (or .svg, .webp). */
+const LOGO_SRC = "/luna-logo.png";
+
+export default function TopBar({ title }: { title?: string }) {
   const navigate = useNavigate();
-  const { pathname } = useLocation();
-  const showBack = pathname !== ROUTES.DASHBOARD;
+  const [searchQuery, setSearchQuery] = useState("");
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [logoError, setLogoError] = useState(false);
+  const [userDisplayName, setUserDisplayName] = useState(
+    () => localStorage.getItem(USER_NAME_CACHE_KEY) || "Librarian"
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadUser = async () => {
+      const user = await fetchCurrentUser();
+      if (cancelled || !user) return;
+      const full = [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
+      const nextName = full || user.name || user.email || "Librarian";
+      setUserDisplayName(nextName);
+      localStorage.setItem(USER_NAME_CACHE_KEY, nextName);
+    };
+
+    void loadUser();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const avatarLetter = useMemo(
+    () => (userDisplayName.trim().charAt(0) || "L").toUpperCase(),
+    [userDisplayName]
+  );
+
+  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(ROUTES.CATALOG + `?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
 
   return (
-    <div className="topbar">
+    <header className="topbar">
       <div className="topbar-left">
-        {showBack && (
-          <button type="button" className="topbar-back topbar-icon" onClick={() => navigate(ROUTES.DASHBOARD)}>← Back</button>
-        )}
-        <h2 className="topbar-title">{title}</h2>
-      </div>
-      <div className="topbar-right">
-        <button type="button" className="topbar-icon" onClick={() => navigate(ROUTES.OPTIONS)} title="Menu">☰</button>
-        <button type="button" className="topbar-icon" title="Notifications">🔔</button>
-        <button type="button" className="topbar-icon" title="Refresh">⟳</button>
-        <button type="button" className="topbar-icon" onClick={() => { logout(); navigate(ROUTES.LOGIN, { replace: true }); }} title="Log out">
-          Log out
+        <button
+          type="button"
+          className="topbar-logo topbar-logo-btn"
+          onClick={() => navigate(ROUTES.DASHBOARD)}
+          aria-label="Go to dashboard"
+        >
+          {!logoError && (
+            <img
+              src={LOGO_SRC}
+              alt=""
+              className="topbar-logo-img"
+              onError={() => setLogoError(true)}
+            />
+          )}
+          {logoError && (
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="topbar-logo-icon">
+              <path d="M4 21V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M4 10h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M4 14h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M4 18h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+          )}
         </button>
+        <div className="topbar-brand">
+          <span className="topbar-brand-university">LUNA</span>
+          <span className="topbar-brand-sub">{title || "Library Administration"}</span>
+        </div>
       </div>
-    </div>
+
+      <form className="topbar-search-wrap" onSubmit={handleSearch} role="search">
+        <span className="topbar-search-icon-left" aria-hidden>🔍</span>
+        <input
+          type="search"
+          className="topbar-search"
+          placeholder="Search books, collections, users..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          aria-label="Search books, collections, users"
+        />
+        <button type="submit" className="topbar-search-btn" aria-label="Search">
+          <span className="topbar-search-icon-right" aria-hidden>🔍</span>
+        </button>
+      </form>
+
+      <div className="topbar-right">
+        <button type="button" className="topbar-notifications topbar-icon" title="Notifications" aria-label="Notifications">
+          <span className="topbar-bell-icon">🔔</span>
+          <span className="topbar-notification-badge" aria-hidden>1</span>
+        </button>
+        <div className="topbar-profile-wrap">
+          <button
+            type="button"
+            className="topbar-profile-btn"
+            onClick={() => setProfileOpen(!profileOpen)}
+            aria-expanded={profileOpen}
+            aria-haspopup="true"
+            aria-label="User menu"
+          >
+            <span className="topbar-avatar" aria-hidden>
+              {avatarLetter}
+            </span>
+            <span className="topbar-profile-name">{userDisplayName}</span>
+            <span className="topbar-profile-chevron" aria-hidden>▼</span>
+          </button>
+          {profileOpen && (
+            <>
+              <div className="topbar-profile-backdrop" onClick={() => setProfileOpen(false)} aria-hidden />
+              <div className="topbar-profile-dropdown" role="menu">
+                <button type="button" className="topbar-dropdown-item" onClick={() => { setProfileOpen(false); navigate(ROUTES.OPTIONS); }} role="menuitem">Options</button>
+                <button type="button" className="topbar-dropdown-item" onClick={() => { setProfileOpen(false); navigate(ROUTES.ACCOUNT); }} role="menuitem">Account Settings</button>
+                <button
+                  type="button"
+                  className="topbar-dropdown-item topbar-dropdown-logout"
+                  onClick={() => {
+                    setProfileOpen(false);
+                    logout();
+                    localStorage.removeItem(USER_NAME_CACHE_KEY);
+                    navigate(ROUTES.LOGIN, { replace: true });
+                  }}
+                  role="menuitem"
+                >
+                  Log out
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </header>
   );
 }
