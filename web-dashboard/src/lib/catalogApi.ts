@@ -47,6 +47,31 @@ function mutationMessageFromStatus(status: number, fallback: string): string {
   return fallback;
 }
 
+function readApiErrorDetail(body: unknown): string | null {
+  if (!body || typeof body !== "object") return null;
+
+  const obj = body as Record<string, unknown>;
+  const detail = obj.detail;
+
+  if (typeof detail === "string" && detail.trim()) return detail;
+
+  if (Array.isArray(detail)) {
+    const pieces = detail
+      .map((item) => {
+        if (!item || typeof item !== "object") return null;
+        const row = item as Record<string, unknown>;
+        const msg = typeof row.msg === "string" ? row.msg : null;
+        const loc = Array.isArray(row.loc) ? row.loc.join(".") : null;
+        if (msg && loc) return `${loc}: ${msg}`;
+        return msg;
+      })
+      .filter((x): x is string => !!x);
+    if (pieces.length > 0) return pieces.join("; ");
+  }
+
+  return null;
+}
+
 export type BookMutationInput = {
   title: string;
   author: string;
@@ -96,7 +121,10 @@ export async function createBook(input: BookMutationInput): Promise<Book> {
     body: JSON.stringify(payload),
   });
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(mutationMessageFromStatus(res.status, "Failed to create book."));
+  if (!res.ok) {
+    const detail = readApiErrorDetail(json);
+    throw new Error(detail ?? mutationMessageFromStatus(res.status, "Failed to create book."));
+  }
 
   const top = asObject(json);
   const data = top && "data" in top ? (top.data as unknown) : json;
@@ -116,7 +144,10 @@ export async function updateBook(bookId: string, input: BookMutationInput): Prom
     body: JSON.stringify(payload),
   });
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(mutationMessageFromStatus(res.status, "Failed to update book."));
+  if (!res.ok) {
+    const detail = readApiErrorDetail(json);
+    throw new Error(detail ?? mutationMessageFromStatus(res.status, "Failed to update book."));
+  }
 
   const top = asObject(json);
   const data = top && "data" in top ? (top.data as unknown) : json;

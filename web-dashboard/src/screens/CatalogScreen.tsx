@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { createBook, deleteBook, listBooks, updateBook } from "../lib/catalogApi";
 import type { Book } from "../lib/catalogTypes";
 import "./Catalog.css";
@@ -64,6 +65,7 @@ function getBookIcon(book: Book) {
 }
 
 export default function CatalogScreen() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [books, setBooks] = useState<Book[]>([]);
   const [query, setQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
@@ -84,6 +86,23 @@ export default function CatalogScreen() {
     shelf_location: "",
     status: "AVAILABLE",
   });
+
+  const addParam = searchParams.get("add");
+
+  useEffect(() => {
+    if (addParam === "1") {
+      setIsAdding(true);
+      setEditingBookId(null);
+      setMutationError(null);
+    }
+  }, [addParam]);
+
+  const clearAddParam = () => {
+    if (addParam !== "1") return;
+    const next = new URLSearchParams(searchParams);
+    next.delete("add");
+    setSearchParams(next, { replace: true });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -163,13 +182,15 @@ export default function CatalogScreen() {
     setIsAdding(false);
     setEditingBookId(null);
     setMutationError(null);
+    clearAddParam();
   };
 
   const onSave = async () => {
     const title = form.title.trim();
     const author = form.author.trim();
-    if (!title || !author) {
-      setMutationError("Title and author are required.");
+    const isbn = form.isbn.trim();
+    if (!title || !author || !isbn) {
+      setMutationError("Title, author, and ISBN are required.");
       return;
     }
 
@@ -290,7 +311,9 @@ export default function CatalogScreen() {
 
       {loading ? <p className="catalog-loading">Loading catalog...</p> : null}
       {error ? <p className="catalog-empty" style={{ color: "var(--red)" }}>{error}</p> : null}
-      {mutationError ? <p className="catalog-empty" style={{ color: "var(--red)" }}>{mutationError}</p> : null}
+      {mutationError && !(isAdding || editingBook) ? (
+        <p className="catalog-empty" style={{ color: "var(--red)" }}>{mutationError}</p>
+      ) : null}
       {!loading && !error && filteredBooks.length === 0 ? (
         <p className="catalog-empty">No books found. Try changing your search or filters.</p>
       ) : null}
@@ -377,6 +400,11 @@ export default function CatalogScreen() {
         >
           <div className="catalog-modal">
             <h2 className="catalog-modal-title">{isAdding ? "Add book" : "Edit book"}</h2>
+            {mutationError ? (
+              <p className="catalog-empty" style={{ color: "var(--red)", marginBottom: "12px" }}>
+                {mutationError}
+              </p>
+            ) : null}
 
             <label className="catalog-form-label">Title *</label>
             <input
@@ -392,7 +420,7 @@ export default function CatalogScreen() {
               onChange={(e) => setForm((prev) => ({ ...prev, author: e.target.value }))}
             />
 
-            <label className="catalog-form-label">ISBN</label>
+            <label className="catalog-form-label">ISBN *</label>
             <input
               className="catalog-form-input"
               value={form.isbn}
