@@ -1,83 +1,131 @@
-/**
- * Catalog API client. Uses mock data for now; when the backend exposes
- * GET /api/v1/books (returning an array of books), we can use it instead.
- * No backend changes required.
- */
 import { apiFetch } from "./api";
-import type { Book } from "./catalogTypes";
+import type { Book, CatalogQueryParams, Pagination } from "./catalogTypes";
 
-const MOCK_BOOKS: Book[] = [
-  {
-    id: "1",
-    title: "Machine Learning Basics",
-    author: "Dr. Sarah Chen",
-    isbn: "978-1-234-56789-0",
-    status: "AVAILABLE",
-    shelf_location: "Shelf B-20",
-    total_copies: 4,
-    available_copies: 4,
-  },
-  {
-    id: "2",
-    title: "Data Structures & Algorithms",
-    author: "Jennifer Park",
-    isbn: "978-1-234-56789-1",
-    status: "UNAVAILABLE",
-    shelf_location: "Shelf B-22",
-    total_copies: 2,
-    available_copies: 0,
-  },
-  {
-    id: "3",
-    title: "Python Programming Guide",
-    author: "Marcus Johnson",
-    isbn: "978-1-234-56789-2",
-    status: "LOW_STOCK",
-    shelf_location: "Shelf B-21",
-    total_copies: 2,
-    available_copies: 1,
-  },
-];
+type BooksEnvelope = {
+  data?: unknown;
+  pagination?: Pagination;
+};
 
-function isBookArray(data: unknown): data is Book[] {
-  return Array.isArray(data) && (data.length === 0 || (typeof data[0] === "object" && data[0] !== null && "id" in data[0] && "title" in data[0]));
+function asObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
 }
 
-/**
- * Fetch books. If backend returns an array of books, use it; otherwise use mock data.
- */
-export async function fetchBooks(): Promise<Book[]> {
-  try {
-    const res = await apiFetch("/api/v1/books");
-    const data = await res.json();
-    if (isBookArray(data)) return data;
-  } catch {
-    // ignore
+function toBooksAndPagination(json: unknown): { items: Book[]; pagination?: Pagination } {
+  if (Array.isArray(json)) return { items: json as Book[] };
+
+  const top = asObject(json);
+  if (!top) return { items: [] };
+
+  const env = top as BooksEnvelope;
+  const payload = env.data ?? json;
+
+  if (Array.isArray(payload)) {
+    return { items: payload as Book[], pagination: env.pagination };
   }
-  return [...MOCK_BOOKS];
+
+  const payloadObj = asObject(payload);
+  if (!payloadObj) return { items: [] };
+
+  const items = Array.isArray(payloadObj.items) ? (payloadObj.items as Book[]) : [];
+  const pagination = asObject(payloadObj.pagination) as Pagination | null;
+  return { items, pagination: pagination ?? env.pagination };
 }
 
-/**
- * In-memory list for mutations until backend supports create/update/delete.
- * Catalog screen will manage its own state and use these helpers for consistency.
- */
-export function getMockBooks(): Book[] {
-  return [...MOCK_BOOKS];
+function messageFromStatus(status: number): string {
+  if (status === 401) return "Your session expired. Please sign in again.";
+  if (status === 403) return "You do not have permission to view the catalog.";
+  if (status === 404) return "Catalog endpoint not found.";
+  return "Failed to load catalog.";
 }
 
-export function createMockBook(book: Omit<Book, "id">): Book {
-  return {
-    ...book,
-    id: crypto.randomUUID(),
-    total_copies: book.total_copies ?? 1,
-    available_copies: book.available_copies ?? (book.status === "AVAILABLE" || book.status === "LOW_STOCK" ? 1 : 0),
+function mutationMessageFromStatus(status: number, fallback: string): string {
+  if (status === 401) return "Your session expired. Please sign in again.";
+  if (status === 403) return "You do not have permission to modify the catalog.";
+  if (status === 404) return "Book not found.";
+  if (status === 409) return "A book with this ISBN already exists.";
+  if (status === 422) return "Invalid book data. Check required fields and try again.";
+  return fallback;
+}
+
+export type BookMutationInput = {
+  title: string;
+  author: string;
+  isbn?: string;
+  shelf_location?: string;
+  status?: string;
+};
+
+function toBook(value: unknown): Book | null {
+  const obj = asObject(value);
+  if (!obj) return null;
+  if (typeof obj.id !== "string" || typeof obj.title !== "string" || typeof obj.author !== "string") {
+    return null;
+  }
+  return obj as unknown as Book;
+}
+
+export async function listBooks(
+  params: CatalogQueryParams = {}
+): Promise<{ items: Book[]; pagination?: Pagination }> {
+  const search = new URLSearchParams();
+  if (params.q) search.set("q", params.q);
+  if (params.page) search.set("page", String(params.page));
+  if (params.limit) search.set("limit", String(params.limit));
+  if (params.sort) search.set("sort", params.sort);
+  if (params.order) search.set("order", params.order);
+
+  const qs = search.toString();
+  const res = await apiFetch(`/api/v1/books${qs ? `?${qs}` : ""}`);
+  const json = await res.json().catch(() => ({}));
+
+  if (!res.ok) throw new Error(messageFromStatus(res.status));
+
+  return toBooksAndPagination(json);
+}
+
+export async function createBook(input: BookMutationInput): Promise<Book> {
+  const payload = {
+    title: input.title.trim(),
+    author: input.author.trim(),
+    isbn: input.isbn?.trim() || undefined,
+    shelf_location: input.shelf_location?.trim() || undefined,
+    status: input.status ?? "AVAILABLE",
   };
+  const res = await apiFetch("/api/v1/books", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(mutationMessageFromStatus(res.status, "Failed to create book."));
+
+  const top = asObject(json);
+  const data = top && "data" in top ? (top.data as unknown) : json;
+  return toBook(data) ?? ({ id: crypto.randomUUID(), ...payload } as Book);
 }
 
-export function getDisplayStatus(book: Book): "available" | "unavailable" | "low_stock" {
-  if (book.status === "UNAVAILABLE" || book.status === "CHECKED_OUT" || book.status === "RESERVED") return "unavailable";
-  const available = book.available_copies ?? (book.status === "AVAILABLE" ? 1 : 0);
-  const total = book.total_copies ?? 1;
-  if (total > 0 && available > 0 && available < total) return "low_stock";
-  return "available";
+export async function updateBook(bookId: string, input: BookMutationInput): Promise<Book> {
+  const payload = {
+    title: input.title.trim(),
+    author: input.author.trim(),
+    isbn: input.isbn?.trim() || undefined,
+    shelf_location: input.shelf_location?.trim() || undefined,
+    status: input.status ?? "AVAILABLE",
+  };
+  const res = await apiFetch(`/api/v1/books/${bookId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(mutationMessageFromStatus(res.status, "Failed to update book."));
+
+  const top = asObject(json);
+  const data = top && "data" in top ? (top.data as unknown) : json;
+  return toBook(data) ?? ({ id: bookId, ...payload } as Book);
+}
+
+export async function deleteBook(bookId: string): Promise<void> {
+  const res = await apiFetch(`/api/v1/books/${bookId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error(mutationMessageFromStatus(res.status, "Failed to delete book."));
 }

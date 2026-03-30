@@ -54,6 +54,33 @@ export async function refreshAccessToken(): Promise<string | null> {
 
 export const logout = () => tokenStorage.clear();
 
+export type CurrentUser = {
+  id?: string;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  name?: string;
+};
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+export async function fetchCurrentUser(): Promise<CurrentUser | null> {
+  if (USE_MOCK_AUTH) {
+    return { name: "Librarian User", email: "librarian@example.edu" };
+  }
+
+  const res = await apiFetch("/api/v1/auth/me");
+  if (!res.ok) return null;
+
+  const json = (await res.json().catch(() => ({}))) as unknown;
+  const top = asRecord(json);
+  if (!top) return null;
+  const data = (asRecord(top.data) ?? top) as CurrentUser;
+  return data;
+}
+
 export type RegisterAccountInput = {
   email: string;
   password: string;

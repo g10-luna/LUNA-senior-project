@@ -1,19 +1,45 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { logout } from "../../lib/authApi";
+import { fetchCurrentUser, logout } from "../../lib/authApi";
 import { ROUTES } from "../../lib/routes";
 import "./TopBar.css";
 
-const userDisplayName = "Shirley Williams";
+const USER_NAME_CACHE_KEY = "current_user_name";
 
 /** Logo next to the title. Put your image in web-dashboard/public/luna-logo.png (or .svg, .webp). */
 const LOGO_SRC = "/luna-logo.png";
 
-export default function TopBar() {
+export default function TopBar({ title }: { title?: string }) {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [profileOpen, setProfileOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const [userDisplayName, setUserDisplayName] = useState(
+    () => localStorage.getItem(USER_NAME_CACHE_KEY) || "Librarian"
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadUser = async () => {
+      const user = await fetchCurrentUser();
+      if (cancelled || !user) return;
+      const full = [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
+      const nextName = full || user.name || user.email || "Librarian";
+      setUserDisplayName(nextName);
+      localStorage.setItem(USER_NAME_CACHE_KEY, nextName);
+    };
+
+    void loadUser();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const avatarLetter = useMemo(
+    () => (userDisplayName.trim().charAt(0) || "L").toUpperCase(),
+    [userDisplayName]
+  );
 
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -50,7 +76,7 @@ export default function TopBar() {
         </button>
         <div className="topbar-brand">
           <span className="topbar-brand-university">LUNA</span>
-          <span className="topbar-brand-sub">Library Administration</span>
+          <span className="topbar-brand-sub">{title || "Library Administration"}</span>
         </div>
       </div>
 
@@ -84,7 +110,7 @@ export default function TopBar() {
             aria-label="User menu"
           >
             <span className="topbar-avatar" aria-hidden>
-              {userDisplayName.charAt(0)}
+              {avatarLetter}
             </span>
             <span className="topbar-profile-name">{userDisplayName}</span>
             <span className="topbar-profile-chevron" aria-hidden>▼</span>
@@ -95,7 +121,19 @@ export default function TopBar() {
               <div className="topbar-profile-dropdown" role="menu">
                 <button type="button" className="topbar-dropdown-item" onClick={() => { setProfileOpen(false); navigate(ROUTES.OPTIONS); }} role="menuitem">Options</button>
                 <button type="button" className="topbar-dropdown-item" onClick={() => { setProfileOpen(false); navigate(ROUTES.ACCOUNT); }} role="menuitem">Account Settings</button>
-                <button type="button" className="topbar-dropdown-item topbar-dropdown-logout" onClick={() => { setProfileOpen(false); logout(); navigate(ROUTES.LOGIN, { replace: true }); }} role="menuitem">Log out</button>
+                <button
+                  type="button"
+                  className="topbar-dropdown-item topbar-dropdown-logout"
+                  onClick={() => {
+                    setProfileOpen(false);
+                    logout();
+                    localStorage.removeItem(USER_NAME_CACHE_KEY);
+                    navigate(ROUTES.LOGIN, { replace: true });
+                  }}
+                  role="menuitem"
+                >
+                  Log out
+                </button>
               </div>
             </>
           )}
