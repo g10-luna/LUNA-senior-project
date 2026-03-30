@@ -5,6 +5,29 @@
 
 **System context:** [System Design/SYSTEM_DESIGN.md](../System%20Design/SYSTEM_DESIGN.md)
 
+## Table of contents
+
+- [Program sprint goal](#program-sprint-goal)
+- [Teams at a glance](#teams-at-a-glance)
+- [Robot: full pipeline (order → delivery → closure)](#robot-full-pipeline-order-to-delivery-to-closure)
+- [Mobile — sprint goal & backlog](#mobile-sprint-goal-backlog)
+- [Backend — sprint goal & backlog](#backend-sprint-goal-backlog)
+- [Web Dashboard — sprint goal & backlog](#web-dashboard-sprint-goal-backlog)
+- [Robot — sprint goal & backlog](#robot-sprint-goal-backlog)
+- [Program-wide priorities (cross-team backlog)](#program-wide-priorities-cross-team-backlog)
+- [Risks and dependencies](#risks-and-dependencies)
+- [Suggested 14-day cadence (AI-assisted)](#suggested-14-day-cadence-ai-assisted)
+- [Cross-team dependency matrix](#cross-team-dependency-matrix)
+- [References](#references)
+- [Human revised plan (corrected sprint plan)](#human-revised-plan-corrected-sprint-plan)
+  - [Ownership](#ownership)
+  - [What’s implemented (current snapshot)](#whats-implemented-current-snapshot)
+  - [In progress / needs verification (sprint still requires proof)](#in-progress-needs-verification-sprint-still-requires-proof)
+  - [What still needs to be done (task breakdown with owners)](#what-still-needs-to-be-done-task-breakdown-with-owners)
+  - [Sprint timeline (features, story points, dependencies)](#sprint-timeline-features-story-points-dependencies)
+  - [Breakdown: split large items into smaller tasks](#breakdown-split-large-items-into-smaller-tasks)
+- [Final sprint scope + assignments](#final-sprint-scope-assignments)
+
 ---
 
 ## Program sprint goal
@@ -212,7 +235,7 @@ This section is a **human synthesis** of sprint reality across **all teams**: wh
 
 **Support:** Isaac provides support to the Frontend team as needed (API contract questions, status mapping, integration smoke tests).
 
-### What’s implemented (this branch)
+### What’s implemented (current snapshot)
 
 - **Mobile (Isaac)**:
   - **Search refactor to feature module** (`mobile/src/features/search/*`) and thin route composition (`mobile/app/(tabs)/search.tsx`), with verification doc and evidence screenshots (`docs/search-refactor-vibe.md`, `docs/evidence/search-refactor/*`).
@@ -227,10 +250,16 @@ This section is a **human synthesis** of sprint reality across **all teams**: wh
   - **Redis usage** added/expanded for analytics reads and shared client (`backend/shared/redis_client.py`) plus docker compose updates.
   - **Auth hardening tweaks** (changes under `backend/auth/*`, `backend/shared/auth_dependencies.py`).
 
+- **Frontend / Web Dashboard (Kelynn, Najaat)**:
+  - **UI refresh** across the librarian app: refreshed **TopBar** and **TopBarLayout**, **Login**, **Dashboard**, **Catalog** (`CatalogScreen` + styling), **Maintenance**, **Options**, shared theming in `index.css`, and new imagery (e.g. campus/galaxy assets, LUNA branding).
+  - **Catalog data layer** in the dashboard: `bookApi`, `catalogApi`, and `catalogTypes` wired toward backend book/catalog contracts; **`authApi`** updates for login/session flows.
+  - **Setup account** flow surfaced in the dashboard (`SetupAccountScreen` and related routing).
+  - **Environment example** updated for dashboard configuration (`web-dashboard/.env.example`).
+
 - **Robotics (Kritika, Isaac)**:
   - **Robot onboarding complete** (ROS/TurtleBot stack running) and the TurtleBot can **run and move reliably** under manual control.
 
-### In progress / needs verification (branch suggests started, but sprint requires proof)
+### In progress / needs verification (sprint still requires proof)
 
 - **Mobile (Isaac)**:
   - **End-to-end task flows** (request/return) are not evidenced here; mobile has the shell/screens but the sprint needs verified **request → status → completion** UX tied to backend task truth.
@@ -241,7 +270,9 @@ This section is a **human synthesis** of sprint reality across **all teams**: wh
   - **Contract freeze**: confirm enums/shapes used by mobile and dashboard are stable and documented (or generated).
 
 - **Frontend / Web Dashboard (Kelynn, Najaat)**:
-  - No web-dashboard code changes appear in this branch diff; treat dashboard work as **not yet integrated here** and plan integration/QA accordingly.
+  - **End-to-end QA** on a live gateway: catalog (search, filters, add/edit/delete, availability) and auth must be exercised against the real **Book** and **Auth** services; fix mismatches with OpenAPI or shared types as they appear.
+  - **Delivery/return task UI** (book-placed, queue, progress, closeout) is still the main gap for the MVP narrative—**visual refresh is not the same as** wired task state; extend Maintenance/Dashboard (or new surfaces) when backend task APIs are ready.
+  - Optional follow-up: a dedicated **auth UI polish** pass if auth screens are tracked separately from the main dashboard refresh.
 
 - **Robotics (Kritika, Isaac)**:
   - **Mapping + navigation pipeline** is the next milestone: build a map, verify localization, and validate repeatable point-to-point navigation in the target space.
@@ -271,14 +302,15 @@ This section is a **human synthesis** of sprint reality across **all teams**: wh
   - **Bridge ↔ backend contract validation**: dispatch, progress, completion, failure.
   - Implement/verify **retry + reconnect** behavior (hardware or sim).
 
-#### P1 — Catalog + discovery polishing (already strong; confirm end-to-end)
+#### P1 — Catalog + discovery polishing (dashboard already has UI + clients; confirm end-to-end)
 
 - **Backend (Sarah, Isaac)**:
   - Confirm **books API contract** aligns with dashboard catalog operations (search, add/delete, availability updates).
   - Keep route tests updated for any contract changes.
 
 - **Frontend / Web Dashboard (Kelynn, Najaat)**:
-  - Finish **catalog search + maintenance UX** matching the books API (availability updates, add/delete flows).
+  - **Prove** the refreshed **Catalog** and **Maintenance** flows against production-like data: every action in the UI should hit the correct endpoint and surface errors (loading, empty, 4xx/5xx) clearly.
+  - Close any gaps between **`catalogApi` / `bookApi`** and the backend (field names, pagination, role-guarded routes).
 
 - **Mobile (Isaac)**:
   - Home/discover sections QA against the new discovery endpoints; confirm error states and performance on device.
@@ -352,3 +384,33 @@ Use this table to turn the large rows above into “pullable” tasks sized to t
 | NFR baseline tests | Race/duplicate action tests (double tap, retry, reconnect) | Backend (Sarah, Isaac) + Mobile (Isaac) + Frontend (Kelynn, Najaat) | 5 | E2E create endpoints | No duplicate tasks or contradictory terminal states |
 | Safety + ops controls | E-stop / fault surfaced end-to-end (sim acceptable) | Robotics (Kritika, Isaac) + Backend (Sarah, Isaac) + Frontend (Kelynn, Najaat) | 5 | Robot pipeline | Dashboard shows stop/fault with clear operator instruction |
 | Demo package | Seed data + one-pass runbook + fallback (sim) | All teams (coord: Isaac) | 3 | E2E flows | Rehearsal succeeds; fallback steps documented |
+
+---
+
+## Final sprint scope + assignments
+
+This is the **execution view** for the **14-day sprint**: what we commit to ship, who owns the outcome, what it depends on, and when it should land. **Support** means consult / pair / unblock—not duplicating ownership unless noted.
+
+| ID | Task / deliverable | In scope (this sprint) | Priority | Primary owner | Support | Depends on | Target (days) |
+|----|--------------------|-------------------------|----------|---------------|---------|------------|---------------|
+| FS-01 | **Shared task + robot status contract** (doc or generated types): enums, transitions, error shapes | Yes | P0 | Sarah + Isaac (Backend) | Kelynn + Najaat (Frontend), Isaac (Mobile) | Team agreement on single source of truth | 1–3 |
+| FS-02 | **Authoritative delivery/return state machine** in backend (legal transitions, terminal states) | Yes | P0 | Sarah + Isaac (Backend) | — | FS-01 | 1–4 |
+| FS-03 | **Book-placed gate** enforced **server-side** (no robot start without it) | Yes | P0 | Sarah + Isaac (Backend) | Kritika + Isaac (Robotics) | FS-02 | 1–4 |
+| FS-04 | **Delivery request API** + **mobile** “create request” + list/detail status | Yes | P0 | Isaac (Mobile) | Sarah + Isaac (Backend) | FS-02 | 4–8 |
+| FS-05 | **Dashboard**: confirm **book placed**, task list, progress visibility for **delivery** | Yes | P0 | Kelynn + Najaat (Frontend) | Isaac (integration) | FS-03, FS-02 | 4–9 |
+| FS-06 | **Robot**: **map** demo space + **localization** + waypoint rehearsal | Yes | P0 | Kritika + Isaac (Robotics) | Sarah + Isaac (Backend) for any pose/goal contract | Hardware/sim availability | 4–10 |
+| FS-07 | **Bridge**: progress + completion postbacks; **retry/reconnect** | Yes | P0 | Kritika + Isaac (Robotics) | Sarah + Isaac (Backend) | FS-03, robot API stability | 4–10 |
+| FS-08 | **Return** flow: mobile initiate + status; backend transitions | Yes | P0 | Isaac (Mobile) + Sarah + Isaac (Backend) | — | FS-02 | 5–10 |
+| FS-09 | **Return** closeout / validate on **dashboard** | Yes | P0 | Kelynn + Najaat (Frontend) | Sarah + Isaac (Backend) | FS-08 | 6–10 |
+| FS-10 | **Catalog + maintenance E2E QA** (refreshed UI against real `books` APIs) | Yes | P1 | Kelynn + Najaat (Frontend) | Isaac (Backend + Mobile as needed) | Stable catalog contract | 1–10 |
+| FS-11 | **Auth hardening**: single-flight refresh, 401, logout, roles (**mobile**) | Yes | P1 | Isaac (Mobile) | Sarah + Isaac (Backend) | Documented auth errors | 1–6 |
+| FS-12 | **Auth hardening** same rules (**dashboard**) | Yes | P1 | Kelynn + Najaat (Frontend) | Isaac (support) | FS-11 parity with backend | 2–7 |
+| FS-13 | **Shared status labels** on mobile + dashboard (same task id) | Yes | P1 | Kelynn + Najaat (Frontend) + Isaac (Mobile) | Sarah + Isaac (Backend) | FS-01 | 6–10 |
+| FS-14 | **Real-time strategy**: WS if ready, else **polling + last-updated** UX | Yes | P2 | Sarah + Isaac (Backend) | Isaac (Mobile), Kelynn + Najaat (Frontend) | Task list/detail endpoints | 8–14 |
+| FS-15 | **NFR smoke**: duplicate submit, token expiry, reconnect | Yes | P2 | Sarah + Isaac (Backend) | All clients | FS-04, FS-08 | 10–14 |
+| FS-16 | **Safety / fault / e-stop** visible on dashboard (sim ok) | Yes | P2 | Kritika + Isaac (Robotics) + Kelynn + Najaat (Frontend) | Sarah + Isaac (Backend) | FS-07 | 11–14 |
+| FS-17 | **Demo package**: seed data, runbook, contingency (sim fallback) | Yes | P0 (for submission) | Isaac (coordination) | Whole team | FS-04–FS-09 minimum happy path | 12–14 |
+
+**Explicitly out of scope (unless time remains):** gold-plated analytics, new discovery features beyond contract-stable catalog, fully autonomous shelf retrieval, and any redesign not required for the MVP demo narrative.
+
+**Escalation / unblock rule:** If a P0 row slips past its target window, **pause P2 polish** and convene a 30-minute contract + integration sync (Backend + affected client owners + Isaac as integration support).
