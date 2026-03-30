@@ -1,4 +1,4 @@
-import { apiFetch } from "./api";
+import { API_BASE_URL, apiFetch } from "./api";
 import type { Book, CatalogQueryParams, Pagination } from "./catalogTypes";
 
 type BooksEnvelope = {
@@ -34,14 +34,24 @@ function toBooksAndPagination(json: unknown): { items: Book[]; pagination?: Pagi
 function messageFromStatus(status: number): string {
   if (status === 401) return "Your session expired. Please sign in again.";
   if (status === 403) return "You do not have permission to view the catalog.";
-  if (status === 404) return "Catalog endpoint not found.";
+  if (status === 404) {
+    if (!API_BASE_URL) {
+      return "Catalog API endpoint not found. Set VITE_API_BASE_URL in web-dashboard/.env and restart the dev server.";
+    }
+    return "Catalog endpoint not found.";
+  }
   return "Failed to load catalog.";
 }
 
 function mutationMessageFromStatus(status: number, fallback: string): string {
   if (status === 401) return "Your session expired. Please sign in again.";
   if (status === 403) return "You do not have permission to modify the catalog.";
-  if (status === 404) return "Book not found.";
+  if (status === 404) {
+    if (!API_BASE_URL) {
+      return "Catalog API endpoint not found. Set VITE_API_BASE_URL in web-dashboard/.env and restart the dev server.";
+    }
+    return "Book not found.";
+  }
   if (status === 409) return "A book with this ISBN already exists.";
   if (status === 422) return "Invalid book data. Check required fields and try again.";
   return fallback;
@@ -101,9 +111,15 @@ export async function listBooks(
 
   const qs = search.toString();
   const res = await apiFetch(`/api/v1/books${qs ? `?${qs}` : ""}`);
+  const contentType = res.headers.get("content-type") ?? "";
   const json = await res.json().catch(() => ({}));
 
   if (!res.ok) throw new Error(messageFromStatus(res.status));
+  if (!contentType.includes("application/json")) {
+    throw new Error(
+      "Catalog API returned non-JSON. Check VITE_API_BASE_URL in web-dashboard/.env and restart the dev server."
+    );
+  }
 
   return toBooksAndPagination(json);
 }
