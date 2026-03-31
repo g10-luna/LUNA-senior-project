@@ -1,0 +1,285 @@
+/* Same frosted panel treatment as `.dashboard-page` */
+.map-page {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
+  border-radius: 16px;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.map-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(24, 68, 104, 0.1);
+  z-index: -2;
+}
+
+.map-page::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(245, 245, 245, 0.88);
+  z-index: -1;
+}
+
+.map-page > * {
+  position: relative;
+  z-index: 0;
+}
+
+.map-intro {
+  margin: 0 0 4px 0;
+  max-width: 52rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.map-intro strong {
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.map-page .section-title {
+  margin-bottom: 8px;
+  color: var(--text-dark);
+  font-weight: 700;
+  font-size: 20px;
+}
+
+.map-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .map-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.map-legend {
+  padding: 20px 22px;
+}
+
+.map-legend-title {
+  margin: 0 0 14px 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.map-legend-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.map-legend-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--text-dark);
+}
+
+.map-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  border: 1px solid rgba(24, 68, 104, 0.2);
+}
+
+.map-swatch--blue {
+  background: #b8d4ef;
+}
+
+.map-swatch--green {
+  background: #c5e0b4;
+}
+
+.map-swatch--grey {
+  background: #c8c8c8;
+}
+
+.map-swatch--stairs {
+  background: repeating-linear-gradient(
+    -45deg,
+    #d8d8d8,
+    #d8d8d8 3px,
+    #f0f0f0 3px,
+    #f0f0f0 6px
+  );
+}
+
+.map-legend-note {
+  margin: 16px 0 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+/*
+ * Shrink the floor-plan card to content width (~subtitle / “one floor at a time)”)
+ * instead of stretching across the whole grid column.
+ */
+.map-viewport {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-self: start;
+  /* ~width of “Official reference layout (one floor at a time)” + tabs; `ch` ≈ “0” width in this font */
+  width: max-content;
+  max-width: min(100%, 62ch);
+}
+
+@media (max-width: 900px) {
+  .map-viewport {
+    justify-self: stretch;
+    width: auto;
+    max-width: none;
+  }
+}
+
+.map-viewport-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(81, 129, 168, 0.25);
+}
+
+.map-floor-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.map-floor-tab {
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 2px solid rgba(24, 68, 104, 0.22);
+  background: #fff;
+  color: var(--text-dark);
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.map-floor-tab:hover {
+  border-color: var(--navy-light);
+  background: rgba(24, 68, 104, 0.06);
+}
+
+.map-floor-tab:focus-visible {
+  outline: 2px solid var(--blue-accent);
+  outline-offset: 2px;
+}
+
+.map-floor-tab--active {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+}
+
+.map-floor-tab--active:hover {
+  background: #143a5a;
+  border-color: #143a5a;
+  color: #fff;
+}
+
+.map-viewport-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.map-viewport-sub {
+  margin: 4px 0 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Outer well: same padding on every side; flex centers the frame when there’s extra space */
+.map-scroll {
+  box-sizing: border-box;
+  overflow: auto;
+  max-height: min(52vh, 500px);
+  -webkit-overflow-scrolling: touch;
+  background: #e8ecf1;
+  border-radius: 0 0 12px 12px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Inner frame: fixed symmetric inset so the white border is even around the diagram */
+.map-frame {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  padding: 14px;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid rgba(24, 68, 104, 0.12);
+  box-shadow: 0 2px 16px rgba(24, 68, 104, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/*
+ * Portrait floor plans: cap height first; width follows intrinsic aspect ratio (no stretch).
+ * Do not set width: 100% here — that was skewing the diagram.
+ */
+.map-frame img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: min(42vh, 400px);
+  object-fit: contain;
+  object-position: center center;
+  border-radius: 6px;
+  vertical-align: top;
+}
+
+@media (min-width: 640px) {
+  .map-frame img {
+    max-height: min(44vh, 420px);
+  }
+}
+
+@media (min-width: 900px) {
+  .map-scroll {
+    padding: 20px;
+  }
+
+  .map-frame {
+    padding: 16px;
+  }
+
+  .map-frame img {
+    max-height: min(46vh, 440px);
+  }
+}
