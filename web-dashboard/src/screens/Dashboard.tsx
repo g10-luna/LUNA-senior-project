@@ -42,8 +42,6 @@ export default function DashboardScreen() {
 
   const availablePct = (availableBooks / totalForChart) * 100;
   const checkedOutPct = (checkedOutBooks / totalForChart) * 100;
-  const reservedPct = 100 - availablePct - checkedOutPct;
-
   const inventoryChartBackground = `conic-gradient(
     #181e2437 0 ${availablePct}%,
     #e53e3e ${availablePct}% ${availablePct + checkedOutPct}%,

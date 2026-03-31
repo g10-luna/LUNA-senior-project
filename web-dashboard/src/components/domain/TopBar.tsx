@@ -2,14 +2,20 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { logout } from "../../lib/authApi";
 import { ROUTES } from "../../lib/routes";
+import { getLibrarianDisplayName } from "../../lib/sessionProfile";
 import "./TopBar.css";
 
-const userDisplayName = "Shirley Williams";
+const userDisplayName = getLibrarianDisplayName();
 
 /** Logo next to the title. Put your image in web-dashboard/public/luna-logo.png (or .svg, .webp). */
 const LOGO_SRC = "/luna-logo.png";
 
-export default function TopBar() {
+type TopBarProps = {
+  /** Reserved for layout parity (route title); TopBar renders its own chrome. */
+  title?: string;
+};
+
+export default function TopBar(_props: TopBarProps) {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [profileOpen, setProfileOpen] = useState(false);

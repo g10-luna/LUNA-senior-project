@@ -1,4 +1,5 @@
 import { apiFetch } from "./api";
+import { clearSessionProfile } from "./sessionProfile";
 import { tokenStorage } from "./tokenStorage";
 
 // Use mock auth when explicitly set, or in dev when no API URL is configured
@@ -52,7 +53,10 @@ export async function refreshAccessToken(): Promise<string | null> {
   return access;
 }
 
-export const logout = () => tokenStorage.clear();
+export const logout = () => {
+  tokenStorage.clear();
+  clearSessionProfile();
+};
 
 export type RegisterAccountInput = {
   email: string;
@@ -62,7 +66,7 @@ export type RegisterAccountInput = {
   phone?: string;
 };
 
-async function readRegisterError(res: Response): Promise<string> {
+async function readHttpDetail(res: Response, fallback: string): Promise<string> {
   const text = await res.text();
   try {
     const j = JSON.parse(text) as { detail?: unknown };
@@ -80,7 +84,7 @@ async function readRegisterError(res: Response): Promise<string> {
   } catch {
     /* ignore */
   }
-  return text.trim() || "Unable to create account.";
+  return text.trim() || fallback;
 }
 
 /**
@@ -116,6 +120,23 @@ export async function registerAccount(input: RegisterAccountInput): Promise<void
     }),
   });
   if (!res.ok) {
-    throw new Error(await readRegisterError(res));
+    throw new Error(await readHttpDetail(res, "Unable to create account."));
+  }
+}
+
+/** Frontend-only: validates input; no API call (FT scope). */
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  if (!currentPassword.trim()) throw new Error("Enter your current password.");
+  if (newPassword.length < 8) {
+    throw new Error("New password must be at least 8 characters.");
+  }
+}
+
+/** Frontend-only: validates email; no API call (FT scope). */
+export async function requestPasswordResetEmail(email: string): Promise<void> {
+  const trimmed = email.trim();
+  if (!trimmed) throw new Error("Enter your email address.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+    throw new Error("Enter a valid email address.");
   }
 }
