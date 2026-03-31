@@ -1,12 +1,22 @@
 # LUNA Program Sprint — All Teams
 
-**Period:** Spring 2026 (adjust per course calendar)  
-**Purpose:** One sprint plan that **combines** (a) **vertical integration** work—discovery, catalog, and student/librarian UIs on a stable gateway—with (b) **operational E2E** work—delivery and return tasks, robot pipeline handoffs, and trustworthy status everywhere. Use it for cross-team stand-ups and demo planning.
+**Submission structure:** **Part 1** — verbatim agent output (unchanged). **Part 2** — team final plan. Appendices reference Part 1; they do not duplicate it.
+
+## Part 1 — Verbatim AI output
+
+---
+
+## Part 2 — Human-revised sprint program
+
+**Period:** Spring 2026  
+**Purpose:** Unify **vertical integration** (discovery, catalog, student and librarian UIs on a stable API gateway) with **operational E2E** work (delivery and return tasks, robot handoffs, and consistent status). This document coordinates implementation priorities and demo readiness across repositories.
 
 **System context:** [System Design/SYSTEM_DESIGN.md](../System%20Design/SYSTEM_DESIGN.md)
 
 ## Table of contents
 
+- [Part 1 — Verbatim AI output](#part-1-verbatim-ai-output)
+- [Part 2 — Human-revised sprint program](#part-2-human-revised-sprint-program)
 - [Program sprint goal](#program-sprint-goal)
 - [Teams at a glance](#teams-at-a-glance)
 - [Robot: full pipeline (order → delivery → closure)](#robot-full-pipeline-order-to-delivery-to-closure)
@@ -16,17 +26,21 @@
 - [Robot — sprint goal & backlog](#robot-sprint-goal-backlog)
 - [Program-wide priorities (cross-team backlog)](#program-wide-priorities-cross-team-backlog)
 - [Risks and dependencies](#risks-and-dependencies)
-- [Suggested 14-day cadence (AI-assisted)](#suggested-14-day-cadence-ai-assisted)
+- [14-day sprint cadence (AI-assisted execution)](#14-day-sprint-cadence-ai-assisted-execution)
 - [Cross-team dependency matrix](#cross-team-dependency-matrix)
 - [References](#references)
-- [Human revised plan (corrected sprint plan)](#human-revised-plan-corrected-sprint-plan)
+- [Human revised plan](#human-revised-plan)
   - [Ownership](#ownership)
   - [What’s implemented (current snapshot)](#whats-implemented-current-snapshot)
-  - [In progress / needs verification (sprint still requires proof)](#in-progress-needs-verification-sprint-still-requires-proof)
+  - [In progress and verification](#in-progress-and-verification)
   - [What still needs to be done (task breakdown with owners)](#what-still-needs-to-be-done-task-breakdown-with-owners)
   - [Sprint timeline (features, story points, dependencies)](#sprint-timeline-features-story-points-dependencies)
   - [Breakdown: split large items into smaller tasks](#breakdown-split-large-items-into-smaller-tasks)
 - [Final sprint scope + assignments](#final-sprint-scope-assignments)
+  - [Critical path: FS block order](#critical-path-fs-block-order)
+  - [Risks mapped to FS assignments](#risks-mapped-to-fs-assignments)
+- [Human revision summary (team judgment)](#human-revision-summary-team-judgment)
+- [Appendices — Agent output transparency](#appendices-agent-output-transparency)
 
 ---
 
@@ -85,7 +99,7 @@ Robot work must cover the **operational chain**, not only “the bridge calls `/
 | P1 | **Search module** quality pass | [search-refactor-vibe.md](search-refactor-vibe.md), evidence under `docs/evidence/search-refactor/`. |
 | P1 | **Map / browse** interactions | Panning, scroll/drag, safe areas, tab bar. |
 | P1 | **Real-time or polling** for task status | Whatever backend exposes this sprint; UI must not lie if the socket drops. |
-| P2 | **Tests** for critical hooks (optional) | e.g. search controller debounce; prioritize integration smoke over unit breadth. |
+| P2 | **Tests** for critical hooks | e.g. search controller debounce; prioritize integration smoke over unit breadth. |
 
 **Track risks:** API drift; **merge contention** on `mobile/app/(tabs)/`; **platform-specific** gestures; double-submit creating duplicate requests.
 
@@ -146,7 +160,7 @@ Robot work must cover the **operational chain**, not only “the bridge calls `/
 
 ## Program-wide priorities (cross-team backlog)
 
-Use this when ordering work that **touches every repo**:
+**Priority order** for work that **touches more than one repository**:
 
 | Theme | Candidates |
 |--------|------------|
@@ -176,9 +190,9 @@ Use this when ordering work that **touches every repo**:
 
 ---
 
-## Suggested 14-day cadence (AI-assisted)
+## 14-day sprint cadence (AI-assisted execution)
 
-We intend to finish the sprint in **14 days**. The intent is **contracts first**, then **both flows + robot integration**, then **hardening + demo readiness**—compressed using AI-assisted implementation and test generation where appropriate (with human review).
+**Sprint length:** 14 days. **Sequencing:** client-facing contracts and task skeleton first; delivery and return E2E plus robot integration next; hardening, real-time or polling fallbacks, and demo package last. AI tools support implementation and tests; integration, contracts, and review remain team-owned.
 
 | Days | Focus | “Done” signal |
 |------|--------|----------------|
@@ -216,11 +230,7 @@ We intend to finish the sprint in **14 days**. The intent is **contracts first**
 
 ---
 
-*Living document: reconcile priorities with your course rubric and rename weeks if your sprint length differs.*
-
----
-
-## Human revised plan (corrected sprint plan)
+## Human revised plan
 
 This section is a **human synthesis** of sprint reality across **all teams**: what is **done**, what is **in progress**, and what still **needs to be done** to reach the sprint goal—plus clear ownership.
 
@@ -259,7 +269,7 @@ This section is a **human synthesis** of sprint reality across **all teams**: wh
 - **Robotics (Kritika, Isaac)**:
   - **Robot onboarding complete** (ROS/TurtleBot stack running) and the TurtleBot can **run and move reliably** under manual control.
 
-### In progress / needs verification (sprint still requires proof)
+### In progress and verification
 
 - **Mobile (Isaac)**:
   - **End-to-end task flows** (request/return) are not evidenced here; mobile has the shell/screens but the sprint needs verified **request → status → completion** UX tied to backend task truth.
@@ -272,8 +282,6 @@ This section is a **human synthesis** of sprint reality across **all teams**: wh
 - **Frontend / Web Dashboard (Kelynn, Najaat)**:
   - **End-to-end QA** on a live gateway: catalog (search, filters, add/edit/delete, availability) and auth must be exercised against the real **Book** and **Auth** services; fix mismatches with OpenAPI or shared types as they appear.
   - **Delivery/return task UI** (book-placed, queue, progress, closeout) is still the main gap for the MVP narrative—**visual refresh is not the same as** wired task state; extend Maintenance/Dashboard (or new surfaces) when backend task APIs are ready.
-  - Optional follow-up: a dedicated **auth UI polish** pass if auth screens are tracked separately from the main dashboard refresh.
-
 - **Robotics (Kritika, Isaac)**:
   - **Mapping + navigation pipeline** is the next milestone: build a map, verify localization, and validate repeatable point-to-point navigation in the target space.
   - Bridge/pipeline integration still needs validation against backend robot/delivery contracts (dispatch, progress, completion, failure, reconnect).
@@ -342,7 +350,7 @@ This section is a **human synthesis** of sprint reality across **all teams**: wh
 
 ### Sprint timeline (features, story points, dependencies)
 
-**Story points are effort estimates — not days or hours.** We use a Fibonacci-style scale (1, 2, 3, 5, 8, 13). A “Done” feature means it is **integrated**, **demoable**, and has a **basic failure-mode** story (error + retry or documented fallback). We expect **AI assistance** to reduce implementation time, but we still treat integration/QA and contract alignment as the critical path.
+**Story points** are **relative effort** on a Fibonacci scale (1, 2, 3, 5, 8, 13), not hours or calendar days. **Done** means **integrated**, **demoable**, and includes a clear **failure path** (error, retry, or documented fallback). AI tooling accelerates coding; **integration, QA, and contract alignment** remain the critical path.
 
 | Days | Feature / deliverable | Owners | Est. points | Dependencies | Definition of done |
 |------|------------------------|--------|-------------|--------------|--------------------|
@@ -362,7 +370,7 @@ This section is a **human synthesis** of sprint reality across **all teams**: wh
 
 ### Breakdown: split large items into smaller tasks
 
-Use this table to turn the large rows above into “pullable” tasks sized to the point scale.
+Decomposition of timeline rows into sized work items (same point scale as above).
 
 | Epic (from timeline) | Smaller task | Owners | Est. points | Dependencies | Acceptance / done |
 |----------------------|--------------|--------|-------------|--------------|-------------------|
@@ -389,7 +397,7 @@ Use this table to turn the large rows above into “pullable” tasks sized to t
 
 ## Final sprint scope + assignments
 
-This is the **execution view** for the **14-day sprint**: what we commit to ship, who owns the outcome, what it depends on, and when it should land. **Support** means consult / pair / unblock—not duplicating ownership unless noted.
+**14-day execution plan:** committed deliverables, owners, dependencies, and target windows. **Support** = consult, pair, and unblock; it does not replace primary ownership.
 
 | ID | Task / deliverable | In scope (this sprint) | Priority | Primary owner | Support | Depends on | Target (days) |
 |----|--------------------|-------------------------|----------|---------------|---------|------------|---------------|
@@ -411,6 +419,90 @@ This is the **execution view** for the **14-day sprint**: what we commit to ship
 | FS-16 | **Safety / fault / e-stop** visible on dashboard (sim ok) | Yes | P2 | Kritika + Isaac (Robotics) + Kelynn + Najaat (Frontend) | Sarah + Isaac (Backend) | FS-07 | 11–14 |
 | FS-17 | **Demo package**: seed data, runbook, contingency (sim fallback) | Yes | P0 (for submission) | Isaac (coordination) | Whole team | FS-04–FS-09 minimum happy path | 12–14 |
 
-**Explicitly out of scope (unless time remains):** gold-plated analytics, new discovery features beyond contract-stable catalog, fully autonomous shelf retrieval, and any redesign not required for the MVP demo narrative.
+### Critical path: FS block order
 
-**Escalation / unblock rule:** If a P0 row slips past its target window, **pause P2 polish** and convene a 30-minute contract + integration sync (Backend + affected client owners + Isaac as integration support).
+**Rule:** No client feature (FS-04+) can claim “done” until **FS-01 → FS-02** exist; robot motion work (FS-07) must not proceed without **FS-03**.
+
+```mermaid
+flowchart TD
+  FS01[FS-01 Contract / shared status truth]
+  FS02[FS-02 State machine]
+  FS03[FS-03 Book-placed gate]
+  FS04[FS-04 Mobile delivery API + UI]
+  FS05[FS-05 Dashboard delivery UI]
+  FS06[FS-06 Map + localization]
+  FS07[FS-07 Bridge postbacks + retry]
+  FS08[FS-08 Return mobile + backend]
+  FS09[FS-09 Dashboard return closeout]
+  FS17[FS-17 Demo package]
+  FS01 --> FS02
+  FS02 --> FS03
+  FS02 --> FS04
+  FS03 --> FS05
+  FS03 --> FS07
+  FS02 --> FS08
+  FS08 --> FS09
+  FS06 --> FS07
+  FS04 --> FS17
+  FS05 --> FS17
+  FS07 --> FS17
+  FS09 --> FS17
+```
+
+**Parallel tracks (still bounded by FS-01/02):** FS-10 (catalog QA) and FS-11/12 (auth) can run alongside early backend work but must not delay **FS-03**. FS-14–FS-16 are **P2** and must not block **FS-17** if time runs short—use polling fallback and document sim-only faults.
+
+### Risks mapped to FS assignments
+
+| Risk | Impacted FS IDs | Mitigation | Primary owner |
+|------|-----------------|------------|---------------|
+| **API / enum drift** after “freeze” | FS-01, FS-04, FS-05, FS-08, FS-09, FS-13 | Single doc or generated types; breaking changes only in coordinated PR | Sarah + Isaac (Backend) |
+| **Split task truth** (mobile ≠ dashboard) | FS-13, FS-04, FS-05, FS-08, FS-09 | Two-client acceptance test on same `task_id`; shared mapping layer | Kelynn + Najaat + Isaac (Mobile), Sarah + Isaac |
+| **Book-placed bypass** (unsafe or client-only gate) | FS-03, FS-07 | Enforce in **API + bridge**; robotics verifies no motion before backend allows | Sarah + Isaac + Kritika (Robotics) |
+| **Hardware / Wi-Fi failure on demo day** | FS-06, FS-07, FS-16, FS-17 | Simulation parity + runbook contingency (FS-17); map rehearsal early | Kritika + Isaac (Robotics), Isaac (coord.) |
+
+**Out of scope for this sprint:** Extended analytics beyond MVP needs; new discovery scope beyond a contract-stable catalog; autonomous shelf retrieval; visual or architectural redesign not required for the demo narrative.
+
+**Escalation:** If a P0 item misses its target window, **stop P2 expansion** and run a focused contract and integration sync (Backend, affected client owners, integration support).
+
+---
+
+## Human revision summary (team judgment)
+
+This sprint document was **iteratively revised by the team** after initial AI-assisted drafting. Below is evidence of **critical judgment** (not blind adoption).
+
+- **Widened scope from single-track output to a program plan:** Early agent-oriented material centered on one area (e.g. search refactor / one integration branch). The **final submission** is explicitly **all teams** (Mobile, Backend, Web Dashboard, Robotics) with shared dependencies.
+- **Merged and balanced multiple inputs:** A teammate’s **frontend-leaning MVP/E2E** list was **combined** with backend/robot critical path and **mobile** ownership so no one track reads as “owning” the whole sprint.
+- **Renamed and reframed “story points”:** Clarified **Fibonacci effort** so numbers are not mistaken for **days or hours**; added a **smaller-task breakdown** table for large epics.
+- **Compressed the calendar:** Replaced a longer default cadence with a **14-day** plan and **AI-assisted** execution, with explicit **P2/Fallback** rules so the demo can still pass if real-time or hardware lags.
+- **Grounded robotics in reality:** Updated robotics from generic “API check” to **onboarding complete**, **motion verified**, and **next: map + localization + bridge contracts**.
+- **Refreshed frontend status after integration:** Once the **dashboard UI refresh** landed, the **Human revised plan** was updated so catalog work reads as **QA/contract alignment**, not “missing dashboard.”
+- **Structured for assessment and execution:** Table of contents; **FS-01–FS-17** assignment table; critical path diagram; risk-to-FS mapping; appendices linking **Part 1** to **Part 2** with a contrast table.
+
+---
+
+## Appendices — Agent output transparency
+
+### Appendix A — Verbatim agent output (Part 1)
+
+**Part 1** (**[Part 1 — Verbatim AI output](#part-1-verbatim-ai-output)**) contains the **complete unedited** agent-generated material. **Part 2** (**[Part 2 — Human-revised sprint program](#part-2-human-revised-sprint-program)**) begins at the **Period** line and continues through the end of the document. **Appendices A and B do not duplicate Part 1.**
+
+### Appendix B — Contrast: agent draft → final submitted plan
+
+| # | Part 1 — Agent output (verbatim) | Part 2 — Human-revised final | Human judgment (why we changed it) |
+|---|-------------------------------------------------------|----------------------------|------------------------------------|
+| 1 | **Narrow** sprint note (e.g. search modular refactor / one branch as the center of gravity) | **Program-wide** sprint: all tracks, one gateway, shared MVP/E2E narrative | ABET assessment expects **problem decomposition across the system**, not one subsystem only. |
+| 2 | **Fragmented** guidance (separate chat outputs, frontend-heavy backlog from one teammate pasted verbatim) | **Single** `docs/SPRINT_PROGRAM.md` with TOC, cadence, FS table, diagrams, appendices | One **professional artifact** for graders; **ownership** and **dependencies** are traceable in one place. |
+| 3 | **Ambiguous estimation** (numbers that could read as days) | **Fibonacci** story points defined as **relative effort**, not hours; large rows split into **smaller tasks** | Avoid misinterpretation; align with standard sprint hygiene. |
+| 4 | **Default multi-week** pacing | **14-day** compressed cadence + **AI assist** note + **P2** deferral / demo fallback | Matches **declared sprint length** and **risk-conscious** delivery. |
+| 5 | Robotics described generically (“wire bridge”) | **Pipeline** stages + **map/localization** milestone after **onboarding + motion** verified | Matches **lab reality** and sequences risk correctly. |
+| 6 | No explicit **raw vs final** artifact | **Part 1 (verbatim AI)** + **Part 2 (human)** + **Appendices A–B** | Satisfies **Use of Agent Output (Transparency)** on the rubric with **one** agent copy (Part 1) and no duplicate paste. |
+| 7 | Web dashboard status implied “not started” after early git snapshot | **Human revised plan** updated for **UI refresh + catalog clients** with **E2E QA** as remaining gap | Reflects **merged** work; separates **visual refresh** from **task/delivery** integration. |
+
+**Team attestation**
+
+| | |
+|--|--|
+| **Names** | |
+| **Date** | |
+
+We attest that **Part 1** is the **complete verbatim** agent output (no team edits) and **Part 2** is our final human-revised plan; **Appendix B** accurately summarizes substantive changes from Part 1 to Part 2.
