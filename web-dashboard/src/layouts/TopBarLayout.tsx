@@ -37,12 +37,6 @@ export default function TopBarLayout() {
               Map
             </NavLink>
             <NavLink
-              to={ROUTES.OPTIONS}
-              className={({ isActive }) => `sidebar-link${isActive ? " sidebar-link-active" : ""}`}
-            >
-              Options
-            </NavLink>
-            <NavLink
               to={ROUTES.ACCOUNT}
               className={({ isActive }) => `sidebar-link${isActive ? " sidebar-link-active" : ""}`}
             >

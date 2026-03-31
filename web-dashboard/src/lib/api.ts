@@ -2,7 +2,16 @@ import { refreshAccessToken } from "./authApi";
 import { tokenStorage } from "./tokenStorage";
 import { ROUTES } from "./routes";
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+// In dev, default to "" so requests hit Vite's dev server and are proxied to the gateway
+// (see `vite.config.ts`). Set `VITE_API_BASE_URL` to override (e.g. http://localhost:8000).
+// In production builds, default to the gateway URL unless overridden.
+const rawBase = import.meta.env.VITE_API_BASE_URL;
+export const API_BASE_URL =
+  rawBase !== undefined && rawBase !== ""
+    ? rawBase
+    : import.meta.env.DEV
+      ? ""
+      : "http://localhost:8000";
 
 type ApiOptions = RequestInit & {
   skipAuthRedirect?: boolean;
@@ -29,10 +38,14 @@ export async function apiFetch(url: string, options: ApiOptions = {}): Promise<R
     res = await fetch(`${API_BASE_URL}${url}`, { ...rest, headers });
   } catch (e) {
     const baseHint = API_BASE_URL
-      ? `Cannot reach ${API_BASE_URL}. Start the API gateway (e.g. cd backend/docker && docker compose up -d) and confirm port 8000 is open.`
-      : "VITE_API_BASE_URL is not set. Add it to web-dashboard/.env (e.g. http://localhost:8000) and restart the Vite dev server.";
+      ? `Cannot reach ${API_BASE_URL}. Start the API gateway on port 8000.`
+      : import.meta.env.DEV
+        ? "Cannot reach API via Vite proxy. Start the gateway on http://127.0.0.1:8000 and restart `npm run dev`."
+        : "Set VITE_API_BASE_URL in web-dashboard/.env and rebuild.";
     const corsHint =
-      " If the server is up, the browser may be blocking cross-origin requests until CORS is enabled on the backend.";
+      API_BASE_URL && import.meta.env.DEV
+        ? " Tip: in dev, remove VITE_API_BASE_URL to use the Vite proxy and avoid CORS."
+        : "";
     if (e instanceof TypeError) {
       throw new Error(`Network error: failed to fetch. ${baseHint}${corsHint}`);
     }

@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+iimport { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { fetchCurrentUser, logout } from "../../lib/authApi";
+import { displayNameFromCurrentUser, fetchCurrentUser, logout } from "../../lib/authApi";
 import { ROUTES } from "../../lib/routes";
-import { getLibrarianDisplayName } from "../../lib/sessionProfile";
 import "./TopBar.css";
 
 const USER_NAME_CACHE_KEY = "current_user_name";
@@ -17,7 +16,7 @@ export default function TopBar({ title }: { title?: string }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const [userDisplayName, setUserDisplayName] = useState(
-    () => localStorage.getItem(USER_NAME_CACHE_KEY) || "Librarian"
+    () => localStorage.getItem(USER_NAME_CACHE_KEY) || ""
   );
 
   useEffect(() => {
@@ -38,10 +37,10 @@ export default function TopBar({ title }: { title?: string }) {
     };
   }, []);
 
-  const avatarLetter = useMemo(
-    () => (userDisplayName.trim().charAt(0) || "L").toUpperCase(),
-    [userDisplayName]
-  );
+  const avatarLetter = useMemo(() => {
+    const c = userDisplayName.trim().charAt(0);
+    return (c || "?").toUpperCase();
+  }, [userDisplayName]);
 
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

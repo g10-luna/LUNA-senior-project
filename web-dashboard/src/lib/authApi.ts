@@ -1,11 +1,8 @@
 import { apiFetch } from "./api";
-import { clearSessionProfile } from "./sessionProfile";
 import { tokenStorage } from "./tokenStorage";
 
-// Use mock auth when explicitly set, or in dev when no API URL is configured
-const USE_MOCK_AUTH =
-  import.meta.env.VITE_USE_MOCK_AUTH === "true" ||
-  (import.meta.env.DEV && !import.meta.env.VITE_API_BASE_URL);
+// Mock auth only when explicitly enabled (dev often uses Vite proxy with no VITE_API_BASE_URL).
+const USE_MOCK_AUTH = import.meta.env.VITE_USE_MOCK_AUTH === "true";
 
 function parseTokenPayload(json: Record<string, unknown>) {
   const data = (json.data && typeof json.data === "object" ? json.data : json) as Record<string, unknown>;
@@ -53,10 +50,7 @@ export async function refreshAccessToken(): Promise<string | null> {
   return access;
 }
 
-export const logout = () => {
-  tokenStorage.clear();
-  clearSessionProfile();
-};
+export const logout = () => tokenStorage.clear();
 
 export type CurrentUser = {
   id?: string;
@@ -64,15 +58,51 @@ export type CurrentUser = {
   first_name?: string;
   last_name?: string;
   name?: string;
+  role?: string;
+  phone_number?: string | null;
 };
+
+/** Full name or email for UI (top bar, account). */
+export function displayNameFromCurrentUser(user: CurrentUser | null | undefined): string {
+  if (!user) return "";
+  const full = [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
+  return full || user.name || user.email || "";
+}
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
 }
 
+function normalizeMePayload(data: Record<string, unknown> | null): CurrentUser | null {
+  if (!data) return null;
+  const nested = asRecord(data.user);
+  const src = nested ?? data;
+  const id = src.id;
+  const email = src.email;
+  const first_name = src.first_name;
+  const last_name = src.last_name;
+  const name = src.name;
+  const role = src.role;
+  const phone_number = src.phone_number;
+  return {
+    id: typeof id === "string" ? id : undefined,
+    email: typeof email === "string" ? email : undefined,
+    first_name: typeof first_name === "string" ? first_name : undefined,
+    last_name: typeof last_name === "string" ? last_name : undefined,
+    name: typeof name === "string" ? name : undefined,
+    role: typeof role === "string" ? role : undefined,
+    phone_number: typeof phone_number === "string" ? phone_number : phone_number === null ? null : undefined,
+  };
+}
+
 export async function fetchCurrentUser(): Promise<CurrentUser | null> {
   if (USE_MOCK_AUTH) {
-    return { name: "Librarian User", email: "librarian@example.edu" };
+    return {
+      first_name: "Librarian",
+      last_name: "User",
+      email: "librarian@example.edu",
+      role: "LIBRARIAN",
+    };
   }
 
   const res = await apiFetch("/api/v1/auth/me");
@@ -81,8 +111,8 @@ export async function fetchCurrentUser(): Promise<CurrentUser | null> {
   const json = (await res.json().catch(() => ({}))) as unknown;
   const top = asRecord(json);
   if (!top) return null;
-  const data = (asRecord(top.data) ?? top) as CurrentUser;
-  return data;
+  const data = asRecord(top.data);
+  return normalizeMePayload(data);
 }
 
 export type RegisterAccountInput = {
@@ -93,7 +123,7 @@ export type RegisterAccountInput = {
   phone?: string;
 };
 
-async function readHttpDetail(res: Response, fallback: string): Promise<string> {
+async function readRegisterError(res: Response): Promise<string> {
   const text = await res.text();
   try {
     const j = JSON.parse(text) as { detail?: unknown };
@@ -111,7 +141,7 @@ async function readHttpDetail(res: Response, fallback: string): Promise<string> 
   } catch {
     /* ignore */
   }
-  return text.trim() || fallback;
+  return text.trim() || "Unable to create account.";
 }
 
 /**
@@ -147,23 +177,6 @@ export async function registerAccount(input: RegisterAccountInput): Promise<void
     }),
   });
   if (!res.ok) {
-    throw new Error(await readHttpDetail(res, "Unable to create account."));
-  }
-}
-
-/** Frontend-only: validates input; no API call (FT scope). */
-export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
-  if (!currentPassword.trim()) throw new Error("Enter your current password.");
-  if (newPassword.length < 8) {
-    throw new Error("New password must be at least 8 characters.");
-  }
-}
-
-/** Frontend-only: validates email; no API call (FT scope). */
-export async function requestPasswordResetEmail(email: string): Promise<void> {
-  const trimmed = email.trim();
-  if (!trimmed) throw new Error("Enter your email address.");
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-    throw new Error("Enter a valid email address.");
+    throw new Error(await readRegisterError(res));
   }
 }
