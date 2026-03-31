@@ -1,4 +1,4 @@
-import { refreshAccessToken } from "./authApi";
+import { refreshSessionWithLock } from "./authApi";
 import { tokenStorage } from "./tokenStorage";
 import { ROUTES } from "./routes";
 
@@ -28,7 +28,7 @@ export async function apiFetch(url: string, options: ApiOptions = {}): Promise<R
 
   if (res.status === 401 && !skipAuthRedirect) {
     if (!_retriedAfterRefresh) {
-      const newToken = await refreshAccessToken();
+      const newToken = await refreshSessionWithLock();
       if (newToken) {
         return apiFetch(url, { ...options, _retriedAfterRefresh: true });
       }

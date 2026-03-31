@@ -2,13 +2,26 @@
 LUNA Delivery Service - FastAPI application.
 Base path: /api/v1/requests, /api/v1/returns, /api/v1/deliveries
 """
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+_env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(_env_path, override=False)
+
 from fastapi import FastAPI
+
+from delivery.routes import deliveries_router, requests_router
+
 
 app = FastAPI(
     title="LUNA Delivery Service",
-    description="Delivery workflow service",
-    version="0.1.0",
+    description="Book requests, delivery tasks, returns (returns API pending)",
+    version="0.2.0",
 )
+
+app.include_router(requests_router)
+app.include_router(deliveries_router)
 
 
 @app.get("/")
@@ -21,22 +34,6 @@ def health():
     return {"status": "healthy"}
 
 
-@app.get("/api/v1/deliveries")
-def deliveries_root():
-    return {"service": "delivery", "base_path": "/api/v1/deliveries"}
-
-
-@app.get("/api/v1/deliveries/health")
-def deliveries_health():
-    return {"status": "healthy"}
-
-
-@app.get("/api/v1/requests/health")
-def requests_health():
-    return {"status": "healthy"}
-
-
 @app.get("/api/v1/returns/health")
 def returns_health():
-    return {"status": "healthy"}
-
+    return {"status": "healthy", "note": "Return workflows not implemented in this service yet."}

@@ -74,6 +74,7 @@ export default function CatalogScreen() {
   const [totalPages, setTotalPages] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [lastLoadedAt, setLastLoadedAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
@@ -121,6 +122,7 @@ export default function CatalogScreen() {
         if (cancelled) return;
         setBooks(result.items);
         setTotalPages(result.pagination?.total_pages ?? null);
+        setLastLoadedAt(new Date());
       } catch (err) {
         if (cancelled) return;
         setBooks([]);
@@ -186,6 +188,7 @@ export default function CatalogScreen() {
   };
 
   const onSave = async () => {
+    if (saving) return;
     const title = form.title.trim();
     const author = form.author.trim();
     const isbn = form.isbn.trim();
@@ -214,6 +217,7 @@ export default function CatalogScreen() {
   };
 
   const onDelete = async (bookId: string) => {
+    if (saving) return;
     const ok = window.confirm("Delete this book from the catalog?");
     if (!ok) return;
 
@@ -268,6 +272,7 @@ export default function CatalogScreen() {
             <button
               type="button"
               className="catalog-add-btn"
+              disabled={loading}
               onClick={() => {
                 setPage(1);
                 setSubmittedQuery(query);
@@ -286,10 +291,21 @@ export default function CatalogScreen() {
             >
               Clear
             </button>
-            <button type="button" className="catalog-add-btn" onClick={() => setRefreshToken((n) => n + 1)}>
+            <button
+              type="button"
+              className="catalog-add-btn"
+              disabled={loading}
+              onClick={() => setRefreshToken((n) => n + 1)}
+            >
               Refresh
             </button>
           </div>
+
+          {lastLoadedAt ? (
+            <p className="catalog-last-loaded" role="status">
+              Last loaded {lastLoadedAt.toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}
+            </p>
+          ) : null}
 
           <div className="catalog-filters">
             {STATUS_FILTERS.map((f) => {
@@ -310,7 +326,24 @@ export default function CatalogScreen() {
       </div>
 
       {loading ? <p className="catalog-loading">Loading catalog...</p> : null}
-      {error ? <p className="catalog-empty" style={{ color: "var(--red)" }}>{error}</p> : null}
+      {error ? (
+        <div className="catalog-error-row" role="alert">
+          <p className="catalog-empty" style={{ color: "var(--red)", marginBottom: 0 }}>
+            {error}
+          </p>
+          <button
+            type="button"
+            className="catalog-btn catalog-btn-outline"
+            disabled={loading}
+            onClick={() => {
+              setError(null);
+              setRefreshToken((n) => n + 1);
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
       {mutationError && !(isAdding || editingBook) ? (
         <p className="catalog-empty" style={{ color: "var(--red)" }}>{mutationError}</p>
       ) : null}

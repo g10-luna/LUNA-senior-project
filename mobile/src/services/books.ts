@@ -1,4 +1,4 @@
-import { getApiUrl, getAccessToken } from './auth';
+import { getApiUrl, getAccessToken, apiFetch } from './auth';
 
 /** Book status from backend (app.books.status). */
 export type BookStatus = 'AVAILABLE' | 'CHECKED_OUT' | 'RESERVED' | 'UNAVAILABLE';
@@ -91,23 +91,22 @@ const BOOKS_BASE = '/api/v1/books';
 
 async function authenticatedFetch(path: string, init?: RequestInit): Promise<Response> {
   const base = getApiUrl().replace(/\/$/, '');
-  const url = `${base}${path.startsWith('/') ? path : `/${path}`}`;
   const token = await getAccessToken();
   if (__DEV__) {
-    console.log('[books] authenticatedFetch', { baseUrl: base, path, hasToken: !!(token && String(token).trim()), tokenLength: token?.length ?? 0 });
+    console.log('[books] authenticatedFetch', {
+      baseUrl: base,
+      path,
+      hasToken: !!(token && String(token).trim()),
+      tokenLength: token?.length ?? 0,
+    });
   }
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...(init?.headers as Record<string, string>),
-  };
-  if (token && String(token).trim()) {
-    (headers as Record<string, string>)['Authorization'] = `Bearer ${token.trim()}`;
-  } else {
+  if (!token?.trim()) {
     if (__DEV__) console.warn('[books] No token in SecureStore');
     throw new BooksApiError('Please log in again', 401);
   }
-  const res = await fetch(url, { ...init, headers });
+  const res = await apiFetch(path, init);
   if (__DEV__ && !res.ok) {
+    const url = `${base}${path.startsWith('/') ? path : `/${path}`}`;
     console.warn('[books] API error', { url, status: res.status, statusText: res.statusText });
   }
   return res;

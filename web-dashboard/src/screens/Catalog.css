@@ -87,6 +87,22 @@
   flex-wrap: wrap;
 }
 
+.catalog-last-loaded {
+  margin: 0;
+  padding: 0 4px 8px;
+  font-size: 13px;
+  color: var(--text-dark);
+  opacity: 0.7;
+}
+
+.catalog-error-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 0 4px;
+}
+
 .catalog-search-wrap {
   flex: 1;
   width: 100%;

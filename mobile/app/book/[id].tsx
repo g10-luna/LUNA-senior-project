@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Platform,
+  Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,6 +16,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { getBook, type Book, type BookStatus, BooksApiError } from '@/src/services/books';
+import { BookRequestApiError, createBookRequest } from '@/src/services/bookRequests';
 import { getCoverUrl } from '@/src/utils/covers';
 import BottomTabBar, { BOTTOM_TAB_BAR_HEIGHT } from '@/components/BottomTabBar';
 
@@ -64,6 +66,7 @@ export default function BookDetailScreen() {
   const [book, setBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [requesting, setRequesting] = useState(false);
 
   useEffect(() => {
     if (!id) {
@@ -124,6 +127,31 @@ export default function BookDetailScreen() {
 
   const hasCover = Boolean(book.cover_image_url?.trim());
   const isAvailable = book.status === 'AVAILABLE';
+
+  const onRequestBook = async () => {
+    if (!book || !isAvailable || requesting) return;
+    setRequesting(true);
+    try {
+      await createBookRequest({
+        bookId: book.id,
+        requestLocation: 'Main desk pickup',
+        notes: null,
+      });
+      Alert.alert(
+        'Request submitted',
+        'Librarians will prepare this book for robot delivery. Track status on the Requests tab.',
+        [{ text: 'OK' }]
+      );
+    } catch (e) {
+      const msg =
+        e instanceof BookRequestApiError
+          ? e.message
+          : 'Could not submit request. Try again or check your connection.';
+      Alert.alert('Request failed', msg);
+    } finally {
+      setRequesting(false);
+    }
+  };
 
   return (
     <View style={styles.pageWrap}>
@@ -213,12 +241,16 @@ export default function BookDetailScreen() {
             <TouchableOpacity
               style={[styles.requestBookBtn, !isAvailable && styles.requestBookBtnDisabled]}
               activeOpacity={0.85}
-              onPress={() => {}}
-              disabled={!isAvailable}
+              onPress={() => void onRequestBook()}
+              disabled={!isAvailable || requesting}
             >
-              <FontAwesome name="book" size={18} color={isAvailable ? '#fff' : '#94a3b8'} />
+              {requesting ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <FontAwesome name="book" size={18} color={isAvailable ? '#fff' : '#94a3b8'} />
+              )}
               <Text style={[styles.requestBookBtnText, !isAvailable && styles.requestBookBtnTextDisabled]}>
-                Request Book
+                {requesting ? 'Submitting…' : 'Request Book'}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity

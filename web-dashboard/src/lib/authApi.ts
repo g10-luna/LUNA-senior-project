@@ -6,6 +6,12 @@ const USE_MOCK_AUTH =
   import.meta.env.VITE_USE_MOCK_AUTH === "true" ||
   (import.meta.env.DEV && !import.meta.env.VITE_API_BASE_URL);
 
+/** Same origin as `api.ts`; duplicated here so refresh can use raw `fetch` (no import cycle with `api`). */
+const WEB_API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+
+/** Serialize refresh so concurrent 401s do not spawn parallel refresh calls (FS-11 / dashboard parity with mobile). */
+let refreshInFlight: Promise<string | null> | null = null;
+
 function parseTokenPayload(json: Record<string, unknown>) {
   const data = (json.data && typeof json.data === "object" ? json.data : json) as Record<string, unknown>;
   const a = data.access_token;
@@ -36,13 +42,12 @@ export async function login(email: string, password: string) {
   return { access_token: access, refresh_token: refresh };
 }
 
-export async function refreshAccessToken(): Promise<string | null> {
+async function refreshWithFetch(): Promise<string | null> {
   const refresh = tokenStorage.getRefresh();
   if (!refresh) return null;
-  const res = await apiFetch("/api/v1/auth/refresh", {
+  const res = await fetch(`${WEB_API_BASE}/api/v1/auth/refresh`, {
     method: "POST",
-    skipAuthRedirect: true,
-    headers: { Authorization: `Bearer ${refresh}` },
+    headers: { Authorization: `Bearer ${refresh}`, "Content-Type": "application/json" },
     body: JSON.stringify({ refresh_token: refresh }),
   });
   if (!res.ok) return null;
@@ -50,6 +55,23 @@ export async function refreshAccessToken(): Promise<string | null> {
   if (!access) return null;
   tokenStorage.setAccess(access);
   return access;
+}
+
+export async function refreshSessionWithLock(): Promise<string | null> {
+  if (!refreshInFlight) {
+    refreshInFlight = (async () => {
+      try {
+        return await refreshWithFetch();
+      } finally {
+        refreshInFlight = null;
+      }
+    })();
+  }
+  return refreshInFlight;
+}
+
+export async function refreshAccessToken(): Promise<string | null> {
+  return refreshSessionWithLock();
 }
 
 export const logout = () => tokenStorage.clear();
