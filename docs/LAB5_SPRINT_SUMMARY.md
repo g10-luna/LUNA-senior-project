@@ -30,10 +30,9 @@
 - **Mobile requests:** Requests tab calls `GET /api/v1/requests/` with pull-to-refresh, error banner, and status cards; book detail **Request Book** calls `POST /api/v1/requests/` via `mobile/src/services/bookRequests.ts`.
 - **Backend delivery:** Gateway paths `/api/v1/requests/` and `/api/v1/deliveries/`: create, list, and detail requests; approve and cancel; create delivery task from approved request; list and detail tasks; `POST /api/v1/deliveries/tasks/{task_id}/book-placed` (metadata, status PENDING to QUEUED); task status history on key transitions; idempotent student create when an active request already exists for the same book. Route tests (mocked database session): `backend/delivery/tests/test_delivery_routes.py`.
 - **Web dashboard:** Single-flight token refresh; catalog last-loaded label, Retry on load errors, saving guards, Search and Refresh disabled while loading.
-- **Web dashboard (Najaat, branch `ui-refresh/frontend-auth`):** Founders Library **map** (multi-floor UI + assets); **librarian login / setup account** polish, schema-based login validation, registration flow without auto-login and success feedback, auth API integration patterns.
-- **Web dashboard (Najaat, this branch):** **Account** screen at `/account` — profile + session cards and sign-out, matching dashboard panel styling.
+- **Web dashboard (`ui-refresh/frontend-auth`):** Founders Library **map** (multi-floor UI + assets); **librarian login / setup account** polish, schema-based login validation, registration flow without auto-login and success feedback, auth API integration patterns.
+- **Web dashboard :** **Account** screen at `/account` — profile + session cards and sign-out, matching dashboard panel styling.
 
----
 
 ## 3. Incomplete or deferred
 
