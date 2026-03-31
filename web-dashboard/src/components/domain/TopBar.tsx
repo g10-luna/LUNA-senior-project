@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchCurrentUser, logout } from "../../lib/authApi";
 import { ROUTES } from "../../lib/routes";
+import { getLibrarianDisplayName } from "../../lib/sessionProfile";
 import "./TopBar.css";
 
 const USER_NAME_CACHE_KEY = "current_user_name";
+const userDisplayName = getLibrarianDisplayName();
 
 /** Logo next to the title. Put your image in web-dashboard/public/luna-logo.png (or .svg, .webp). */
 const LOGO_SRC = "/luna-logo.png";

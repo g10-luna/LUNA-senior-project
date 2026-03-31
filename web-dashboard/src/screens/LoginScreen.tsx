@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { login } from "../lib/authApi";
+import { setLibrarianEmailAfterLogin } from "../lib/sessionProfile";
 import { ROUTES } from "../lib/routes";
 import "./LoginScreen.css";
 import { loginSchema } from "../lib/loginSchema";
@@ -51,6 +52,7 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       await login(result.data.email, result.data.password);
+      setLibrarianEmailAfterLogin(result.data.email);
       navigate(ROUTES.DASHBOARD, { replace: true });
     } catch {
       setError("Invalid email or password");

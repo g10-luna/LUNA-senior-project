@@ -39,6 +39,7 @@ export default function MaintenanceScreen() {
         Robot Maintenance
       </h1>
       {error && <p className="maint-text-error">{error.message}</p>}
+      {loading && !error && <p className="maint-text-muted">Loading robot status…</p>}
 
       <div className="maint-grid">
         <section className="card maint-card">
