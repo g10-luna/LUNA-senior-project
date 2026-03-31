@@ -1,64 +1,68 @@
-# Lab 5 — Sprint summary (completed vs incomplete)
+# Lab 5 - Sprint summary (completed vs incomplete)
 
-**Location:** `docs/LAB5_SPRINT_SUMMARY.md` (submit this Markdown with your sprint bundle as required.)  
+**Document:** `docs/LAB5_SPRINT_SUMMARY.md` (submit with the sprint bundle per instructor instructions.)  
 **Team:** LUNA (group submission)  
 **Sprint reference:** [SPRINT_PROGRAM.md](SPRINT_PROGRAM.md)  
 **Implementation branch:** `lab5/sprint-ai-backlog`  
-**Tracking epic (GitHub):** [#211 — Delivery pipeline](https://github.com/g10-luna/LUNA-senior-project/issues/211)  
+**GitHub epic:** [Issue #211 - Delivery pipeline](https://github.com/g10-luna/LUNA-senior-project/issues/211)  
 **Date:** March 2026  
 
 ---
 
-## 1. Backlog items this sprint (≥2)
+## 1. Backlog items this sprint (minimum 2)
 
 | # | Backlog reference | Acceptance / intent | Status | Primary owners | Evidence |
 |---|-------------------|---------------------|--------|----------------|----------|
-| 1 | **FS-11** — Auth hardening | Single-flight refresh; **401 → refresh → retry once** | **Done** | Isaac (Mobile, Dashboard) | `mobile/src/services/auth.ts`, `mobile/src/services/books.ts`; `web-dashboard/src/lib/authApi.ts`, `web-dashboard/src/lib/api.ts` |
-| 2 | **FS-04** — Book requests & delivery (MVP) | Student create/list requests on **live** gateway API; staff APIs for approve/task/placed exist | **Partial** | Isaac | Backend: `backend/delivery/` (routes, services, tests). Mobile: `mobile/src/services/bookRequests.ts`, `mobile/app/(tabs)/requests.tsx`, `mobile/app/book/[id].tsx` |
-| 3 | **FS-10 prep** — Catalog UX (dashboard) | Last-loaded, retry on errors, no double-submit on mutations | **Done** | Isaac (Dashboard) | `web-dashboard/src/screens/CatalogScreen.tsx`, `web-dashboard/src/screens/Catalog.css` |
+| 1 | **FS-11** Auth hardening | Single-flight refresh; 401 then refresh then one retry on authenticated calls | **Done** | Isaac (mobile, web dashboard) | `mobile/src/services/auth.ts`, `mobile/src/services/books.ts`; `web-dashboard/src/lib/authApi.ts`, `web-dashboard/src/lib/api.ts` |
+| 2 | **FS-04** Book requests and delivery (MVP) | Student create and list requests on live gateway; librarian APIs for approve, task creation, book-placed | **Partial** | Isaac | `backend/delivery/` (routes, services, tests); `mobile/src/services/bookRequests.ts`, `mobile/app/(tabs)/requests.tsx`, `mobile/app/book/[id].tsx` |
+| 3 | **FS-10 prep** Catalog UX (dashboard) | Last-loaded stamp, retry on list errors, no double-submit on save/delete | **Done** | Isaac (web dashboard) | `web-dashboard/src/screens/CatalogScreen.tsx`, `web-dashboard/src/screens/Catalog.css` |
 
-**Traceability:** Link these rows (and GitHub **#211**) in your course **RTM** to the requirement IDs your instructor uses.
-
----
-
-## 2. Completed (this cycle)
-
-- **Mobile auth:** `refreshSessionWithLock`; `apiFetch` with one retry after refresh; books client uses authenticated fetches.
-- **Mobile requests:** **Requests** tab loads **`GET /api/v1/requests/`**, pull-to-refresh, error banner, status cards; **Request Book** on book detail → **`POST /api/v1/requests/`** (`mobile/src/services/bookRequests.ts`).
-- **Backend delivery:** Gateway routes under **`/api/v1/requests/`** and **`/api/v1/deliveries/`**: create/list/detail requests, approve/cancel, create task from approved request, list/detail tasks, **`POST .../book-placed`** (metadata, **PENDING → QUEUED**), task status history on key transitions; **idempotent** student create for an active request on the same book. Mocked route tests: `backend/delivery/tests/test_delivery_routes.py`.
-- **Web dashboard:** Single-flight refresh; catalog **last loaded** time, **Retry** on list errors, **saving** guards, **Search**/**Refresh** disabled while loading.
+**Traceability:** Map Section 1 rows and GitHub **#211** to your course requirement IDs (for example R2.a, R5.b) in the team **Requirements Traceability Matrix (RTM)**. Spreadsheet in repo: `docs/Traceablility Matrix.xlsx` (upload or link a copy for graders if the assignment asks for a URL.)
 
 ---
 
-## 3. Incomplete / deferred (still on program or epic #211)
+## 2. Completed this cycle
 
-- **FS-04 remainder:** Web dashboard **operator UI** (approve request, create task, confirm book placed) on the same APIs; requests list **book title/author** (API enrich or client batch fetch); optional **pickup location** UX (not a single hard-coded string).
-- **Robot / bridge:** Enforce **book-placed** (or agreed task phase) before dispatch; contract validation and documented **sim** demo path.
-- **Hardening:** OpenAPI or doc for delivery JSON/enums; **integration tests** against Dockerized Postgres (not only mocked `get_db`); short **one-pass runbook** (student → librarian steps).
-- **Broader sprint program:** **FS-05–FS-09** and other program-wide items in `SPRINT_PROGRAM.md` not listed above.
-- **Course artifacts:** **RTM URL** placeholder below; **GitHub Project** screenshot/export per instructor.
+- **Mobile auth:** `refreshSessionWithLock`; `apiFetch` retries once after a successful refresh; books client uses authenticated fetches.
+- **Mobile requests:** Requests tab calls `GET /api/v1/requests/` with pull-to-refresh, error banner, and status cards; book detail **Request Book** calls `POST /api/v1/requests/` via `mobile/src/services/bookRequests.ts`.
+- **Backend delivery:** Gateway paths `/api/v1/requests/` and `/api/v1/deliveries/`: create, list, and detail requests; approve and cancel; create delivery task from approved request; list and detail tasks; `POST /api/v1/deliveries/tasks/{task_id}/book-placed` (metadata, status PENDING to QUEUED); task status history on key transitions; idempotent student create when an active request already exists for the same book. Route tests (mocked database session): `backend/delivery/tests/test_delivery_routes.py`.
+- **Web dashboard:** Single-flight token refresh; catalog last-loaded label, Retry on load errors, saving guards, Search and Refresh disabled while loading.
+
+---
+
+## 3. Incomplete or deferred
+
+- **FS-04 remainder:** Web dashboard operator UI (approve request, create task, confirm book placed); richer requests list (book title and author); optional student choice of pickup location instead of one default string.
+- **Robot and bridge:** Enforce book-placed (or agreed task phase) before dispatch; contract checks and documented simulation demo path.
+- **Hardening:** Published API notes or OpenAPI for delivery shapes and enums; integration tests against Docker Postgres; short one-pass demo runbook (student then librarian steps).
+- **Broader program:** FS-05 through FS-09 and other items in `SPRINT_PROGRAM.md` not covered above.
+- **Course-only:** GitHub Project board screenshot or export if required; pasteable **RTM URL** on the LMS (see Section 5).
 
 ---
 
 ## 4. Responsible use of AI
 
-- AI assisted with **scaffolding** (refresh mutex, delivery route structure, UI patterns) consistent with repo style.
-- **Human review:** token handling, idempotency rules, and gateway path alignment.
-- **Tests:** `backend/delivery` pytest (mocked DB in tests); mobile/book flows **manual** against a running gateway.
+- AI helped with scaffolding (refresh mutex pattern, delivery route layout, UI patterns) aligned with existing repo style.
+- Humans reviewed security-sensitive behavior (tokens, refresh), idempotency, and gateway path correctness.
+- **Tests:** `backend/delivery` pytest with mocked DB in tests; mobile and book flows verified manually against a running gateway.
 
 ---
 
 ## 5. Course deliverables checklist
 
-| Artifact | Location / action |
-|----------|-------------------|
-| **Sprint summary (this file)** | `docs/LAB5_SPRINT_SUMMARY.md` |
-| **GitHub Project Board** | Screenshot or PDF export with submission |
-| **RTM** | Team RTM URL: `______________________________` |
-| **Branch / PR** | `lab5/sprint-ai-backlog` → PR to `main`; reference issue **#211** until epic is done |
+| Artifact | Location / notes |
+|----------|------------------|
+| Sprint summary | This file: `docs/LAB5_SPRINT_SUMMARY.md` |
+| Requirements Traceability Matrix | `docs/Traceablility Matrix.xlsx`; **LMS "RTM URL" field:** paste your team share link here before submit (Google Sheets, Drive, etc.) if required |
+| GitHub Project Board | Screenshot or PDF export if required |
+| Branch and PR | `lab5/sprint-ai-backlog`; open PR to `main`; reference **#211** until the epic is closed |
+| Sprint program | `docs/SPRINT_PROGRAM.md` |
 
 ---
 
-## 6. Reference commit (already on branch)
+## 6. Commits on this branch (reference)
 
-`feat: delivery service, mobile requests, web catalog/auth hardening (Refs #211)` — includes this document when committed with that batch.
+- `feat: delivery service, mobile requests, web catalog/auth hardening (Refs #211)` - main implementation batch.
+- `docs: refresh Lab 5 sprint summary (completed vs incomplete, FS-04 status) (Refs #211)` - updates to this summary.
+
+Verify latest commits on GitHub: [g10-luna/LUNA-senior-project](https://github.com/g10-luna/LUNA-senior-project), branch `lab5/sprint-ai-backlog`.
