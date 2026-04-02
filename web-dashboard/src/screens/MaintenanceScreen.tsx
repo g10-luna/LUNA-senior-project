@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import "./MaintenanceScreen.css";
 import { useRobotStatus } from "../lib/useRobotStatus";
 import { getRobotStateLabel } from "../lib/robotStateUi";
@@ -20,9 +22,64 @@ function StatusBar({ label, value, unit = "%", color = "#184468" }: { label: str
   );
 }
 
+function downloadMaintenanceReport(options: {
+  stateLabel: string;
+  battery: number;
+  location: string;
+  cpuUsage: number;
+  memoryUsage: number;
+  temperature: number;
+  navAccuracy: number;
+}) {
+  const generated = new Date().toISOString();
+  const lines = [
+    "LUNA — Robot maintenance report",
+    `Generated (UTC): ${generated}`,
+    "",
+    "Operational",
+    `  Status: ${options.stateLabel}`,
+    `  Battery: ${options.battery}%`,
+    `  Location: ${options.location}`,
+    "",
+    "System health (UI snapshot)",
+    `  CPU usage: ${Math.round(options.cpuUsage)}%`,
+    `  Memory usage: ${Math.round(options.memoryUsage)}%`,
+    `  Temperature: ${Math.round(options.temperature)}°C`,
+    `  Navigation accuracy: ${Math.round(options.navAccuracy)}%`,
+    "",
+    "Schedule",
+    "  System uptime: 342h",
+    "  Last maintenance: 1/28/2026",
+    "  Next scheduled: 2/27/2026",
+    "",
+    "--- End of report ---",
+  ];
+  const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `luna-maintenance-report-${generated.slice(0, 10)}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export default function MaintenanceScreen() {
+  const location = useLocation();
   const { statuses, loading, error } = useRobotStatus();
   const robot = statuses?.[0] ?? null;
+  const [reportBusy, setReportBusy] = useState(false);
+  const [reportMessage, setReportMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (location.hash !== "#maintenance-report") return;
+    const el = document.getElementById("maintenance-report");
+    if (!el) return;
+    window.requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [location.hash]);
 
   const battery = robot?.batteryPercent ?? 0;
   const isActive = robot && (robot.state === "NAVIGATING" || robot.state === "BUSY");
@@ -32,12 +89,50 @@ export default function MaintenanceScreen() {
   const memoryUsage = 55 + (isActive ? 10 : 0);
   const temperature = 40 + (isActive ? 5 : 0);
   const navAccuracy = 90 - (battery < 30 ? 10 : 0);
+  const stateLabel = getRobotStateLabel(robot?.state ?? "IDLE");
+
+  const handleGenerateReport = () => {
+    setReportMessage(null);
+    setReportBusy(true);
+    window.setTimeout(() => {
+      try {
+        downloadMaintenanceReport({
+          stateLabel,
+          battery,
+          location: robot?.locationLabel ?? "Unknown",
+          cpuUsage,
+          memoryUsage,
+          temperature,
+          navAccuracy,
+        });
+        setReportMessage("Report downloaded.");
+        window.setTimeout(() => setReportMessage(null), 4000);
+      } finally {
+        setReportBusy(false);
+      }
+    }, 200);
+  };
 
   return (
     <div className="maint-page">
-      <h1 className="section-title" style={{ marginBottom: 16 }}>
-        Robot Maintenance
-      </h1>
+      <header className="maint-page-top" id="maintenance-report">
+        <h1 className="section-title maint-page-title">Robot Maintenance</h1>
+        <div className="maint-page-top-actions">
+          <button
+            type="button"
+            className="maint-report-btn"
+            disabled={reportBusy || !!error}
+            onClick={() => handleGenerateReport()}
+          >
+            {reportBusy ? "Generating…" : "Generate report"}
+          </button>
+          {reportMessage && (
+            <span className="maint-report-toast" role="status">
+              {reportMessage}
+            </span>
+          )}
+        </div>
+      </header>
       {error && <p className="maint-text-error">{error.message}</p>}
       {loading && !error && <p className="maint-text-muted">Loading robot status…</p>}
 
@@ -49,7 +144,7 @@ export default function MaintenanceScreen() {
               <div className="maint-card-subtitle">Battery &amp; current location</div>
             </div>
             <span className={`maint-pill ${isActive ? "maint-pill--active" : "maint-pill--idle"}`}>
-              {getRobotStateLabel(robot?.state ?? "IDLE")}
+              {stateLabel}
             </span>
           </header>
 

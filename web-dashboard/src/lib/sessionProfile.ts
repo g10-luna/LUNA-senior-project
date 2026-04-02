@@ -2,10 +2,13 @@ const EMAIL_KEY = "luna_librarian_email";
 const PROFILE_KEY = "luna_user_profile";
 
 /** Demo persona when no API profile is cached (e.g. before /me loads). */
-export const DEMO_LIBRARIAN_NAME = "Shirley Williams";
 export const DEMO_LIBRARIAN_FIRST_NAME = "Shirley";
 export const DEMO_LIBRARIAN_LAST_NAME = "Williams";
 export const DEMO_LIBRARIAN_EMAIL = "shirley.williams@howard.edu";
+export const DEMO_LIBRARIAN_NAME = [DEMO_LIBRARIAN_FIRST_NAME, DEMO_LIBRARIAN_LAST_NAME]
+  .filter(Boolean)
+  .join(" ")
+  .trim();
 
 export type StoredUserProfile = {
   id?: string;
@@ -15,6 +18,24 @@ export type StoredUserProfile = {
   role?: string;
   phone_number?: string | null;
 };
+
+/** Single mock logged-in user when `VITE_USE_MOCK_AUTH=true`; edit here only. */
+export const MOCK_LIBRARIAN_PROFILE: StoredUserProfile = {
+  id: "00000000-0000-4000-8000-000000000001",
+  email: DEMO_LIBRARIAN_EMAIL,
+  first_name: DEMO_LIBRARIAN_FIRST_NAME,
+  last_name: DEMO_LIBRARIAN_LAST_NAME,
+  role: "LIBRARIAN",
+  phone_number: null,
+};
+
+/** First name for greetings (“Good morning, …”) from session profile or demo defaults. */
+export function getLibrarianGreetingFirstName(): string {
+  const p = getStoredUserProfile();
+  const first = p?.first_name?.trim();
+  if (first) return first;
+  return DEMO_LIBRARIAN_FIRST_NAME;
+}
 
 export function setStoredUserProfile(user: StoredUserProfile | null) {
   if (!user) {

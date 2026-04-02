@@ -1,9 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import "./Dashboard.css";
+import { getLibrarianGreetingFirstName } from "../lib/sessionProfile";
 import { ROUTES } from "../lib/routes";
 
 const mockDashboard = {
-  greetingName: "Shirley",
   totalBooks: 2487,
   availableBooks: 1894,
   checkedOutBooks: 420,
@@ -24,6 +24,7 @@ const mockDashboard = {
 
 export default function DashboardScreen() {
   const navigate = useNavigate();
+  const greetingFirstName = getLibrarianGreetingFirstName();
   const todayLabel = new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
@@ -53,7 +54,7 @@ export default function DashboardScreen() {
       <header className="dashboard-header">
         <div className="dashboard-heading">
           <div className="dashboard-greeting">
-            Good morning, <span className="dashboard-greeting-strong">{mockDashboard.greetingName}</span>
+            Good morning, <span className="dashboard-greeting-strong">{greetingFirstName}</span>
           </div>
           <p className="dashboard-subtitle">
             Welcome back to LUNA — Howard University Library.

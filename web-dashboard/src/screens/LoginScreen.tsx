@@ -7,6 +7,8 @@ import "./LoginScreen.css";
 import { loginSchema } from "../lib/loginSchema";
 import lunaIcon from "../assets/luna-icon.png";
 
+const USE_MOCK_AUTH = import.meta.env.VITE_USE_MOCK_AUTH === "true";
+
 const FIELDS = [
   {
     key: "email",
@@ -52,7 +54,9 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       await login(result.data.email, result.data.password);
-      setLibrarianEmailAfterLogin(result.data.email);
+      if (!USE_MOCK_AUTH) {
+        setLibrarianEmailAfterLogin(result.data.email);
+      }
       try {
         await fetchCurrentUser();
       } catch {

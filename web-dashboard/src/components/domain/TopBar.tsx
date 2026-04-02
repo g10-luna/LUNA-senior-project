@@ -16,9 +16,13 @@ export default function TopBar({ title }: { title?: string }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const [userDisplayName, setUserDisplayName] = useState(() => {
-    const nameKey = localStorage.getItem(USER_NAME_CACHE_KEY);
-    if (nameKey) return nameKey;
-    return getStoredUserProfile() ? getLibrarianDisplayName() : "Librarian";
+    // Session profile wins (same source as mock API user / /me); avoid stale localStorage first.
+    if (getStoredUserProfile()) {
+      return getLibrarianDisplayName();
+    }
+    const cached = localStorage.getItem(USER_NAME_CACHE_KEY);
+    if (cached) return cached;
+    return getLibrarianDisplayName();
   });
 
   useEffect(() => {
@@ -27,7 +31,7 @@ export default function TopBar({ title }: { title?: string }) {
     const loadUser = async () => {
       const user = await fetchCurrentUser();
       if (cancelled || !user) return;
-      const nextName = displayNameFromCurrentUser(user) || getLibrarianDisplayName() || "Librarian";
+      const nextName = displayNameFromCurrentUser(user) || getLibrarianDisplayName();
       setUserDisplayName(nextName);
       localStorage.setItem(USER_NAME_CACHE_KEY, nextName);
     };

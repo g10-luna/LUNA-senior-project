@@ -29,6 +29,26 @@
   z-index: 1;
 }
 
+.maint-page-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.maint-page-title {
+  margin: 0;
+}
+
+.maint-page-top-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 .maint-text-muted {
   font-size: 14px;
   color: var(--text-muted);
@@ -59,6 +79,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 12px;
 }
@@ -194,6 +215,35 @@
 .maint-sensor-chip--warn {
   background: rgba(237, 137, 54, 0.15);
   color: #c05621;
+}
+
+.maint-report-btn {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  background: var(--navy);
+  color: #fff;
+}
+
+.maint-report-btn:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.maint-report-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.maint-report-toast {
+  font-size: 13px;
+  font-weight: 500;
+  color: #047857;
+  margin: 0;
 }
 
 .maint-schedule {

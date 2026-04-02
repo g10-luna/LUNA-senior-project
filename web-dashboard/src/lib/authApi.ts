@@ -1,5 +1,11 @@
 import { apiFetch } from "./api";
-import { clearSessionProfile, setStoredUserProfile, type StoredUserProfile } from "./sessionProfile";
+import {
+  clearSessionProfile,
+  MOCK_LIBRARIAN_PROFILE,
+  setLibrarianEmailAfterLogin,
+  setStoredUserProfile,
+  type StoredUserProfile,
+} from "./sessionProfile";
 import { tokenStorage } from "./tokenStorage";
 
 const USE_MOCK_AUTH = import.meta.env.VITE_USE_MOCK_AUTH === "true";
@@ -19,6 +25,10 @@ export async function login(email: string, password: string) {
     const t = `mock_${Date.now()}`;
     tokenStorage.setAccess(t);
     tokenStorage.setRefresh(t);
+    setStoredUserProfile({ ...MOCK_LIBRARIAN_PROFILE });
+    if (MOCK_LIBRARIAN_PROFILE.email) {
+      setLibrarianEmailAfterLogin(MOCK_LIBRARIAN_PROFILE.email);
+    }
     return { access_token: t, refresh_token: t };
   }
   const res = await apiFetch("/api/v1/auth/login", {
@@ -104,14 +114,18 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 
 export async function fetchCurrentUser(): Promise<CurrentUser | null> {
   if (USE_MOCK_AUTH) {
-    const u: CurrentUser = {
-      first_name: "Librarian",
-      last_name: "User",
-      email: "librarian@example.edu",
-      role: "LIBRARIAN",
+    setStoredUserProfile({ ...MOCK_LIBRARIAN_PROFILE });
+    if (MOCK_LIBRARIAN_PROFILE.email) {
+      setLibrarianEmailAfterLogin(MOCK_LIBRARIAN_PROFILE.email);
+    }
+    return {
+      id: MOCK_LIBRARIAN_PROFILE.id,
+      email: MOCK_LIBRARIAN_PROFILE.email,
+      first_name: MOCK_LIBRARIAN_PROFILE.first_name,
+      last_name: MOCK_LIBRARIAN_PROFILE.last_name,
+      role: MOCK_LIBRARIAN_PROFILE.role,
+      phone_number: MOCK_LIBRARIAN_PROFILE.phone_number ?? null,
     };
-    setStoredUserProfile(currentUserToStored(u));
-    return u;
   }
 
   const res = await apiFetch("/api/v1/auth/me");
