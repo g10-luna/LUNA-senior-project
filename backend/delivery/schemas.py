@@ -40,6 +40,8 @@ class DeliveryTaskCreate(BaseModel):
 
 
 class DeliveryTaskResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID
     request_id: UUID | None
     return_id: UUID | None
@@ -58,3 +60,12 @@ class DeliveryTaskListResponse(BaseModel):
     page: int
     limit: int
     total: int
+
+
+class DeliveryTaskStatusUpdate(BaseModel):
+    status: TaskStatus
+    reason: str | None = Field(
+        None,
+        description="Optional human-readable reason or context, such as 'navigation_failed' or 'completed_ok'.",
+        max_length=500,
+    )

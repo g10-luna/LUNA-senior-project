@@ -16,6 +16,7 @@ from delivery.schemas import (
     DeliveryTaskCreate,
     DeliveryTaskListResponse,
     DeliveryTaskResponse,
+    DeliveryTaskStatusUpdate,
 )
 from auth.schemas import UserResponse
 from delivery.services import (
@@ -27,9 +28,11 @@ from delivery.services import (
     create_delivery_task_from_request,
     get_book_request,
     get_delivery_task,
+    is_dispatchable,
     list_book_requests,
     list_delivery_tasks,
     task_to_response,
+    update_delivery_task_status,
 )
 from shared.auth_dependencies import get_current_user_dep
 from shared.db import SessionLocal
@@ -169,11 +172,27 @@ def post_delivery_task(
 def get_delivery_tasks(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
+    dispatchable_only: bool = Query(
+        False,
+        description="If true, only return tasks that are dispatchable for robot/bridge (status and book_placed).",
+    ),
     user: UserResponse = Depends(get_current_user_dep),
     db: Session = Depends(get_db),
 ):
     try:
         out: DeliveryTaskListResponse = list_delivery_tasks(db, user=user, page=page, limit=limit)
+        if dispatchable_only:
+            dispatchable_items = [i for i in out.items if is_dispatchable(i)]  # type: ignore[arg-type]
+            return _success(
+                {
+                    "items": [i.model_dump(mode="json") for i in dispatchable_items],
+                    "pagination": {
+                        "page": out.page,
+                        "limit": out.limit,
+                        "total": len(dispatchable_items),
+                    },
+                }
+            )
         return _success(
             {
                 "items": [i.model_dump(mode="json") for i in out.items],
@@ -205,6 +224,31 @@ def post_book_placed(
 ):
     try:
         task = confirm_book_placed(db, user=user, task_id=task_id)
+        return _success({"task": task_to_response(task).model_dump(mode="json")})
+    except DeliveryError as e:
+        raise _handle_delivery_error(e) from e
+
+
+@deliveries_router.post("/tasks/{task_id}/status")
+def post_task_status(
+    task_id: uuid.UUID,
+    body: DeliveryTaskStatusUpdate,
+    user: UserResponse = Depends(get_current_user_dep),
+    db: Session = Depends(get_db),
+):
+    """
+    Update a delivery task status (for example, IN_PROGRESS, COMPLETED, FAILED).
+
+    This endpoint is intended for bridge/robot or operator flows, not for students.
+    """
+    try:
+        task = update_delivery_task_status(
+            db,
+            user=user,
+            task_id=task_id,
+            new_status=body.status,
+            reason=body.reason,
+        )
         return _success({"task": task_to_response(task).model_dump(mode="json")})
     except DeliveryError as e:
         raise _handle_delivery_error(e) from e

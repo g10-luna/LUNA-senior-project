@@ -32,6 +32,16 @@ class DeliveryError(Exception):
         self.status_code = status_code
 
 
+def is_dispatchable(task: DeliveryTask) -> bool:
+    """
+    A delivery task is dispatchable when:
+    - It has been confirmed as book-placed in metadata, and
+    - Its status is QUEUED (ready for the robot/bridge to pick up).
+    """
+    meta = task.task_metadata or {}
+    return bool(meta.get("book_placed")) and task.status == TaskStatus.QUEUED
+
+
 def task_to_response(task: DeliveryTask) -> DeliveryTaskResponse:
     meta = task.task_metadata or {}
     return DeliveryTaskResponse(
@@ -316,6 +326,67 @@ def confirm_book_placed(db: Session, *, user: UserResponse, task_id: UUID) -> De
             changed_by=user.id,
             reason="book_placed",
         )
+
+    db.commit()
+    db.refresh(task)
+    return task
+
+
+def update_delivery_task_status(
+    db: Session,
+    *,
+    user: UserResponse,
+    task_id: UUID,
+    new_status: TaskStatus,
+    reason: str | None = None,
+) -> DeliveryTask:
+    """
+    Update a delivery task status while enforcing legal transitions and recording history.
+
+    This is intended for bridge/robot and operator flows once a task is dispatchable.
+    """
+    task = get_delivery_task(db, user=user, task_id=task_id)
+
+    # Do not allow any changes once the task is terminal.
+    if task.status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED):
+        raise DeliveryError("Cannot change status of a terminal task.", status_code=400)
+
+    current = task.status
+    allowed_next: dict[TaskStatus, set[TaskStatus]] = {
+        TaskStatus.PENDING: {TaskStatus.CANCELLED, TaskStatus.FAILED},
+        TaskStatus.QUEUED: {TaskStatus.IN_PROGRESS, TaskStatus.CANCELLED, TaskStatus.FAILED},
+        TaskStatus.ASSIGNED: {TaskStatus.IN_PROGRESS, TaskStatus.CANCELLED, TaskStatus.FAILED},
+        TaskStatus.IN_PROGRESS: {TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED},
+    }
+
+    if new_status == current:
+        # Idempotent no-op; just refresh and return.
+        db.refresh(task)
+        return task
+
+    allowed = allowed_next.get(current, set())
+    if new_status not in allowed:
+        raise DeliveryError(
+            f"Illegal status transition: {current.value} -> {new_status.value}", status_code=400
+        )
+
+    old_status = task.status
+    task.status = new_status
+
+    now = datetime.now(timezone.utc)
+    if new_status == TaskStatus.IN_PROGRESS and task.started_at is None:
+        task.started_at = now
+    if new_status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED):
+        task.completed_at = now
+
+    _append_task_history(
+        db,
+        task_id=task.id,
+        old_status=old_status,
+        new_status=new_status,
+        changed_by=user.id,
+        reason=reason,
+    )
 
     db.commit()
     db.refresh(task)
