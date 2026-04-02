@@ -1,17 +1,54 @@
 const EMAIL_KEY = "luna_librarian_email";
+const PROFILE_KEY = "luna_user_profile";
 
-/** Demo persona used across TopBar and Account (FT-only display). */
+/** Demo persona when no API profile is cached (e.g. before /me loads). */
 export const DEMO_LIBRARIAN_NAME = "Shirley Williams";
 export const DEMO_LIBRARIAN_FIRST_NAME = "Shirley";
 export const DEMO_LIBRARIAN_LAST_NAME = "Williams";
 export const DEMO_LIBRARIAN_EMAIL = "shirley.williams@howard.edu";
 
+export type StoredUserProfile = {
+  id?: string;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  role?: string;
+  phone_number?: string | null;
+};
+
+export function setStoredUserProfile(user: StoredUserProfile | null) {
+  if (!user) {
+    sessionStorage.removeItem(PROFILE_KEY);
+    return;
+  }
+  sessionStorage.setItem(PROFILE_KEY, JSON.stringify(user));
+}
+
+export function getStoredUserProfile(): StoredUserProfile | null {
+  const raw = sessionStorage.getItem(PROFILE_KEY);
+  if (!raw?.trim()) return null;
+  try {
+    const p = JSON.parse(raw) as StoredUserProfile;
+    return p && typeof p === "object" ? p : null;
+  } catch {
+    return null;
+  }
+}
+
 export function getLibrarianDisplayName(): string {
+  const p = getStoredUserProfile();
+  if (p) {
+    const full = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
+    if (full) return full;
+    if (p.email) return p.email;
+  }
   return DEMO_LIBRARIAN_NAME;
 }
 
-/** Email typed at login (sessionStorage), else demo address. No JWT/backend. */
+/** Email from cached profile, login field, or demo. */
 export function getLibrarianDisplayEmail(): string {
+  const p = getStoredUserProfile();
+  if (p?.email) return p.email;
   return getStoredLibrarianEmail() ?? DEMO_LIBRARIAN_EMAIL;
 }
 
@@ -21,6 +58,7 @@ export function setLibrarianEmailAfterLogin(email: string) {
 
 export function clearSessionProfile() {
   sessionStorage.removeItem(EMAIL_KEY);
+  sessionStorage.removeItem(PROFILE_KEY);
 }
 
 function getStoredLibrarianEmail(): string | null {

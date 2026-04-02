@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { changePassword, logout, requestPasswordResetEmail } from "../lib/authApi";
+import {
+  changePassword,
+  displayNameFromCurrentUser,
+  fetchCurrentUser,
+  logout,
+  requestPasswordResetEmail,
+  type CurrentUser,
+} from "../lib/authApi";
 import { ROUTES } from "../lib/routes";
 import {
   DEMO_LIBRARIAN_FIRST_NAME,
@@ -22,6 +29,15 @@ const WORKSPACE = {
 
 type AccountSection = "profile" | "security";
 
+function formatRoleLabel(role: string | undefined): string {
+  if (!role) return "Librarian";
+  return role
+    .toLowerCase()
+    .split("_")
+    .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+    .join(" ");
+}
+
 function InfoCell({ label, value }: { label: string; value: string }) {
   return (
     <div className="account-info-cell">
@@ -33,9 +49,44 @@ function InfoCell({ label, value }: { label: string; value: string }) {
 
 export default function AccountSettingsScreen() {
   const navigate = useNavigate();
-  const displayName = useMemo(() => getLibrarianDisplayName(), []);
-  const email = useMemo(() => getLibrarianDisplayEmail(), []);
-  const staffId = useMemo(() => email.split("@")[0] || "—", [email]);
+  const [profile, setProfile] = useState<CurrentUser | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setProfileLoading(true);
+      try {
+        const user = await fetchCurrentUser();
+        if (!cancelled) setProfile(user);
+      } finally {
+        if (!cancelled) setProfileLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const displayName = useMemo(() => {
+    if (profile) {
+      const fromApi = displayNameFromCurrentUser(profile);
+      if (fromApi) return fromApi;
+    }
+    return getLibrarianDisplayName();
+  }, [profile]);
+
+  const email =
+    profile?.email?.trim() || (profileLoading ? "…" : getLibrarianDisplayEmail());
+  const firstName =
+    profile?.first_name?.trim() || (profileLoading ? "…" : DEMO_LIBRARIAN_FIRST_NAME);
+  const lastName =
+    profile?.last_name?.trim() || (profileLoading ? "…" : DEMO_LIBRARIAN_LAST_NAME);
+  const staffId = useMemo(() => {
+    const e = profile?.email?.trim() || getLibrarianDisplayEmail();
+    return e.includes("@") ? e.split("@")[0]! : e || "—";
+  }, [profile?.email]);
+  const roleLabel = formatRoleLabel(profile?.role);
 
   const [section, setSection] = useState<AccountSection>("profile");
 
@@ -52,7 +103,7 @@ export default function AccountSettingsScreen() {
   const [resetSuccess, setResetSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    setResetEmail(email);
+    if (email !== "…") setResetEmail(email);
   }, [email]);
 
   const initial = (displayName.charAt(0) || "?").toUpperCase();
@@ -139,7 +190,7 @@ export default function AccountSettingsScreen() {
                   </div>
                   <div className="account-hero-text">
                     <h2 className="account-hero-name">{displayName}</h2>
-                    <p className="account-hero-role">Librarian</p>
+                    <p className="account-hero-role">{profileLoading ? "…" : roleLabel}</p>
                     <p className="account-hero-meta">
                       {WORKSPACE.site} · {WORKSPACE.cityRegion}
                     </p>
@@ -152,12 +203,19 @@ export default function AccountSettingsScreen() {
                   <h2 className="account-panel-title">Personal information</h2>
                 </div>
                 <div className="account-info-grid">
-                  <InfoCell label="First name" value={DEMO_LIBRARIAN_FIRST_NAME} />
-                  <InfoCell label="Last name" value={DEMO_LIBRARIAN_LAST_NAME} />
+                  <InfoCell label="First name" value={firstName} />
+                  <InfoCell label="Last name" value={lastName} />
                   <InfoCell label="Email address" value={email} />
                   <InfoCell label="Staff sign-in ID" value={staffId} />
+                  {profile?.phone_number ? (
+                    <InfoCell label="Phone" value={profile.phone_number} />
+                  ) : null}
                   <div className="account-info-cell account-info-cell--full">
-                    <span className="account-info-label">Role summary</span>
+                    <span className="account-info-label">Role</span>
+                    <span className="account-info-value">{profileLoading ? "…" : roleLabel}</span>
+                  </div>
+                  <div className="account-info-cell account-info-cell--full">
+                    <span className="account-info-label">Team</span>
                     <span className="account-info-value">{WORKSPACE.department}</span>
                   </div>
                 </div>

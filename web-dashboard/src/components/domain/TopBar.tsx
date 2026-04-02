@@ -1,11 +1,11 @@
-iimport { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { displayNameFromCurrentUser, fetchCurrentUser, logout } from "../../lib/authApi";
 import { ROUTES } from "../../lib/routes";
+import { getLibrarianDisplayName, getStoredUserProfile } from "../../lib/sessionProfile";
 import "./TopBar.css";
 
 const USER_NAME_CACHE_KEY = "current_user_name";
-const userDisplayName = getLibrarianDisplayName();
 
 /** Logo next to the title. Put your image in web-dashboard/public/luna-logo.png (or .svg, .webp). */
 const LOGO_SRC = "/luna-logo.png";
@@ -15,9 +15,11 @@ export default function TopBar({ title }: { title?: string }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [profileOpen, setProfileOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
-  const [userDisplayName, setUserDisplayName] = useState(
-    () => localStorage.getItem(USER_NAME_CACHE_KEY) || ""
-  );
+  const [userDisplayName, setUserDisplayName] = useState(() => {
+    const nameKey = localStorage.getItem(USER_NAME_CACHE_KEY);
+    if (nameKey) return nameKey;
+    return getStoredUserProfile() ? getLibrarianDisplayName() : "Librarian";
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -25,8 +27,7 @@ export default function TopBar({ title }: { title?: string }) {
     const loadUser = async () => {
       const user = await fetchCurrentUser();
       if (cancelled || !user) return;
-      const full = [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
-      const nextName = full || user.name || user.email || "Librarian";
+      const nextName = displayNameFromCurrentUser(user) || getLibrarianDisplayName() || "Librarian";
       setUserDisplayName(nextName);
       localStorage.setItem(USER_NAME_CACHE_KEY, nextName);
     };
@@ -37,10 +38,10 @@ export default function TopBar({ title }: { title?: string }) {
     };
   }, []);
 
-  const avatarLetter = useMemo(() => {
-    const c = userDisplayName.trim().charAt(0);
-    return (c || "?").toUpperCase();
-  }, [userDisplayName]);
+  const avatarLetter = useMemo(
+    () => (userDisplayName.trim().charAt(0) || "L").toUpperCase(),
+    [userDisplayName]
+  );
 
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

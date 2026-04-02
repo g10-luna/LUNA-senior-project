@@ -1,7 +1,7 @@
 import { apiFetch } from "./api";
+import { clearSessionProfile, setStoredUserProfile, type StoredUserProfile } from "./sessionProfile";
 import { tokenStorage } from "./tokenStorage";
 
-// Mock auth only when explicitly enabled (dev often uses Vite proxy with no VITE_API_BASE_URL).
 const USE_MOCK_AUTH = import.meta.env.VITE_USE_MOCK_AUTH === "true";
 
 function parseTokenPayload(json: Record<string, unknown>) {
@@ -50,7 +50,10 @@ export async function refreshAccessToken(): Promise<string | null> {
   return access;
 }
 
-export const logout = () => tokenStorage.clear();
+export const logout = () => {
+  tokenStorage.clear();
+  clearSessionProfile();
+};
 
 export type CurrentUser = {
   id?: string;
@@ -62,9 +65,35 @@ export type CurrentUser = {
   phone_number?: string | null;
 };
 
-/** Full name or email for UI (top bar, account). */
-export function displayNameFromCurrentUser(user: CurrentUser | null | undefined): string {
-  if (!user) return "";
+function userFromApiRecord(rec: Record<string, unknown>): CurrentUser {
+  return {
+    id: rec.id != null ? String(rec.id) : undefined,
+    email: typeof rec.email === "string" ? rec.email : undefined,
+    first_name: typeof rec.first_name === "string" ? rec.first_name : undefined,
+    last_name: typeof rec.last_name === "string" ? rec.last_name : undefined,
+    name: typeof rec.name === "string" ? rec.name : undefined,
+    role: typeof rec.role === "string" ? rec.role : undefined,
+    phone_number:
+      typeof rec.phone_number === "string"
+        ? rec.phone_number
+        : rec.phone_number === null
+          ? null
+          : undefined,
+  };
+}
+
+export function currentUserToStored(user: CurrentUser): StoredUserProfile {
+  return {
+    id: user.id,
+    email: user.email,
+    first_name: user.first_name,
+    last_name: user.last_name,
+    role: user.role,
+    phone_number: user.phone_number ?? null,
+  };
+}
+
+export function displayNameFromCurrentUser(user: CurrentUser): string {
   const full = [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
   return full || user.name || user.email || "";
 }
@@ -73,36 +102,16 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
 }
 
-function normalizeMePayload(data: Record<string, unknown> | null): CurrentUser | null {
-  if (!data) return null;
-  const nested = asRecord(data.user);
-  const src = nested ?? data;
-  const id = src.id;
-  const email = src.email;
-  const first_name = src.first_name;
-  const last_name = src.last_name;
-  const name = src.name;
-  const role = src.role;
-  const phone_number = src.phone_number;
-  return {
-    id: typeof id === "string" ? id : undefined,
-    email: typeof email === "string" ? email : undefined,
-    first_name: typeof first_name === "string" ? first_name : undefined,
-    last_name: typeof last_name === "string" ? last_name : undefined,
-    name: typeof name === "string" ? name : undefined,
-    role: typeof role === "string" ? role : undefined,
-    phone_number: typeof phone_number === "string" ? phone_number : phone_number === null ? null : undefined,
-  };
-}
-
 export async function fetchCurrentUser(): Promise<CurrentUser | null> {
   if (USE_MOCK_AUTH) {
-    return {
+    const u: CurrentUser = {
       first_name: "Librarian",
       last_name: "User",
       email: "librarian@example.edu",
       role: "LIBRARIAN",
     };
+    setStoredUserProfile(currentUserToStored(u));
+    return u;
   }
 
   const res = await apiFetch("/api/v1/auth/me");
@@ -112,7 +121,16 @@ export async function fetchCurrentUser(): Promise<CurrentUser | null> {
   const top = asRecord(json);
   if (!top) return null;
   const data = asRecord(top.data);
-  return normalizeMePayload(data);
+  const userRec = data && "user" in data ? asRecord((data as { user: unknown }).user) : null;
+  if (userRec) {
+    const user = userFromApiRecord(userRec);
+    if (user.email || user.first_name) setStoredUserProfile(currentUserToStored(user));
+    return user;
+  }
+  if (data && typeof data.email === "string") {
+    return userFromApiRecord(data);
+  }
+  return null;
 }
 
 export type RegisterAccountInput = {
@@ -123,8 +141,15 @@ export type RegisterAccountInput = {
   phone?: string;
 };
 
-async function readRegisterError(res: Response): Promise<string> {
+async function readHttpDetail(res: Response, fallback: string): Promise<string> {
   const text = await res.text();
+  const status = res.status;
+  if (status === 502 || status === 503 || status === 504) {
+    const head = text.slice(0, 600).toLowerCase();
+    if (head.includes("<html") || head.includes("bad gateway") || head.includes("service unavailable")) {
+      return "The API gateway could not reach the auth service (502/503). Start the stack from backend/docker with docker compose up -d, then run docker logs luna-auth-service if it still fails.";
+    }
+  }
   try {
     const j = JSON.parse(text) as { detail?: unknown };
     const d = j.detail;
@@ -141,7 +166,7 @@ async function readRegisterError(res: Response): Promise<string> {
   } catch {
     /* ignore */
   }
-  return text.trim() || "Unable to create account.";
+  return text.trim() || fallback;
 }
 
 /**
@@ -177,6 +202,43 @@ export async function registerAccount(input: RegisterAccountInput): Promise<void
     }),
   });
   if (!res.ok) {
-    throw new Error(await readRegisterError(res));
+    throw new Error(await readHttpDetail(res, "Unable to create account."));
+  }
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  if (!currentPassword.trim()) throw new Error("Enter your current password.");
+  if (newPassword.length < 8) {
+    throw new Error("New password must be at least 8 characters.");
+  }
+  if (USE_MOCK_AUTH) return;
+
+  const res = await apiFetch("/api/v1/auth/change-password", {
+    method: "PUT",
+    body: JSON.stringify({
+      current_password: currentPassword,
+      new_password: newPassword,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(await readHttpDetail(res, "Could not update password."));
+  }
+}
+
+export async function requestPasswordResetEmail(email: string): Promise<void> {
+  const trimmed = email.trim();
+  if (!trimmed) throw new Error("Enter your email address.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+    throw new Error("Enter a valid email address.");
+  }
+  if (USE_MOCK_AUTH) return;
+
+  const res = await apiFetch("/api/v1/auth/forgot-password", {
+    method: "POST",
+    skipAuthRedirect: true,
+    body: JSON.stringify({ email: trimmed }),
+  });
+  if (!res.ok) {
+    throw new Error(await readHttpDetail(res, "Could not send reset email."));
   }
 }
