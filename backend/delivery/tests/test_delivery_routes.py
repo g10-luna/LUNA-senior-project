@@ -73,6 +73,8 @@ def _request_row(uid, bid, status=RequestStatus.PENDING, location="Desk 3"):
         request_location=location,
         status=status,
         requested_at=datetime.now(timezone.utc),
+        approved_at=None,
+        in_progress_at=None,
         completed_at=None,
         notes=None,
     )
@@ -121,6 +123,33 @@ def test_create_request_rejects_non_student():
         app.dependency_overrides.clear()
 
 
+def test_get_request_activity_returns_request_and_task_payload(monkeypatch):
+    user = _student()
+    book = _book()
+    br = _request_row(user.id, book.id, status=RequestStatus.APPROVED)
+    br.approved_at = datetime.now(timezone.utc)
+
+    def _activity(db, *, user, request_id):
+        assert request_id == br.id
+        return br, None
+
+    monkeypatch.setattr(delivery_routes, "get_request_activity", _activity)
+
+    app.dependency_overrides[get_current_user_dep] = lambda: user
+    app.dependency_overrides[delivery_routes.get_db] = _mock_db_override
+    client = TestClient(app)
+    try:
+        res = client.get(f"/api/v1/requests/{br.id}/activity")
+        assert res.status_code == 200
+        body = res.json()
+        assert body["success"] is True
+        assert body["data"]["request"]["id"] == str(br.id)
+        assert body["data"]["request"]["approved_at"] is not None
+        assert body["data"]["task"] is None
+    finally:
+        app.dependency_overrides.clear()
+
+
 def test_list_tasks_maps_book_placed(monkeypatch):
     user = _librarian()
     tid = uuid4()
@@ -156,6 +185,8 @@ def test_list_tasks_maps_book_placed(monkeypatch):
         assert res.status_code == 200
         item = res.json()["data"]["items"][0]
         assert item["book_placed"] is True
+        assert item["book_placed_at"] is None
+        assert item["status_history"] == []
         assert item["id"] == str(tid)
     finally:
         app.dependency_overrides.clear()

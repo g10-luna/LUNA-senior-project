@@ -1,4 +1,5 @@
 import { apiFetch } from './auth';
+import type { DeliveryTaskItem } from './deliveryTasks';
 
 export type RequestStatus =
   | 'PENDING'
@@ -14,6 +15,10 @@ export interface BookRequestItem {
   request_location: string;
   status: RequestStatus;
   requested_at: string;
+  /** Set when staff approves (server timestamps). */
+  approved_at?: string | null;
+  /** Set when a delivery task is created (pickup workflow started). */
+  in_progress_at?: string | null;
   completed_at: string | null;
   notes: string | null;
 }
@@ -53,6 +58,33 @@ export async function listMyBookRequests(params?: {
     page: pagination?.page ?? page,
     limit: pagination?.limit ?? limit,
   };
+}
+
+export interface RequestActivityPayload {
+  request: BookRequestItem;
+  task: DeliveryTaskItem | null;
+}
+
+/** Request + linked task and full status history for the delivery timeline (single round-trip). */
+export async function fetchRequestActivity(requestId: string): Promise<RequestActivityPayload> {
+  const res = await apiFetch(`/api/v1/requests/${encodeURIComponent(requestId)}/activity`);
+  const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) throw new BookRequestApiError(messageFromJson(res, json));
+  const data = json.data as
+    | { request?: BookRequestItem; task?: DeliveryTaskItem | null }
+    | undefined;
+  if (!data?.request || json.success === false) throw new BookRequestApiError('Invalid response');
+  const task = data.task === undefined ? null : data.task;
+  return { request: data.request, task };
+}
+
+export async function getBookRequest(requestId: string): Promise<BookRequestItem> {
+  const res = await apiFetch(`/api/v1/requests/${encodeURIComponent(requestId)}`);
+  const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) throw new BookRequestApiError(messageFromJson(res, json));
+  const data = json.data as { request?: BookRequestItem } | undefined;
+  if (!data?.request || json.success === false) throw new BookRequestApiError('Invalid response');
+  return data.request;
 }
 
 export async function createBookRequest(input: {

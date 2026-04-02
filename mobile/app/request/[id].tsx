@@ -1,0 +1,659 @@
+import React, { useCallback, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+  AppState,
+  type AppStateStatus,
+} from 'react-native';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  BookRequestApiError,
+  fetchRequestActivity,
+  formatRequestStatus,
+  type BookRequestItem,
+} from '@/src/services/bookRequests';
+import type { DeliveryTaskItem, TaskStatusEventItem } from '@/src/services/deliveryTasks';
+import { getBook } from '@/src/services/books';
+
+const HOWARD_BLUE = '#003A63';
+const HOWARD_RED = '#E31837';
+const POLL_MS = 12_000;
+
+function formatWhen(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return null;
+  }
+}
+
+type LineState = 'complete' | 'active' | 'upcoming' | 'issue';
+
+interface ActivityLine {
+  key: string;
+  title: string;
+  subtitle?: string;
+  timeLabel: string | null;
+  state: LineState;
+}
+
+function historyEventCopy(ev: TaskStatusEventItem): { title: string; subtitle?: string } {
+  const r = ev.reason ?? '';
+  if (r === 'task_created') {
+    return {
+      title: 'Pickup task created',
+      subtitle: 'Library staff opened fulfillment for your book.',
+    };
+  }
+  if (r === 'book_placed') {
+    return {
+      title: 'Book ready in queue',
+      subtitle: 'Confirmed on shelf — entering the robot queue.',
+    };
+  }
+  switch (ev.new_status) {
+    case 'IN_PROGRESS':
+      return {
+        title: 'Robot en route',
+        subtitle: 'The robot is moving your book toward pickup.',
+      };
+    case 'COMPLETED':
+      return {
+        title: 'Delivered to pickup point',
+        subtitle: 'Your book should be at the desk you selected.',
+      };
+    case 'QUEUED':
+      return {
+        title: 'Queued for robot',
+        subtitle: 'Waiting for the next delivery run.',
+      };
+    case 'ASSIGNED':
+      return {
+        title: 'Robot assigned',
+        subtitle: 'A robot is linked to this delivery.',
+      };
+    case 'PENDING':
+      return {
+        title: 'Pickup task pending',
+        subtitle: 'Staff are preparing this job.',
+      };
+    case 'FAILED':
+      return {
+        title: 'Delivery issue',
+        subtitle: 'Something went wrong during the run. Ask staff for help.',
+      };
+    case 'CANCELLED':
+      return {
+        title: 'Delivery run cancelled',
+        subtitle: 'This robot run was cancelled. Talk to the desk if you still need the book.',
+      };
+    default:
+      return {
+        title: `Status update: ${ev.new_status}`,
+        subtitle: ev.reason ?? undefined,
+      };
+  }
+}
+
+function syntheticTaskLines(task: DeliveryTaskItem): ActivityLine[] {
+  const lines: ActivityLine[] = [
+    {
+      key: 'task_created',
+      title: 'Pickup task opened',
+      subtitle: `${task.source_location} → ${task.destination_location}`,
+      timeLabel: formatWhen(task.created_at),
+      state: 'complete',
+    },
+  ];
+
+  if (!task.book_placed) {
+    lines.push({
+      key: 'book_prep',
+      title: 'Staff preparing your book',
+      subtitle: 'The book is being fetched and confirmed for robot pickup.',
+      timeLabel: null,
+      state: 'active',
+    });
+  } else {
+    lines.push({
+      key: 'book_placed',
+      title: 'Book confirmed for robot pickup',
+      subtitle: 'Your title is ready for the delivery run.',
+      timeLabel: formatWhen(task.book_placed_at ?? undefined),
+      state: 'complete',
+    });
+  }
+
+  const robotIssue = task.status === 'FAILED' || task.status === 'CANCELLED';
+  const robotDone = task.status === 'COMPLETED';
+
+  if (robotIssue) {
+    lines.push({
+      key: 'robot_issue',
+      title: task.status === 'FAILED' ? 'Delivery run failed' : 'Delivery run cancelled',
+      subtitle: 'Talk to desk staff if you still need this book.',
+      timeLabel: formatWhen(task.completed_at ?? undefined),
+      state: 'issue',
+    });
+  } else if (robotDone) {
+    lines.push({
+      key: 'robot_done',
+      title: 'Dropped off at pickup point',
+      subtitle: `Pickup: ${task.destination_location}`,
+      timeLabel: formatWhen(task.completed_at ?? undefined),
+      state: 'complete',
+    });
+  } else if (task.status === 'IN_PROGRESS') {
+    lines.push({
+      key: 'robot_transit',
+      title: 'Robot is on the way',
+      subtitle: 'Live ETA will appear when the robot reports it.',
+      timeLabel: formatWhen(task.started_at ?? undefined),
+      state: 'active',
+    });
+  } else if (task.status === 'ASSIGNED') {
+    lines.push({
+      key: 'robot_assigned',
+      title: 'Robot assigned',
+      subtitle: 'A robot is assigned to your delivery.',
+      timeLabel: null,
+      state: 'active',
+    });
+  } else if (task.status === 'QUEUED') {
+    lines.push({
+      key: 'robot_queued',
+      title: 'In line for robot pickup',
+      subtitle: 'Your delivery is queued for the next available run.',
+      timeLabel: null,
+      state: 'active',
+    });
+  } else {
+    lines.push({
+      key: 'robot_pending',
+      title: 'Waiting for robot queue',
+      subtitle: 'Staff will release this job when the book is ready.',
+      timeLabel: null,
+      state: task.book_placed ? 'active' : 'upcoming',
+    });
+  }
+
+  return lines;
+}
+
+function buildActivityLines(req: BookRequestItem, task: DeliveryTaskItem | null): ActivityLine[] {
+  const lines: ActivityLine[] = [];
+
+  lines.push({
+    key: 'submitted',
+    title: 'Request sent to library',
+    subtitle: 'We notified staff about your delivery request.',
+    timeLabel: formatWhen(req.requested_at),
+    state: 'complete',
+  });
+
+  if (req.status === 'CANCELLED') {
+    lines.push({
+      key: 'cancelled',
+      title: 'Request cancelled',
+      subtitle: 'This delivery request is no longer active.',
+      timeLabel: formatWhen(req.completed_at ?? undefined),
+      state: 'issue',
+    });
+    return lines;
+  }
+
+  if (req.status === 'PENDING') {
+    lines.push({
+      key: 'approval',
+      title: 'Waiting for staff approval',
+      subtitle: 'A librarian will review and approve your request.',
+      timeLabel: null,
+      state: 'active',
+    });
+    lines.push({
+      key: 'robot_future',
+      title: 'Robot pickup',
+      subtitle: 'Updates appear here automatically as your delivery moves along.',
+      timeLabel: null,
+      state: 'upcoming',
+    });
+    return lines;
+  }
+
+  lines.push({
+    key: 'approved',
+    title: 'Staff approved your request',
+    subtitle: 'Your title is cleared for pickup preparation.',
+    timeLabel: formatWhen(req.approved_at ?? undefined),
+    state: 'complete',
+  });
+
+  if (req.status === 'APPROVED' && !task) {
+    lines.push({
+      key: 'pre_pickup',
+      title: 'Pickup not started yet',
+      subtitle: 'Staff will create a robot pickup when the book is ready.',
+      timeLabel: null,
+      state: 'active',
+    });
+    lines.push({
+      key: 'live_hint',
+      title: 'Live updates',
+      subtitle: 'This screen refreshes while it is open — no need to pull to refresh.',
+      timeLabel: null,
+      state: 'upcoming',
+    });
+    return lines;
+  }
+
+  if (task) {
+    const history = task.status_history ?? [];
+    if (history.length > 0) {
+      const taskTerminal = ['COMPLETED', 'FAILED', 'CANCELLED'].includes(task.status);
+      for (let i = 0; i < history.length; i++) {
+        const ev = history[i];
+        const isLast = i === history.length - 1;
+        const { title, subtitle } = historyEventCopy(ev);
+        let state: LineState = 'complete';
+        if (isLast) {
+          if (taskTerminal) {
+            state =
+              ev.new_status === 'FAILED' || ev.new_status === 'CANCELLED' ? 'issue' : 'complete';
+          } else {
+            state = 'active';
+          }
+        }
+        lines.push({
+          key: `ev-${ev.id}`,
+          title,
+          subtitle,
+          timeLabel: formatWhen(ev.changed_at),
+          state,
+        });
+      }
+
+      if (['QUEUED', 'ASSIGNED', 'PENDING'].includes(task.status) && !taskTerminal) {
+        lines.push({
+          key: 'eta',
+          title: 'Estimated arrival',
+          subtitle: 'ETAs will show when the robot stack provides them.',
+          timeLabel: null,
+          state: 'upcoming',
+        });
+      } else if (task.status === 'IN_PROGRESS' && !taskTerminal) {
+        lines.push({
+          key: 'eta-ip',
+          title: 'Estimated arrival',
+          subtitle: 'Not available yet — ask the desk for a rough time.',
+          timeLabel: null,
+          state: 'upcoming',
+        });
+      }
+    } else {
+      lines.push(...syntheticTaskLines(task));
+      if (
+        ['QUEUED', 'ASSIGNED', 'PENDING', 'IN_PROGRESS'].includes(task.status) &&
+        !['COMPLETED', 'FAILED', 'CANCELLED'].includes(task.status)
+      ) {
+        lines.push({
+          key: 'eta-sync',
+          title: 'Estimated arrival',
+          subtitle: 'ETAs will show when the robot stack provides them.',
+          timeLabel: null,
+          state: 'upcoming',
+        });
+      }
+    }
+  }
+
+  if (req.status === 'COMPLETED') {
+    lines.push({
+      key: 'done',
+      title: 'Request completed',
+      subtitle: 'This delivery request is closed.',
+      timeLabel: formatWhen(req.completed_at ?? undefined),
+      state: 'complete',
+    });
+  } else if (req.status === 'IN_PROGRESS' && task && task.status === 'COMPLETED') {
+    lines.push({
+      key: 'handoff',
+      title: 'Pick up your book',
+      subtitle: 'Robot handoff is complete; grab it when you are ready.',
+      timeLabel: null,
+      state: 'active',
+    });
+  }
+
+  return lines;
+}
+
+export default function RequestActivityScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [request, setRequest] = useState<BookRequestItem | null>(null);
+  const [task, setTask] = useState<DeliveryTaskItem | null>(null);
+  const [bookTitle, setBookTitle] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!id) {
+      setError('Missing request');
+      setLoading(false);
+      return;
+    }
+    setError(null);
+    try {
+      const activity = await fetchRequestActivity(id);
+      setRequest(activity.request);
+      setTask(activity.task);
+      try {
+        const b = await getBook(activity.request.book_id);
+        setBookTitle(b.title);
+      } catch {
+        setBookTitle(null);
+      }
+    } catch (e) {
+      const msg =
+        e instanceof BookRequestApiError ? e.message : 'Could not load this request.';
+      setError(msg);
+      setRequest(null);
+      setTask(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      let appState: AppStateStatus = AppState.currentState;
+
+      const run = () => {
+        if (cancelled || appState !== 'active') return;
+        void load();
+      };
+
+      run();
+      const interval = setInterval(run, POLL_MS);
+      const sub = AppState.addEventListener('change', (next) => {
+        appState = next;
+        if (next === 'active') run();
+      });
+
+      return () => {
+        cancelled = true;
+        clearInterval(interval);
+        sub.remove();
+      };
+    }, [load]),
+  );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await load();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [load]);
+
+  const lines = request ? buildActivityLines(request, task) : [];
+  const bottomPad = 28 + insets.bottom;
+
+  return (
+    <View style={styles.page}>
+      <StatusBar style="dark" />
+      <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 10) }]}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => router.back()}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <FontAwesome name="arrow-left" size={22} color={HOWARD_BLUE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle} numberOfLines={1}>
+          Delivery progress
+        </Text>
+        <View style={styles.topRight} />
+      </View>
+
+      {loading ? (
+        <View style={styles.centerBox}>
+          <ActivityIndicator size="large" color={HOWARD_BLUE} />
+        </View>
+      ) : null}
+
+      {error && !loading ? (
+        <View style={styles.centerBox}>
+          <FontAwesome name="exclamation-circle" size={40} color="#94a3b8" />
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => void load()}>
+            <Text style={styles.retryBtnText}>Try again</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
+      {request && !loading && !error ? (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={{ paddingBottom: bottomPad, paddingHorizontal: 18 }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={HOWARD_BLUE} />
+          }
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryEyebrow}>LUNA delivery</Text>
+            <Text style={styles.summaryTitle} numberOfLines={2}>
+              {bookTitle ?? 'Your book'}
+            </Text>
+            <View style={styles.summaryPillRow}>
+              <View style={styles.summaryPill}>
+                <Text style={styles.summaryPillText}>{formatRequestStatus(request.status)}</Text>
+              </View>
+              <Text style={styles.summaryLocation} numberOfLines={1}>
+                {request.request_location}
+              </Text>
+            </View>
+          </View>
+
+          <Text style={styles.sectionTitle}>Activity</Text>
+          <View style={styles.timelineCard}>
+            {lines.map((line, index) => (
+              <View key={line.key} style={styles.timelineRow}>
+                <View style={styles.timelineAxis}>
+                  <View
+                    style={[
+                      styles.timelineDot,
+                      line.state === 'complete' && styles.dotComplete,
+                      line.state === 'active' && styles.dotActive,
+                      line.state === 'upcoming' && styles.dotUpcoming,
+                      line.state === 'issue' && styles.dotIssue,
+                    ]}
+                  />
+                  {index < lines.length - 1 ? <View style={styles.timelineStem} /> : null}
+                </View>
+                <View style={styles.timelineBody}>
+                  <Text
+                    style={[
+                      styles.lineTitle,
+                      line.state === 'upcoming' && styles.textMuted,
+                      line.state === 'issue' && styles.textIssue,
+                    ]}
+                  >
+                    {line.title}
+                  </Text>
+                  {line.subtitle ? (
+                    <Text style={[styles.lineSub, line.state === 'upcoming' && styles.textMuted]}>
+                      {line.subtitle}
+                    </Text>
+                  ) : null}
+                  {line.timeLabel ? (
+                    <Text style={styles.lineTime}>{line.timeLabel}</Text>
+                  ) : null}
+                </View>
+              </View>
+            ))}
+          </View>
+
+          <TouchableOpacity
+            style={styles.secondaryBtn}
+            activeOpacity={0.85}
+            onPress={() => router.push(`/book/${request.book_id}`)}
+          >
+            <FontAwesome name="book" size={18} color={HOWARD_BLUE} style={styles.secondaryIcon} />
+            <Text style={styles.secondaryBtnText}>View book details</Text>
+            <FontAwesome name="chevron-right" size={12} color="#94a3b8" />
+          </TouchableOpacity>
+        </ScrollView>
+      ) : null}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  page: { flex: 1, backgroundColor: '#eef2f7' },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingBottom: 10,
+    backgroundColor: '#eef2f7',
+  },
+  backBtn: { padding: 10, width: 44 },
+  topTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  topRight: { width: 44 },
+  scroll: { flex: 1 },
+  centerBox: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  errorText: {
+    marginTop: 12,
+    color: '#64748b',
+    textAlign: 'center',
+    fontSize: 15,
+  },
+  retryBtn: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    backgroundColor: HOWARD_BLUE,
+    borderRadius: 12,
+  },
+  retryBtnText: { color: '#fff', fontWeight: '600', fontSize: 15 },
+  summaryCard: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  summaryEyebrow: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
+    color: HOWARD_RED,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  summaryTitle: { fontSize: 20, fontWeight: '800', color: '#0f172a', marginBottom: 12 },
+  summaryPillRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
+  summaryPill: {
+    backgroundColor: '#e8f0fe',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    marginRight: 8,
+  },
+  summaryPillText: { fontSize: 12, fontWeight: '700', color: HOWARD_BLUE },
+  summaryLocation: { flex: 1, minWidth: 120, fontSize: 14, color: '#64748b' },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: 10,
+  },
+  timelineCard: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#e8ecf1',
+  },
+  timelineRow: { flexDirection: 'row', alignItems: 'stretch' },
+  timelineAxis: { width: 22, alignItems: 'center' },
+  timelineDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginTop: 4,
+    backgroundColor: '#cbd5e1',
+  },
+  dotComplete: { backgroundColor: '#1d4ed8' },
+  dotActive: { backgroundColor: HOWARD_RED, transform: [{ scale: 1.15 }] },
+  dotUpcoming: { backgroundColor: '#e2e8f0' },
+  dotIssue: { backgroundColor: '#dc2626' },
+  timelineStem: {
+    width: 2,
+    flex: 1,
+    minHeight: 28,
+    backgroundColor: '#e2e8f0',
+    marginVertical: 4,
+  },
+  timelineBody: { flex: 1, paddingBottom: 20, paddingLeft: 6 },
+  lineTitle: { fontSize: 16, fontWeight: '700', color: '#0f172a' },
+  lineSub: { fontSize: 14, color: '#64748b', marginTop: 4, lineHeight: 20 },
+  lineTime: { fontSize: 12, color: '#94a3b8', marginTop: 6, fontWeight: '500' },
+  textMuted: { color: '#94a3b8' },
+  textIssue: { color: '#b91c1c' },
+  secondaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  secondaryIcon: { marginRight: 10 },
+  secondaryBtnText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: HOWARD_BLUE,
+  },
+});

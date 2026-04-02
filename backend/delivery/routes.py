@@ -28,6 +28,7 @@ from delivery.services import (
     create_delivery_task_from_request,
     get_book_request,
     get_delivery_task,
+    get_request_activity,
     is_dispatchable,
     list_book_requests,
     list_delivery_tasks,
@@ -36,6 +37,7 @@ from delivery.services import (
 )
 from shared.auth_dependencies import get_current_user_dep
 from shared.db import SessionLocal
+from shared.models import TaskStatusHistory
 
 
 def get_db():
@@ -117,6 +119,25 @@ def get_request(
     try:
         row = get_book_request(db, user=user, request_id=request_id)
         return _success({"request": BookRequestResponse.model_validate(row).model_dump(mode="json")})
+    except DeliveryError as e:
+        raise _handle_delivery_error(e) from e
+
+
+@requests_router.get("/{request_id}/activity")
+def get_request_activity_route(
+    request_id: uuid.UUID,
+    user: UserResponse = Depends(get_current_user_dep),
+    db: Session = Depends(get_db),
+):
+    """Request + linked delivery task and task status history for student timeline / live updates."""
+    try:
+        br, task_payload = get_request_activity(db, user=user, request_id=request_id)
+        return _success(
+            {
+                "request": BookRequestResponse.model_validate(br).model_dump(mode="json"),
+                "task": task_payload.model_dump(mode="json") if task_payload else None,
+            }
+        )
     except DeliveryError as e:
         raise _handle_delivery_error(e) from e
 
@@ -211,7 +232,13 @@ def get_task(
 ):
     try:
         task = get_delivery_task(db, user=user, task_id=task_id)
-        return _success({"task": task_to_response(task).model_dump(mode="json")})
+        hist = (
+            db.query(TaskStatusHistory)
+            .filter(TaskStatusHistory.task_id == task.id)
+            .order_by(TaskStatusHistory.changed_at.asc())
+            .all()
+        )
+        return _success({"task": task_to_response(task, hist).model_dump(mode="json")})
     except DeliveryError as e:
         raise _handle_delivery_error(e) from e
 

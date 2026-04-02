@@ -13,6 +13,7 @@ from delivery.schemas import (
     BookRequestResponse,
     DeliveryTaskListResponse,
     DeliveryTaskResponse,
+    TaskStatusEventResponse,
 )
 from shared.models import (
     BookRequest,
@@ -42,8 +43,25 @@ def is_dispatchable(task: DeliveryTask) -> bool:
     return bool(meta.get("book_placed")) and task.status == TaskStatus.QUEUED
 
 
-def task_to_response(task: DeliveryTask) -> DeliveryTaskResponse:
+def _metadata_datetime(meta: dict, key: str) -> datetime | None:
+    raw = meta.get(key)
+    if not raw or not isinstance(raw, str):
+        return None
+    s = raw.strip().replace("Z", "+00:00")
+    try:
+        return datetime.fromisoformat(s)
+    except ValueError:
+        return None
+
+
+def task_to_response(
+    task: DeliveryTask,
+    history: list[TaskStatusHistory] | None = None,
+) -> DeliveryTaskResponse:
     meta = task.task_metadata or {}
+    hist_models = [
+        TaskStatusEventResponse.model_validate(h) for h in (history or [])
+    ]
     return DeliveryTaskResponse(
         id=task.id,
         request_id=task.request_id,
@@ -56,6 +74,8 @@ def task_to_response(task: DeliveryTask) -> DeliveryTaskResponse:
         started_at=task.started_at,
         completed_at=task.completed_at,
         book_placed=bool(meta.get("book_placed")),
+        book_placed_at=_metadata_datetime(meta, "book_placed_at"),
+        status_history=hist_models,
     )
 
 
@@ -174,7 +194,9 @@ def approve_book_request(db: Session, *, user: UserResponse, request_id: UUID) -
     if row.status != RequestStatus.PENDING:
         raise DeliveryError("Only pending requests can be approved.")
 
+    now = datetime.now(timezone.utc)
     row.status = RequestStatus.APPROVED
+    row.approved_at = now
     db.commit()
     db.refresh(row)
     return row
@@ -196,7 +218,10 @@ def cancel_book_request(db: Session, *, user: UserResponse, request_id: UUID) ->
     else:
         raise DeliveryError("Not allowed to cancel requests.")
 
+    now = datetime.now(timezone.utc)
     row.status = RequestStatus.CANCELLED
+    if row.completed_at is None:
+        row.completed_at = now
     db.commit()
     db.refresh(row)
     return row
@@ -245,10 +270,40 @@ def create_delivery_task_from_request(
         changed_by=user.id,
         reason="task_created",
     )
+    now = datetime.now(timezone.utc)
     br.status = RequestStatus.IN_PROGRESS
+    if br.in_progress_at is None:
+        br.in_progress_at = now
     db.commit()
     db.refresh(task)
     return task
+
+
+def get_request_activity(
+    db: Session,
+    *,
+    user: UserResponse,
+    request_id: UUID,
+) -> tuple[BookRequest, DeliveryTaskResponse | None]:
+    """
+    Book request plus linked delivery task and full task status history (student timeline).
+    """
+    br = get_book_request(db, user=user, request_id=request_id)
+    task = (
+        db.query(DeliveryTask)
+        .filter(DeliveryTask.request_id == br.id)
+        .order_by(DeliveryTask.created_at.desc())
+        .first()
+    )
+    if task is None:
+        return br, None
+    hist = (
+        db.query(TaskStatusHistory)
+        .filter(TaskStatusHistory.task_id == task.id)
+        .order_by(TaskStatusHistory.changed_at.asc())
+        .all()
+    )
+    return br, task_to_response(task, hist)
 
 
 def list_delivery_tasks(
@@ -276,7 +331,7 @@ def list_delivery_tasks(
     )
 
     return DeliveryTaskListResponse(
-        items=[task_to_response(t) for t in rows],
+        items=[task_to_response(t, None) for t in rows],
         page=page,
         limit=limit,
         total=total,

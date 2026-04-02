@@ -173,6 +173,8 @@ class BookRequest(Base):
     requested_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    in_progress_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     notes: Mapped[str | None] = mapped_column(Text)
 

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,17 +7,27 @@ import {
   RefreshControl,
   TouchableOpacity,
   ActivityIndicator,
+  Pressable,
+  AppState,
+  type AppStateStatus,
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { useRouter } from 'expo-router';
-import BottomTabBar, { BOTTOM_TAB_BAR_HEIGHT } from '@/components/BottomTabBar';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { BOTTOM_TAB_BAR_HEIGHT } from '@/components/BottomTabBar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   BookRequestApiError,
   formatRequestStatus,
   listMyBookRequests,
   type BookRequestItem,
+  type RequestStatus,
 } from '@/src/services/bookRequests';
+import { getBook } from '@/src/services/books';
+
+const HOWARD_BLUE = '#003A63';
+const HOWARD_RED = '#E31837';
+const LIST_POLL_MS = 20_000;
 
 function formatUpdatedLabel(iso: string | null): string {
   if (!iso) return 'Not loaded yet';
@@ -34,8 +44,40 @@ function formatUpdatedLabel(iso: string | null): string {
   }
 }
 
+type BookSummary = { title: string; author: string };
+
+async function loadBookSummaries(bookIds: string[]): Promise<Record<string, BookSummary>> {
+  const unique = [...new Set(bookIds)];
+  const results = await Promise.allSettled(unique.map((id) => getBook(id)));
+  const map: Record<string, BookSummary> = {};
+  results.forEach((r, i) => {
+    const id = unique[i];
+    if (r.status === 'fulfilled') {
+      map[id] = { title: r.value.title, author: r.value.author };
+    }
+  });
+  return map;
+}
+
+function statusPillColors(status: RequestStatus): { bg: string; text: string } {
+  switch (status) {
+    case 'PENDING':
+      return { bg: '#fef3c7', text: '#b45309' };
+    case 'APPROVED':
+      return { bg: '#dbeafe', text: '#1d4ed8' };
+    case 'IN_PROGRESS':
+      return { bg: '#ede9fe', text: '#6d28d9' };
+    case 'COMPLETED':
+      return { bg: '#dcfce7', text: '#15803d' };
+    case 'CANCELLED':
+      return { bg: '#f1f5f9', text: '#64748b' };
+    default:
+      return { bg: '#e0f2fe', text: '#0369a1' };
+  }
+}
+
 /**
- * Requests tab: lists book delivery requests from GET /api/v1/requests/ (FS-04).
+ * Requests tab: book delivery requests with titles, status, and navigation to activity timeline.
  */
 export default function RequestsScreen() {
   const router = useRouter();
@@ -43,6 +85,8 @@ export default function RequestsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [items, setItems] = useState<BookRequestItem[]>([]);
+  const [bookSummaries, setBookSummaries] = useState<Record<string, BookSummary>>({});
+  const [summariesLoading, setSummariesLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const refreshLocked = useRef(false);
@@ -53,6 +97,19 @@ export default function RequestsScreen() {
       const out = await listMyBookRequests({ limit: 50 });
       setItems(out.items);
       setLastUpdated(new Date().toISOString());
+
+      const ids = out.items.map((r) => r.book_id);
+      if (ids.length > 0) {
+        setSummariesLoading(true);
+        try {
+          const summaries = await loadBookSummaries(ids);
+          setBookSummaries(summaries);
+        } finally {
+          setSummariesLoading(false);
+        }
+      } else {
+        setBookSummaries({});
+      }
     } catch (e) {
       const msg =
         e instanceof BookRequestApiError
@@ -60,14 +117,33 @@ export default function RequestsScreen() {
           : 'Could not load requests. Check connection and API URL.';
       setLoadError(msg);
       setItems([]);
+      setBookSummaries({});
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      let appState: AppStateStatus = AppState.currentState;
+      const run = () => {
+        if (cancelled || appState !== 'active') return;
+        void load();
+      };
+      run();
+      const interval = setInterval(run, LIST_POLL_MS);
+      const sub = AppState.addEventListener('change', (next) => {
+        appState = next;
+        if (next === 'active') run();
+      });
+      return () => {
+        cancelled = true;
+        clearInterval(interval);
+        sub.remove();
+      };
+    }, [load]),
+  );
 
   const onRefresh = useCallback(async () => {
     if (refreshLocked.current) return;
@@ -82,23 +158,36 @@ export default function RequestsScreen() {
   }, [load]);
 
   const bottomPad = 24 + BOTTOM_TAB_BAR_HEIGHT + insets.bottom;
+  const topPad = Math.max(insets.top, 12) + 8;
 
   return (
     <View style={styles.page}>
+      <StatusBar style="dark" />
       <ScrollView
-        contentContainerStyle={[styles.scrollInner, { paddingBottom: bottomPad }]}
+        contentContainerStyle={[styles.scrollInner, { paddingTop: topPad, paddingBottom: bottomPad }]}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#003A63" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={HOWARD_BLUE} />
         }
+        showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>Requests</Text>
-        <Text style={styles.sub}>
-          Track robot delivery requests. Staff approves and prepares your book; status updates here after
-          refresh.
-        </Text>
+        <View style={styles.heroCard}>
+          <View style={styles.heroRow}>
+            <View style={styles.heroIconWrap}>
+              <FontAwesome name="truck" size={24} color="#fff" />
+            </View>
+            <View style={styles.heroTextCol}>
+              <Text style={styles.heroEyebrow}>LUNA delivery</Text>
+              <Text style={styles.title}>Your requests</Text>
+              <Text style={styles.sub}>
+                Staff approve and prepare books for pickup. This list also refreshes automatically while you stay on
+                this tab — pull down anytime for an immediate update.
+              </Text>
+            </View>
+          </View>
+        </View>
 
         {loading && !refreshing ? (
-          <ActivityIndicator size="large" color="#003A63" style={{ marginVertical: 24 }} />
+          <ActivityIndicator size="large" color={HOWARD_BLUE} style={styles.centerSpinner} />
         ) : null}
 
         {loadError ? (
@@ -109,34 +198,83 @@ export default function RequestsScreen() {
         ) : null}
 
         {!loading && !loadError && items.length === 0 ? (
-          <View style={styles.emptyBlock}>
-            <FontAwesome name="inbox" size={48} color="#cbd5e1" style={styles.icon} />
+          <View style={styles.emptyCard}>
+            <View style={styles.emptyIconCircle}>
+              <FontAwesome name="inbox" size={32} color={HOWARD_BLUE} />
+            </View>
             <Text style={styles.emptyTitle}>No requests yet</Text>
-            <Text style={styles.emptySub}>Search for a book and tap Request Book to start a delivery.</Text>
+            <Text style={styles.emptySub}>
+              Browse the catalog and tap <Text style={styles.emptyBold}>Request Book</Text> on any available title to start a delivery.
+            </Text>
           </View>
         ) : null}
 
-        {items.map((req) => (
-          <View key={req.id} style={styles.card}>
-            <View style={styles.cardTop}>
-              <Text style={styles.cardTitle}>Book · {req.book_id.slice(0, 8)}…</Text>
-              <View style={styles.statusPill}>
-                <Text style={styles.statusPillText}>{formatRequestStatus(req.status)}</Text>
-              </View>
-            </View>
-            <Text style={styles.cardMeta}>Deliver to: {req.request_location}</Text>
-            <Text style={styles.cardMetaSmall}>
-              Requested {formatUpdatedLabel(req.requested_at)}
-            </Text>
+        {items.length > 0 ? (
+          <View style={styles.listHeaderRow}>
+            <Text style={styles.listHeader}>Your requests ({items.length})</Text>
+            {summariesLoading ? <ActivityIndicator size="small" color={HOWARD_BLUE} /> : null}
           </View>
-        ))}
+        ) : null}
+
+        {items.map((req) => {
+          const summary = bookSummaries[req.book_id];
+          const pill = statusPillColors(req.status);
+          return (
+            <Pressable
+              key={req.id}
+              style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+              onPress={() => router.push(`/request/${req.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`Delivery progress for ${summary?.title ?? 'request'}`}
+            >
+              <View style={styles.cardTop}>
+                <View style={styles.cardTitleBlock}>
+                  <Text style={styles.cardTitle} numberOfLines={2}>
+                    {summary?.title ?? 'Book'}
+                  </Text>
+                  {summary ? (
+                    <Text style={styles.cardAuthor} numberOfLines={1}>
+                      {summary.author}
+                    </Text>
+                  ) : summariesLoading ? (
+                    <Text style={styles.cardAuthorMuted}>Loading title…</Text>
+                  ) : (
+                    <Text style={styles.cardAuthorMuted}>Book ID {req.book_id.slice(0, 8)}…</Text>
+                  )}
+                </View>
+                <View style={styles.cardRightCol}>
+                  <View style={[styles.statusPill, { backgroundColor: pill.bg }]}>
+                    <Text style={[styles.statusPillText, { color: pill.text }]}>
+                      {formatRequestStatus(req.status)}
+                    </Text>
+                  </View>
+                  <FontAwesome name="chevron-right" size={12} color="#cbd5e1" style={styles.cardChevron} />
+                </View>
+              </View>
+              <View style={styles.cardRow}>
+                <FontAwesome name="map-marker" size={14} color="#64748b" style={styles.cardRowIcon} />
+                <Text style={styles.cardMeta}>{req.request_location}</Text>
+              </View>
+              <View style={styles.cardRow}>
+                <FontAwesome name="clock-o" size={14} color="#94a3b8" style={styles.cardRowIcon} />
+                <Text style={styles.cardMetaSmall}>
+                  Requested {formatUpdatedLabel(req.requested_at)}
+                </Text>
+              </View>
+              <View style={styles.cardFooterHint}>
+                <FontAwesome name="list-ul" size={12} color="#94a3b8" />
+                <Text style={styles.cardHint}>View activity and delivery status</Text>
+              </View>
+            </Pressable>
+          );
+        })}
 
         <TouchableOpacity
           style={styles.primaryBtn}
           activeOpacity={0.85}
           onPress={() => router.push('/(tabs)/search')}
         >
-          <FontAwesome name="search" size={16} color="#fff" style={styles.primaryBtnIcon} />
+          <FontAwesome name="search" size={18} color="#fff" style={styles.primaryBtnIcon} />
           <Text style={styles.primaryBtnText}>Find books</Text>
         </TouchableOpacity>
 
@@ -145,30 +283,82 @@ export default function RequestsScreen() {
           <Text style={styles.metaText}>Last refreshed: {formatUpdatedLabel(lastUpdated)}</Text>
         </View>
 
-        {refreshing && (
+        {refreshing ? (
           <View style={styles.inlineLoading}>
-            <ActivityIndicator size="small" color="#003A63" />
+            <ActivityIndicator size="small" color={HOWARD_BLUE} />
             <Text style={styles.inlineLoadingText}>Updating…</Text>
           </View>
-        )}
+        ) : null}
       </ScrollView>
-      <BottomTabBar />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#f8fafc' },
+  page: { flex: 1, backgroundColor: '#eef2f7' },
   scrollInner: {
     flexGrow: 1,
     alignItems: 'stretch',
-    padding: 24,
-    paddingTop: 48,
+    paddingHorizontal: 18,
   },
-  icon: { marginBottom: 16, alignSelf: 'center' },
-  emptyBlock: { alignItems: 'center', marginBottom: 20 },
-  emptyTitle: { fontSize: 17, fontWeight: '600', color: '#334155', marginBottom: 6 },
-  emptySub: { fontSize: 14, color: '#64748b', textAlign: 'center', maxWidth: 320, lineHeight: 20 },
+  heroCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  heroRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  heroIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: HOWARD_BLUE,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  heroTextCol: { flex: 1 },
+  heroEyebrow: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
+    color: HOWARD_RED,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  centerSpinner: { marginVertical: 24 },
+  emptyCard: {
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    paddingVertical: 32,
+    paddingHorizontal: 22,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  emptyIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#e8f0fe',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: HOWARD_BLUE, marginBottom: 10 },
+  emptySub: { fontSize: 15, color: '#64748b', textAlign: 'center', maxWidth: 300, lineHeight: 22 },
+  emptyBold: { fontWeight: '700', color: '#334155' },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -179,62 +369,88 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   errorBannerText: { flex: 1, color: '#991b1b', fontSize: 14, lineHeight: 20 },
+  listHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  listHeader: { fontSize: 15, fontWeight: '700', color: '#0f172a' },
   card: {
     backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: 18,
+    padding: 17,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 2,
+    borderColor: '#e8ecf1',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
     elevation: 2,
   },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: '#0f172a', flex: 1 },
-  statusPill: { backgroundColor: '#e0f2fe', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  statusPillText: { fontSize: 12, fontWeight: '600', color: '#0369a1' },
-  cardMeta: { fontSize: 14, color: '#475569', marginBottom: 4 },
+  cardPressed: { opacity: 0.94 },
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
+  cardTitleBlock: { flex: 1, marginRight: 10 },
+  cardRightCol: { alignItems: 'flex-end' },
+  cardChevron: { marginTop: 8 },
+  cardTitle: { fontSize: 17, fontWeight: '700', color: '#0f172a' },
+  cardAuthor: { fontSize: 14, color: '#64748b', marginTop: 4 },
+  cardAuthorMuted: { fontSize: 13, color: '#94a3b8', marginTop: 4 },
+  statusPill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
+  statusPillText: { fontSize: 12, fontWeight: '700' },
+  cardRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  cardRowIcon: { marginRight: 8 },
+  cardMeta: { fontSize: 14, color: '#475569', flex: 1 },
   cardMetaSmall: { fontSize: 12, color: '#94a3b8' },
+  cardFooterHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  cardHint: { fontSize: 12, color: '#94a3b8', fontWeight: '500', marginLeft: 6 },
   title: {
     fontSize: 22,
-    fontWeight: '700',
-    color: '#1e293b',
-    marginBottom: 8,
-    textAlign: 'center',
-    alignSelf: 'center',
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 6,
+    letterSpacing: -0.3,
   },
   sub: {
     fontSize: 15,
     color: '#64748b',
-    textAlign: 'center',
     lineHeight: 22,
-    maxWidth: 360,
-    alignSelf: 'center',
-    marginBottom: 20,
   },
   primaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'center',
-    backgroundColor: '#003A63',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    marginTop: 8,
+    alignSelf: 'stretch',
+    justifyContent: 'center',
+    backgroundColor: HOWARD_BLUE,
+    paddingVertical: 15,
+    paddingHorizontal: 22,
+    borderRadius: 14,
+    marginTop: 4,
     marginBottom: 20,
+    shadowColor: HOWARD_BLUE,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   primaryBtnIcon: { marginRight: 8 },
   primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  metaRow: { flexDirection: 'row', alignItems: 'center' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   metaIcon: { marginRight: 6 },
   metaText: { fontSize: 13, color: '#94a3b8' },
   inlineLoading: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 16,
+    justifyContent: 'center',
+    marginTop: 12,
   },
   inlineLoadingText: { fontSize: 13, color: '#64748b', marginLeft: 8 },
 });

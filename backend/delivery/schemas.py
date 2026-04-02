@@ -24,6 +24,8 @@ class BookRequestResponse(BaseModel):
     request_location: str
     status: RequestStatus
     requested_at: datetime
+    approved_at: datetime | None = None
+    in_progress_at: datetime | None = None
     completed_at: datetime | None
     notes: str | None
 
@@ -37,6 +39,16 @@ class BookRequestListResponse(BaseModel):
 
 class DeliveryTaskCreate(BaseModel):
     request_id: UUID
+
+
+class TaskStatusEventResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    old_status: TaskStatus | None
+    new_status: TaskStatus
+    changed_at: datetime
+    reason: str | None = None
 
 
 class DeliveryTaskResponse(BaseModel):
@@ -53,6 +65,11 @@ class DeliveryTaskResponse(BaseModel):
     started_at: datetime | None
     completed_at: datetime | None
     book_placed: bool
+    book_placed_at: datetime | None = Field(
+        None,
+        description="When staff confirmed the book on shelf (from task metadata), if recorded.",
+    )
+    status_history: list[TaskStatusEventResponse] = Field(default_factory=list)
 
 
 class DeliveryTaskListResponse(BaseModel):
