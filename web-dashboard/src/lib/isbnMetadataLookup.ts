@@ -8,6 +8,8 @@ export type IsbnMetadata = {
   title: string;
   author: string;
   isbn: string;
+  /** Open Library `cover.medium` when present */
+  cover_image_url?: string | null;
 };
 
 /** Accept ISBN-10 (incl. check X) or ISBN-13 after trimming / hyphen removal. */
@@ -41,5 +43,11 @@ export async function fetchBookMetadataByIsbn(isbnRaw: string, init?: RequestIni
     .filter(Boolean)
     .join(", ");
   if (!title && !author) return null;
-  return { title, author, isbn };
+  let cover_image_url: string | null = null;
+  const cover = o.cover && typeof o.cover === "object" ? (o.cover as Record<string, unknown>) : null;
+  if (cover) {
+    const medium = cover.medium;
+    if (typeof medium === "string" && medium.trim()) cover_image_url = medium.trim();
+  }
+  return { title, author, isbn, cover_image_url };
 }
