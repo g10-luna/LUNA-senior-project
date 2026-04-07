@@ -1,3 +1,5 @@
+import { USE_MOCK_AUTH } from "./appEnv";
+
 const ACCESS = "access_token";
 const REFRESH = "refresh_token";
 
@@ -15,8 +17,7 @@ function readJwtExpMs(token: string): number | null {
 
 function hasUsableAccessToken(token: string | null): boolean {
   if (!token) return false;
-  // Keep mock/dev opaque tokens working while enforcing JWT expiration when available.
-  if (token.startsWith("mock_")) return true;
+  if (token.startsWith("mock_")) return USE_MOCK_AUTH;
   const expMs = readJwtExpMs(token);
   if (expMs == null) return true;
   return Date.now() < expMs;

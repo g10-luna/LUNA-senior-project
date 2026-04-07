@@ -14,11 +14,14 @@ export interface Book {
   status?: BookStatus;
   shelf_location?: string | null;
   location?: string | null;
+  publisher?: string | null;
+  publication_year?: number | null;
   total_copies?: number;
   available_copies?: number;
   available?: boolean;
   category?: string | null;
   description?: string | null;
+  cover_image_url?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -38,4 +41,5 @@ export interface CatalogQueryParams {
   limit?: number;
   sort?: string;
   order?: "asc" | "desc";
+  status?: string;
 }

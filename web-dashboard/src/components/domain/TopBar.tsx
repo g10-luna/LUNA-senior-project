@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { displayNameFromCurrentUser, fetchCurrentUser, logout } from "../../lib/authApi";
 import { ROUTES } from "../../lib/routes";
-import { getLibrarianDisplayName, getStoredUserProfile } from "../../lib/sessionProfile";
+import {
+  CACHED_USER_DISPLAY_NAME_KEY,
+  getLibrarianDisplayName,
+  getStoredUserProfile,
+} from "../../lib/sessionProfile";
 import "./TopBar.css";
-
-const USER_NAME_CACHE_KEY = "current_user_name";
 
 /** Logo next to the title. Put your image in web-dashboard/public/luna-logo.png (or .svg, .webp). */
 const LOGO_SRC = "/luna-logo.png";
@@ -20,7 +22,7 @@ export default function TopBar({ title }: { title?: string }) {
     if (getStoredUserProfile()) {
       return getLibrarianDisplayName();
     }
-    const cached = localStorage.getItem(USER_NAME_CACHE_KEY);
+    const cached = localStorage.getItem(CACHED_USER_DISPLAY_NAME_KEY);
     if (cached) return cached;
     return getLibrarianDisplayName();
   });
@@ -33,7 +35,7 @@ export default function TopBar({ title }: { title?: string }) {
       if (cancelled || !user) return;
       const nextName = displayNameFromCurrentUser(user) || getLibrarianDisplayName();
       setUserDisplayName(nextName);
-      localStorage.setItem(USER_NAME_CACHE_KEY, nextName);
+      localStorage.setItem(CACHED_USER_DISPLAY_NAME_KEY, nextName);
     };
 
     void loadUser();
@@ -133,7 +135,7 @@ export default function TopBar({ title }: { title?: string }) {
                   onClick={() => {
                     setProfileOpen(false);
                     logout();
-                    localStorage.removeItem(USER_NAME_CACHE_KEY);
+                    localStorage.removeItem(CACHED_USER_DISPLAY_NAME_KEY);
                     navigate(ROUTES.LOGIN, { replace: true });
                   }}
                   role="menuitem"

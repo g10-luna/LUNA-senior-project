@@ -1,6 +1,7 @@
 import { refreshAccessToken } from "./authApi";
-import { tokenStorage } from "./tokenStorage";
 import { ROUTES } from "./routes";
+import { clearCachedUserDisplayName, clearSessionProfile } from "./sessionProfile";
+import { tokenStorage } from "./tokenStorage";
 
 // In dev, default to "" so requests hit Vite's dev server and are proxied to the gateway
 // (see `vite.config.ts`). Set `VITE_API_BASE_URL` to override (e.g. http://localhost:8000).
@@ -15,23 +16,32 @@ export const API_BASE_URL =
 
 type ApiOptions = RequestInit & {
   skipAuthRedirect?: boolean;
+  /** Do not send Bearer token (login, register, etc.). */
+  omitAuthHeader?: boolean;
   /** Internal: already attempted refresh for this request */
   _retriedAfterRefresh?: boolean;
 };
 
 function redirectToLogin() {
   tokenStorage.clear();
+  clearSessionProfile();
+  clearCachedUserDisplayName();
   const params = new URLSearchParams({ session_expired: "1" });
   window.location.href = `${ROUTES.LOGIN}?${params.toString()}`;
 }
 
 export async function apiFetch(url: string, options: ApiOptions = {}): Promise<Response> {
-  const { skipAuthRedirect, _retriedAfterRefresh, ...rest } = options;
+  const { skipAuthRedirect, omitAuthHeader, _retriedAfterRefresh, ...rest } = options;
   const headers = new Headers(rest.headers);
 
   const token = tokenStorage.getAccess();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-  if (rest.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  // Keep caller-provided Authorization (e.g. refresh token request) intact.
+  if (token && !omitAuthHeader && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  if (rest.body && !(rest.body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
 
   let res: Response;
   try {

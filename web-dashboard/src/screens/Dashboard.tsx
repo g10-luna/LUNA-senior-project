@@ -152,7 +152,11 @@ export default function DashboardScreen() {
               </span>
               <span className="dashboard-quick-button-plus">＋</span>
             </button>
-            <button type="button" className="dashboard-quick-button">
+            <button
+              type="button"
+              className="dashboard-quick-button"
+              onClick={() => navigate(`${ROUTES.MAINTENANCE}#maintenance-report`)}
+            >
               <span className="dashboard-quick-button-label">
                 <span className="dashboard-quick-button-icon" aria-hidden>📊</span>
                 <span>Generate Report</span>

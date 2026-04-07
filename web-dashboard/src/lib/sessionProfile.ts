@@ -1,6 +1,17 @@
 const EMAIL_KEY = "luna_librarian_email";
 const PROFILE_KEY = "luna_user_profile";
 
+/** TopBar caches display name in localStorage; clear on login/logout to avoid stale demo names. */
+export const CACHED_USER_DISPLAY_NAME_KEY = "current_user_name";
+
+export function clearCachedUserDisplayName() {
+  try {
+    localStorage.removeItem(CACHED_USER_DISPLAY_NAME_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Demo persona when no API profile is cached (e.g. before /me loads). */
 export const DEMO_LIBRARIAN_FIRST_NAME = "Shirley";
 export const DEMO_LIBRARIAN_LAST_NAME = "Williams";
@@ -29,11 +40,21 @@ export const MOCK_LIBRARIAN_PROFILE: StoredUserProfile = {
   phone_number: null,
 };
 
+function greetingTokenFromEmail(email: string): string {
+  const local = email.split("@")[0]?.trim() ?? "";
+  if (!local) return DEMO_LIBRARIAN_FIRST_NAME;
+  const word = local.replace(/[._-]+/g, " ").trim().split(/\s+/)[0] ?? "";
+  if (!word) return DEMO_LIBRARIAN_FIRST_NAME;
+  return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+}
+
 /** First name for greetings (“Good morning, …”) from session profile or demo defaults. */
 export function getLibrarianGreetingFirstName(): string {
   const p = getStoredUserProfile();
   const first = p?.first_name?.trim();
   if (first) return first;
+  const mail = p?.email?.trim() || getStoredLibrarianEmail()?.trim();
+  if (mail) return greetingTokenFromEmail(mail);
   return DEMO_LIBRARIAN_FIRST_NAME;
 }
 

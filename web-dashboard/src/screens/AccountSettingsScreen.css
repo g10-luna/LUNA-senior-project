@@ -108,6 +108,7 @@
   display: flex;
   align-items: center;
   gap: 22px;
+  position: relative;
 }
 
 .account-hero-avatar {
@@ -123,6 +124,13 @@
   align-items: center;
   justify-content: center;
   box-shadow: 0 6px 20px rgba(24, 68, 104, 0.28);
+  overflow: hidden;
+}
+
+.account-hero-avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .account-hero-text {
@@ -149,10 +157,20 @@
   color: #718096;
 }
 
+.card .account-avatar-corner {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
 .account-panel-head {
   margin-bottom: 18px;
   padding-bottom: 12px;
   border-bottom: 1px solid #edf2f7;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .account-panel-title {
@@ -300,6 +318,18 @@
 .card .account-secondary-btn:disabled {
   opacity: 0.65;
   cursor: not-allowed;
+}
+
+.card .account-edit-btn {
+  margin-top: 0;
+  padding: 8px 14px;
+}
+
+.account-edit-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 768px) {

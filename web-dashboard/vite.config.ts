@@ -17,6 +17,12 @@ export default defineConfig({
         ws: true,
         changeOrigin: true,
       },
+      // Open Library ISBN API (browser CORS is unreliable); same-origin in dev only.
+      '/openlibrary': {
+        target: 'https://openlibrary.org',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/openlibrary/, ''),
+      },
     },
   },
 })

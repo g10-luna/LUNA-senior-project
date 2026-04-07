@@ -88,6 +88,10 @@ export type BookMutationInput = {
   isbn?: string;
   shelf_location?: string;
   status?: string;
+  publisher?: string | null;
+  publication_year?: number | null;
+  description?: string | null;
+  cover_image_url?: string | null;
 };
 
 function toBook(value: unknown): Book | null {
@@ -108,9 +112,10 @@ export async function listBooks(
   if (params.limit) search.set("limit", String(params.limit));
   if (params.sort) search.set("sort", params.sort);
   if (params.order) search.set("order", params.order);
+  if (params.status) search.set("status", params.status);
 
   const qs = search.toString();
-  const res = await apiFetch(`/api/v1/books${qs ? `?${qs}` : ""}`);
+  const res = await apiFetch(`/api/v1/books/${qs ? `?${qs}` : ""}`);
   const contentType = res.headers.get("content-type") ?? "";
   const json = await res.json().catch(() => ({}));
 
@@ -131,8 +136,12 @@ export async function createBook(input: BookMutationInput): Promise<Book> {
     isbn: input.isbn?.trim() || undefined,
     shelf_location: input.shelf_location?.trim() || undefined,
     status: input.status ?? "AVAILABLE",
+    publisher: input.publisher ?? null,
+    publication_year: input.publication_year ?? null,
+    description: input.description ?? null,
+    cover_image_url: input.cover_image_url ?? null,
   };
-  const res = await apiFetch("/api/v1/books", {
+  const res = await apiFetch("/api/v1/books/", {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -154,6 +163,10 @@ export async function updateBook(bookId: string, input: BookMutationInput): Prom
     isbn: input.isbn?.trim() || undefined,
     shelf_location: input.shelf_location?.trim() || undefined,
     status: input.status ?? "AVAILABLE",
+    publisher: input.publisher ?? null,
+    publication_year: input.publication_year ?? null,
+    description: input.description ?? null,
+    cover_image_url: input.cover_image_url ?? null,
   };
   const res = await apiFetch(`/api/v1/books/${bookId}`, {
     method: "PUT",

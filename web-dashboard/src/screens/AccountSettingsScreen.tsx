@@ -6,6 +6,8 @@ import {
   fetchCurrentUser,
   logout,
   requestPasswordResetEmail,
+  uploadCurrentUserAvatar,
+  updateCurrentUser,
   type CurrentUser,
 } from "../lib/authApi";
 import { ROUTES } from "../lib/routes";
@@ -28,6 +30,7 @@ const WORKSPACE = {
 } as const;
 
 type AccountSection = "profile" | "security";
+const MAX_PFP_BYTES = 2 * 1024 * 1024;
 
 function formatRoleLabel(role: string | undefined): string {
   if (!role) return "Librarian";
@@ -89,6 +92,15 @@ export default function AccountSettingsScreen() {
   const roleLabel = formatRoleLabel(profile?.role);
 
   const [section, setSection] = useState<AccountSection>("profile");
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editFirstName, setEditFirstName] = useState("");
+  const [editLastName, setEditLastName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSuccess, setEditSuccess] = useState<string | null>(null);
+  const [avatarLoading, setAvatarLoading] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -106,7 +118,14 @@ export default function AccountSettingsScreen() {
     if (email !== "…") setResetEmail(email);
   }, [email]);
 
+  useEffect(() => {
+    setEditFirstName(firstName === "…" ? "" : firstName);
+    setEditLastName(lastName === "…" ? "" : lastName);
+    setEditPhone(profile?.phone_number?.trim() || "");
+  }, [firstName, lastName, profile?.phone_number]);
+
   const initial = (displayName.charAt(0) || "?").toUpperCase();
+  const avatarSrc = profile?.avatar_url?.trim() || "";
 
   const handleSignOut = () => {
     logout();
@@ -152,6 +171,64 @@ export default function AccountSettingsScreen() {
     }
   };
 
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditError(null);
+    setEditSuccess(null);
+    if (!editFirstName.trim() || !editLastName.trim()) {
+      setEditError("First and last name are required.");
+      return;
+    }
+    try {
+      setEditLoading(true);
+      const updated = await updateCurrentUser({
+        firstName: editFirstName,
+        lastName: editLastName,
+        phoneNumber: editPhone.trim() || null,
+      });
+      setProfile(updated);
+      setEditSuccess("Profile updated.");
+      setIsEditingProfile(false);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "Could not update profile.");
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditFirstName(firstName === "…" ? "" : firstName);
+    setEditLastName(lastName === "…" ? "" : lastName);
+    setEditPhone(profile?.phone_number?.trim() || "");
+    setEditError(null);
+    setEditSuccess(null);
+    setIsEditingProfile(false);
+  };
+
+  const handlePfpSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarError(null);
+    if (!file.type.startsWith("image/")) {
+      setAvatarError("Please choose an image file.");
+      return;
+    }
+    if (file.size > MAX_PFP_BYTES) {
+      setAvatarError("Image is too large. Please use a file under 2MB.");
+      return;
+    }
+    try {
+      setAvatarLoading(true);
+      const updated = await uploadCurrentUserAvatar(file);
+      setProfile(updated);
+    } catch (err) {
+      setAvatarError(err instanceof Error ? err.message : "Could not upload this image.");
+    } finally {
+      setAvatarLoading(false);
+    }
+    e.target.value = "";
+  };
+
   return (
     <div className="dashboard-page account-page account-page--settings">
       <div className="account-shell">
@@ -185,8 +262,16 @@ export default function AccountSettingsScreen() {
 
               <section className="card account-panel">
                 <div className="account-hero">
+                  <label className="account-secondary-btn account-edit-btn account-avatar-corner">
+                    {avatarLoading ? "Uploading..." : "Add / change photo"}
+                    <input type="file" accept="image/*" onChange={handlePfpSelect} hidden disabled={avatarLoading} />
+                  </label>
                   <div className="account-hero-avatar" aria-hidden>
-                    {initial}
+                    {avatarSrc ? (
+                      <img src={avatarSrc} alt={`${displayName} profile photo`} className="account-hero-avatar-image" />
+                    ) : (
+                      initial
+                    )}
                   </div>
                   <div className="account-hero-text">
                     <h2 className="account-hero-name">{displayName}</h2>
@@ -194,6 +279,7 @@ export default function AccountSettingsScreen() {
                     <p className="account-hero-meta">
                       {WORKSPACE.site} · {WORKSPACE.cityRegion}
                     </p>
+                    {avatarError ? <p className="account-form-message account-form-message--error">{avatarError}</p> : null}
                   </div>
                 </div>
               </section>
@@ -201,24 +287,74 @@ export default function AccountSettingsScreen() {
               <section className="card account-panel">
                 <div className="account-panel-head">
                   <h2 className="account-panel-title">Personal information</h2>
-                </div>
-                <div className="account-info-grid">
-                  <InfoCell label="First name" value={firstName} />
-                  <InfoCell label="Last name" value={lastName} />
-                  <InfoCell label="Email address" value={email} />
-                  <InfoCell label="Staff sign-in ID" value={staffId} />
-                  {profile?.phone_number ? (
-                    <InfoCell label="Phone" value={profile.phone_number} />
+                  {!isEditingProfile ? (
+                    <button type="button" className="account-secondary-btn account-edit-btn" onClick={() => setIsEditingProfile(true)}>
+                      Edit
+                    </button>
                   ) : null}
-                  <div className="account-info-cell account-info-cell--full">
-                    <span className="account-info-label">Role</span>
-                    <span className="account-info-value">{profileLoading ? "…" : roleLabel}</span>
-                  </div>
-                  <div className="account-info-cell account-info-cell--full">
-                    <span className="account-info-label">Team</span>
-                    <span className="account-info-value">{WORKSPACE.department}</span>
-                  </div>
                 </div>
+                {isEditingProfile ? (
+                  <form className="account-password-form" onSubmit={handleSaveProfile}>
+                    <label className="account-input-label">
+                      <span>First name</span>
+                      <input
+                        type="text"
+                        value={editFirstName}
+                        onChange={(ev) => setEditFirstName(ev.target.value)}
+                        className="account-input"
+                        required
+                      />
+                    </label>
+                    <label className="account-input-label">
+                      <span>Last name</span>
+                      <input
+                        type="text"
+                        value={editLastName}
+                        onChange={(ev) => setEditLastName(ev.target.value)}
+                        className="account-input"
+                        required
+                      />
+                    </label>
+                    <label className="account-input-label">
+                      <span>Phone</span>
+                      <input
+                        type="tel"
+                        value={editPhone}
+                        onChange={(ev) => setEditPhone(ev.target.value)}
+                        className="account-input"
+                        placeholder="Optional"
+                      />
+                    </label>
+                    {editError ? <p className="account-form-message account-form-message--error">{editError}</p> : null}
+                    {editSuccess ? <p className="account-form-message account-form-message--ok">{editSuccess}</p> : null}
+                    <div className="account-edit-actions">
+                      <button type="submit" className="account-primary-btn" disabled={editLoading}>
+                        {editLoading ? "Saving..." : "Save changes"}
+                      </button>
+                      <button type="button" className="account-secondary-btn" onClick={handleCancelEdit} disabled={editLoading}>
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="account-info-grid">
+                    <InfoCell label="First name" value={firstName} />
+                    <InfoCell label="Last name" value={lastName} />
+                    <InfoCell label="Email address" value={email} />
+                    <InfoCell label="Staff sign-in ID" value={staffId} />
+                    {profile?.phone_number ? (
+                      <InfoCell label="Phone" value={profile.phone_number} />
+                    ) : null}
+                    <div className="account-info-cell account-info-cell--full">
+                      <span className="account-info-label">Role</span>
+                      <span className="account-info-value">{profileLoading ? "…" : roleLabel}</span>
+                    </div>
+                    <div className="account-info-cell account-info-cell--full">
+                      <span className="account-info-label">Team</span>
+                      <span className="account-info-value">{WORKSPACE.department}</span>
+                    </div>
+                  </div>
+                )}
               </section>
 
               <section className="card account-panel">
