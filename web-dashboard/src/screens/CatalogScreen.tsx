@@ -220,7 +220,7 @@ export default function CatalogScreen() {
     return () => {
       cancelled = true;
     };
-  }, [page, submittedQuery, refreshToken]);
+  }, [page, submittedQuery, refreshToken, statusFilter]);
 
   const filteredBooks = useMemo(() => {
     if (statusFilter !== "low_stock") return books;
@@ -419,7 +419,7 @@ export default function CatalogScreen() {
           publisher: editingBook?.publisher ?? null,
           publication_year: editingBook?.publication_year ?? null,
           description: editingBook?.description ?? null,
-          cover_image_url: editingBook?.cover_image_url ?? null,
+          cover_image_url: form.cover_image_url ?? editingBook?.cover_image_url ?? null,
         });
       } else {
         return;

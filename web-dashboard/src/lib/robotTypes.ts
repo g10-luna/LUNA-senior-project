@@ -6,5 +6,9 @@ export interface RobotStatus {
   locationLabel: string;
   currentTaskSummary?: string;
   lastHeartbeat: string;
+  cpuUsagePercent?: number;
+  memoryUsagePercent?: number;
+  temperatureCelsius?: number;
+  navigationAccuracyPercent?: number;
 }
 

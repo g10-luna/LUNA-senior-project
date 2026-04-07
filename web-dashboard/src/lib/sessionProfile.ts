@@ -1,5 +1,6 @@
 const EMAIL_KEY = "luna_librarian_email";
 const PROFILE_KEY = "luna_user_profile";
+export const USER_PROFILE_CHANGED_EVENT = "luna:user-profile-changed";
 
 /** TopBar caches display name in localStorage; clear on login/logout to avoid stale demo names. */
 export const CACHED_USER_DISPLAY_NAME_KEY = "current_user_name";
@@ -61,9 +62,11 @@ export function getLibrarianGreetingFirstName(): string {
 export function setStoredUserProfile(user: StoredUserProfile | null) {
   if (!user) {
     sessionStorage.removeItem(PROFILE_KEY);
+    window.dispatchEvent(new Event(USER_PROFILE_CHANGED_EVENT));
     return;
   }
   sessionStorage.setItem(PROFILE_KEY, JSON.stringify(user));
+  window.dispatchEvent(new Event(USER_PROFILE_CHANGED_EVENT));
 }
 
 export function getStoredUserProfile(): StoredUserProfile | null {
@@ -101,6 +104,7 @@ export function setLibrarianEmailAfterLogin(email: string) {
 export function clearSessionProfile() {
   sessionStorage.removeItem(EMAIL_KEY);
   sessionStorage.removeItem(PROFILE_KEY);
+  window.dispatchEvent(new Event(USER_PROFILE_CHANGED_EVENT));
 }
 
 function getStoredLibrarianEmail(): string | null {

@@ -1,7 +1,10 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Dashboard.css";
 import { getLibrarianGreetingFirstName } from "../lib/sessionProfile";
 import { ROUTES } from "../lib/routes";
+import { useRobotStatus } from "../lib/useRobotStatus";
+import { registerAccount } from "../lib/authApi";
 
 const mockDashboard = {
   totalBooks: 2487,
@@ -24,6 +27,22 @@ const mockDashboard = {
 
 export default function DashboardScreen() {
   const navigate = useNavigate();
+  const [activityModalOpen, setActivityModalOpen] = useState(false);
+  const [registerModalOpen, setRegisterModalOpen] = useState(false);
+  const [registerLoading, setRegisterLoading] = useState(false);
+  const [registerError, setRegisterError] = useState<string | null>(null);
+  const [registerSuccess, setRegisterSuccess] = useState<string | null>(null);
+  const [registerForm, setRegisterForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    password: "",
+    confirmPassword: "",
+    role: "STUDENT" as "STUDENT" | "LIBRARIAN",
+  });
+  const { statuses } = useRobotStatus();
+  const robot = statuses?.[0] ?? null;
   const greetingFirstName = getLibrarianGreetingFirstName();
   const todayLabel = new Intl.DateTimeFormat("en-US", {
     month: "short",
@@ -48,6 +67,69 @@ export default function DashboardScreen() {
     #e53e3e ${availablePct}% ${availablePct + checkedOutPct}%,
     #092fad ${availablePct + checkedOutPct}% 100%
   )`;
+  const currentTask =
+    robot?.currentTaskSummary?.trim() || "Charging";
+  const battery = robot?.batteryPercent ?? 90;
+  const currentLocation = robot?.locationLabel ?? "Dock";
+  const syncDelayMinutes = mockDashboard.todaysActivity.requests >= 3 ? 12 : 4;
+  const syncAlertMinsAgo = 6;
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash === "#task-queue") {
+      setActivityModalOpen(true);
+    }
+    if (hash === "#register-member") {
+      setRegisterModalOpen(true);
+    }
+  }, []);
+
+  const handleRegisterMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRegisterError(null);
+    setRegisterSuccess(null);
+
+    if (!registerForm.firstName.trim() || !registerForm.lastName.trim()) {
+      setRegisterError("Please enter first and last name.");
+      return;
+    }
+    if (!registerForm.email.trim()) {
+      setRegisterError("Please enter an email.");
+      return;
+    }
+    if (registerForm.password.length < 8) {
+      setRegisterError("Password must be at least 8 characters.");
+      return;
+    }
+    if (registerForm.password !== registerForm.confirmPassword) {
+      setRegisterError("Passwords do not match.");
+      return;
+    }
+
+    try {
+      setRegisterLoading(true);
+      await registerAccount({
+        email: registerForm.email,
+        password: registerForm.password,
+        firstName: registerForm.firstName,
+        lastName: registerForm.lastName,
+        phone: registerForm.phone,
+        role: registerForm.role,
+      });
+      setRegisterSuccess(
+        `${registerForm.role === "LIBRARIAN" ? "Librarian" : "Student"} account created for ${registerForm.email.trim()}.`
+      );
+      setRegisterForm((prev) => ({
+        ...prev,
+        password: "",
+        confirmPassword: "",
+      }));
+    } catch (err) {
+      setRegisterError(err instanceof Error ? err.message : "Unable to register member.");
+    } finally {
+      setRegisterLoading(false);
+    }
+  };
 
   return (
     <div className="dashboard-page">
@@ -97,6 +179,21 @@ export default function DashboardScreen() {
               </div>
             </div>
           </div>
+          <div className="dashboard-robot-quick-status">
+            <div className="dashboard-robot-quick-title">Robot Snapshot</div>
+            <div className="dashboard-robot-quick-row">
+              <span>Current task</span>
+              <strong className="dashboard-robot-value-green">{currentTask}</strong>
+            </div>
+            <div className="dashboard-robot-quick-row">
+              <span>Battery</span>
+              <strong className="dashboard-robot-value-green">{battery}%</strong>
+            </div>
+            <div className="dashboard-robot-quick-row">
+              <span>Current location</span>
+              <strong>{currentLocation}</strong>
+            </div>
+          </div>
         </div>
 
         <div className="card">
@@ -120,6 +217,14 @@ export default function DashboardScreen() {
               <span className="dashboard-activity-sub">joined</span>
             </div>
           </div>
+          <div className="dashboard-alerts">
+            <div className="dashboard-alerts-title">Alerts</div>
+            <div className="dashboard-alert-row">
+              <span className="dashboard-alert-icon" aria-hidden>🟡</span>
+              <span>System sync delayed ({syncDelayMinutes} min)</span>
+              <span className="dashboard-alert-time">{syncAlertMinsAgo} min ago</span>
+            </div>
+          </div>
         </div>
 
         <div className="card">
@@ -138,14 +243,22 @@ export default function DashboardScreen() {
               </span>
               <span className="dashboard-quick-button-plus">＋</span>
             </button>
-            <button type="button" className="dashboard-quick-button">
+            <button
+              type="button"
+              className="dashboard-quick-button"
+              onClick={() => setRegisterModalOpen(true)}
+            >
               <span className="dashboard-quick-button-label">
                 <span className="dashboard-quick-button-icon" aria-hidden>👤</span>
                 <span>Register Member</span>
               </span>
               <span className="dashboard-quick-button-plus">＋</span>
             </button>
-            <button type="button" className="dashboard-quick-button">
+            <button
+              type="button"
+              className="dashboard-quick-button"
+              onClick={() => setActivityModalOpen(true)}
+            >
               <span className="dashboard-quick-button-label">
                 <span className="dashboard-quick-button-icon" aria-hidden>🧾</span>
                 <span>View Task Queue</span>
@@ -171,7 +284,13 @@ export default function DashboardScreen() {
         <div className="card">
           <div className="dashboard-card-header">
             <h2 className="dashboard-card-title">Recent Activity</h2>
-            <button type="button" className="dashboard-card-link">View all →</button>
+            <button
+              type="button"
+              className="dashboard-card-link"
+              onClick={() => setActivityModalOpen(true)}
+            >
+              View all →
+            </button>
           </div>
           <ul className="dashboard-recent-list">
             {mockDashboard.recentActivity.map((item) => (
@@ -248,6 +367,167 @@ export default function DashboardScreen() {
           </ul>
         </div>
       </section>
+
+      {activityModalOpen && (
+        <div
+          className="dashboard-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setActivityModalOpen(false);
+          }}
+        >
+          <div className="dashboard-modal">
+            <div className="dashboard-modal-header">
+              <h2 className="dashboard-modal-title">Task Queue & Recent Activity</h2>
+              <button
+                type="button"
+                className="dashboard-modal-danger-btn"
+                onClick={() => setActivityModalOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="dashboard-modal-summary">
+              <div><strong>Current task:</strong> {currentTask}</div>
+              <div><strong>Battery:</strong> {battery}%</div>
+              <div><strong>Location:</strong> {currentLocation}</div>
+            </div>
+
+            <ul className="dashboard-modal-list">
+              {mockDashboard.recentActivity.map((item) => (
+                <li key={`${item.title}-${item.timeAgo}`} className="dashboard-modal-list-item">
+                  <div className="dashboard-recent-main">
+                    <span className="dashboard-recent-title">{item.title}</span>
+                    <span className="dashboard-recent-meta">{item.description}</span>
+                  </div>
+                  <span className="dashboard-recent-time">{item.timeAgo}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {registerModalOpen && (
+        <div
+          className="dashboard-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setRegisterModalOpen(false);
+          }}
+        >
+          <div className="dashboard-modal dashboard-modal--form">
+            <div className="dashboard-modal-header">
+              <h2 className="dashboard-modal-title">Register Member</h2>
+              <button
+                type="button"
+                className="dashboard-modal-danger-btn"
+                onClick={() => setRegisterModalOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+
+            <form className="dashboard-register-form" onSubmit={handleRegisterMember}>
+              <label className="dashboard-register-label">
+                First name
+                <input
+                  className="dashboard-register-input"
+                  value={registerForm.firstName}
+                  onChange={(e) => setRegisterForm((p) => ({ ...p, firstName: e.target.value }))}
+                  disabled={registerLoading}
+                />
+              </label>
+              <label className="dashboard-register-label">
+                Last name
+                <input
+                  className="dashboard-register-input"
+                  value={registerForm.lastName}
+                  onChange={(e) => setRegisterForm((p) => ({ ...p, lastName: e.target.value }))}
+                  disabled={registerLoading}
+                />
+              </label>
+              <label className="dashboard-register-label">
+                Email
+                <input
+                  className="dashboard-register-input"
+                  type="email"
+                  value={registerForm.email}
+                  onChange={(e) => setRegisterForm((p) => ({ ...p, email: e.target.value }))}
+                  disabled={registerLoading}
+                />
+              </label>
+              <label className="dashboard-register-label">
+                Phone (optional)
+                <input
+                  className="dashboard-register-input"
+                  type="tel"
+                  value={registerForm.phone}
+                  onChange={(e) => setRegisterForm((p) => ({ ...p, phone: e.target.value }))}
+                  disabled={registerLoading}
+                />
+              </label>
+              <label className="dashboard-register-label">
+                Role
+                <select
+                  className="dashboard-register-input"
+                  value={registerForm.role}
+                  onChange={(e) =>
+                    setRegisterForm((p) => ({
+                      ...p,
+                      role: e.target.value === "LIBRARIAN" ? "LIBRARIAN" : "STUDENT",
+                    }))
+                  }
+                  disabled={registerLoading}
+                >
+                  <option value="STUDENT">Student</option>
+                  <option value="LIBRARIAN">Librarian</option>
+                </select>
+              </label>
+              <label className="dashboard-register-label">
+                Password
+                <input
+                  className="dashboard-register-input"
+                  type="password"
+                  value={registerForm.password}
+                  onChange={(e) => setRegisterForm((p) => ({ ...p, password: e.target.value }))}
+                  disabled={registerLoading}
+                />
+              </label>
+              <label className="dashboard-register-label">
+                Confirm password
+                <input
+                  className="dashboard-register-input"
+                  type="password"
+                  value={registerForm.confirmPassword}
+                  onChange={(e) => setRegisterForm((p) => ({ ...p, confirmPassword: e.target.value }))}
+                  disabled={registerLoading}
+                />
+              </label>
+
+              {registerError && <div className="dashboard-register-error">{registerError}</div>}
+              {registerSuccess && <div className="dashboard-register-success">{registerSuccess}</div>}
+
+              <div className="dashboard-modal-actions">
+                <button
+                  type="button"
+                  className="dashboard-modal-danger-btn"
+                  onClick={() => setRegisterModalOpen(false)}
+                  disabled={registerLoading}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="dashboard-register-submit" disabled={registerLoading}>
+                  {registerLoading ? "Creating..." : "Create member"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

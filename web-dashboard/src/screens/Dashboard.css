@@ -144,6 +144,40 @@
   color: #718096;
 }
 
+.dashboard-robot-quick-status {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid #3182ce;
+  border-radius: 10px;
+  background: transparent;
+}
+
+.dashboard-robot-quick-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #2d3748;
+  margin-bottom: 8px;
+}
+
+.dashboard-robot-quick-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: #4a5568;
+  padding: 3px 0;
+}
+
+.dashboard-robot-quick-row strong {
+  font-size: 12px;
+  color: #1a202c;
+}
+
+.dashboard-robot-value-green {
+  color: #2f855a !important;
+}
+
 .dashboard-activity-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -170,6 +204,41 @@
 .dashboard-activity-sub {
   font-size: 12px;
   color: #718096;
+}
+
+.dashboard-alerts {
+  margin-top: 12px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dashboard-alerts-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+.dashboard-alert-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #4a5568;
+}
+
+.dashboard-alert-icon {
+  width: 16px;
+  text-align: center;
+}
+
+.dashboard-alert-time {
+  margin-left: auto;
+  color: #718096;
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .dashboard-quick-actions {
@@ -376,6 +445,155 @@
 .dashboard-upcoming-meta {
   font-size: 12px;
   color: #718096;
+}
+
+.dashboard-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 24px;
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+}
+
+.dashboard-modal {
+  max-width: 560px;
+  width: 100%;
+  max-height: min(80vh, 700px);
+  overflow: auto;
+  padding: 20px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+
+.dashboard-modal--form {
+  max-width: 520px;
+}
+
+.dashboard-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.dashboard-modal-title {
+  margin: 0;
+  font-size: 18px;
+  color: #1a202c;
+}
+
+.dashboard-modal-summary {
+  border: 1px solid #3182ce;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 13px;
+  color: #2d3748;
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.dashboard-modal-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.dashboard-modal-list-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.dashboard-register-form {
+  display: grid;
+  gap: 10px;
+}
+
+.dashboard-register-label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: #2d3748;
+}
+
+.dashboard-register-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #cbd5e0;
+  border-radius: 10px;
+  padding: 9px 10px;
+  font-size: 14px;
+}
+
+.dashboard-register-input:focus {
+  outline: none;
+  border-color: #3182ce;
+  box-shadow: 0 0 0 2px rgba(49, 130, 206, 0.18);
+}
+
+.dashboard-register-error {
+  color: #c53030;
+  font-size: 12px;
+}
+
+.dashboard-register-success {
+  color: #2f855a;
+  font-size: 12px;
+}
+
+.dashboard-modal-actions {
+  margin-top: 6px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+}
+
+.dashboard-register-submit {
+  border: 1px solid #1a2a44;
+  background: #1a2a44;
+  color: #fff;
+  border-radius: 999px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dashboard-modal-danger-btn {
+  padding: 10px 14px;
+  border: none;
+  border-radius: 999px;
+  background-color: #e11d48;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.05s ease, box-shadow 0.15s ease;
+}
+
+.dashboard-modal-danger-btn:hover:not(:disabled) {
+  background-color: #be123c;
+  box-shadow: 0 6px 16px rgba(190, 18, 60, 0.5);
+  transform: translateY(-1px);
+}
+
+.dashboard-modal-danger-btn:disabled {
+  opacity: 0.85;
+  cursor: not-allowed;
 }
 
 @media (max-width: 960px) {

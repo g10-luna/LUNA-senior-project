@@ -115,6 +115,19 @@ export default function AccountSettingsScreen() {
   const [resetSuccess, setResetSuccess] = useState<string | null>(null);
 
   useEffect(() => {
+    if (window.location.hash === "#security") {
+      setSection("security");
+      setIsEditingProfile(false);
+    } else if (window.location.hash === "#profile-edit") {
+      setSection("profile");
+      setIsEditingProfile(true);
+    } else if (window.location.hash === "#profile") {
+      setSection("profile");
+      setIsEditingProfile(false);
+    }
+  }, []);
+
+  useEffect(() => {
     if (email !== "…") setResetEmail(email);
   }, [email]);
 

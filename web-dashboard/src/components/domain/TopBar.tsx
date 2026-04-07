@@ -6,6 +6,7 @@ import {
   CACHED_USER_DISPLAY_NAME_KEY,
   getLibrarianDisplayName,
   getStoredUserProfile,
+  USER_PROFILE_CHANGED_EVENT,
 } from "../../lib/sessionProfile";
 import "./TopBar.css";
 
@@ -41,6 +42,18 @@ export default function TopBar({ title }: { title?: string }) {
     void loadUser();
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const syncNameFromSession = () => {
+      const nextName = getLibrarianDisplayName();
+      setUserDisplayName(nextName);
+      localStorage.setItem(CACHED_USER_DISPLAY_NAME_KEY, nextName);
+    };
+    window.addEventListener(USER_PROFILE_CHANGED_EVENT, syncNameFromSession);
+    return () => {
+      window.removeEventListener(USER_PROFILE_CHANGED_EVENT, syncNameFromSession);
     };
   }, []);
 
