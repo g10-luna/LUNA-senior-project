@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import "./MaintenanceScreen.css";
-import RobotTaskBoard from "../components/domain/RobotTaskBoard";
+import { ROUTES } from "../lib/routes";
+import { useRobotTasksState } from "../lib/robotTasksStore";
 import { useRobotStatus } from "../lib/useRobotStatus";
 import { getRobotStateLabel } from "../lib/robotStateUi";
 
@@ -69,14 +70,20 @@ function downloadMaintenanceReport(options: {
 export default function MaintenanceScreen() {
   const location = useLocation();
   const { statuses, loading, error } = useRobotStatus();
+  const taskStore = useRobotTasksState();
   const robot = statuses?.[0] ?? null;
+
+  const openTaskCount = useMemo(
+    () => taskStore.tasks.filter((t) => t.status === "queued" || t.status === "in_progress").length,
+    [taskStore.tasks]
+  );
   const [reportBusy, setReportBusy] = useState(false);
   const [reportMessage, setReportMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const id = location.hash.replace(/^#/, "");
     if (id !== "maintenance-report" && id !== "tasks-completed") return;
-    const el = document.getElementById(id);
+    const el = document.getElementById(id === "tasks-completed" ? "robot-requests-summary" : id);
     if (!el) return;
     window.requestAnimationFrame(() => {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -205,9 +212,20 @@ export default function MaintenanceScreen() {
           </div>
         </section>
 
-        <section className="card maint-card maint-card--wide maint-card--task-board" id="tasks-completed">
-          <div className="maint-card-body maint-task-board-wrap">
-            <RobotTaskBoard />
+        <section className="card maint-card maint-card--wide" id="robot-requests-summary">
+          <header className="maint-card-header">
+            <div>
+              <div className="maint-card-title">Robot requests</div>
+              <div className="maint-card-subtitle">
+                Tasks are <strong>auto-queued</strong> from robot telemetry when available. Drag to reprioritize on the Requests tab.
+              </div>
+            </div>
+            <span className={`maint-pill ${openTaskCount > 0 ? "maint-pill--active" : "maint-pill--idle"}`}>{openTaskCount} open</span>
+          </header>
+          <div className="maint-card-body maint-requests-summary-body">
+            <NavLink to={`${ROUTES.REQUESTS}#queue`} className="maint-requests-link">
+              Open Requests →
+            </NavLink>
           </div>
         </section>
 

@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom";
+import AutoRobotTaskIngest from "../components/domain/AutoRobotTaskIngest";
 import TopBar from "../components/domain/TopBar";
 import { ROUTES, ROUTE_TITLES } from "../lib/routes";
 import "./TopBarLayout.css";
@@ -9,6 +10,7 @@ export default function TopBarLayout() {
   return (
     <div className="topbar-layout">
       <TopBar title={title} />
+      <AutoRobotTaskIngest />
       <div className="topbar-layout-content">
         <aside className="sidebar">
           <nav className="sidebar-nav">
@@ -23,6 +25,12 @@ export default function TopBarLayout() {
               className={({ isActive }) => `sidebar-link${isActive ? " sidebar-link-active" : ""}`}
             >
               Catalog
+            </NavLink>
+            <NavLink
+              to={ROUTES.REQUESTS}
+              className={({ isActive }) => `sidebar-link${isActive ? " sidebar-link-active" : ""}`}
+            >
+              Requests
             </NavLink>
             <NavLink
               to={ROUTES.MAINTENANCE}

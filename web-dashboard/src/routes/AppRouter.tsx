@@ -10,6 +10,7 @@ import LoginScreen from "../screens/LoginScreen";
 import MaintenanceScreen from "../screens/MaintenanceScreen";
 import MapScreen from "../screens/MapScreen";
 import OptionsScreen from "../screens/OptionsScreen";
+import RequestsScreen from "../screens/RequestsScreen";
 import ForgotPasswordScreen from "../screens/ForgotPasswordScreen";
 import ResetPasswordScreen from "../screens/ResetPasswordScreen";
 import SetupAccountScreen from "../screens/SetupAccountScreen";
@@ -30,6 +31,7 @@ export default function AppRouter() {
         <Route element={<TopBarLayout />}>
           <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />
           <Route path={ROUTES.CATALOG} element={<CatalogScreen />} />
+          <Route path={ROUTES.REQUESTS} element={<RequestsScreen />} />
           <Route path={ROUTES.MAINTENANCE} element={<MaintenanceScreen />} />
           <Route path={ROUTES.MAP} element={<MapScreen />} />
           <Route path={ROUTES.OPTIONS} element={<OptionsScreen />} />

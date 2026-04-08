@@ -148,7 +148,7 @@ export default function DashboardScreen() {
             <button
               type="button"
               className="dashboard-quick-button"
-              onClick={() => navigate(`${ROUTES.MAINTENANCE}#tasks-completed`)}
+              onClick={() => navigate(`${ROUTES.REQUESTS}#queue`)}
             >
               <span className="dashboard-quick-button-label">
                 <span className="dashboard-quick-button-icon" aria-hidden>🧾</span>

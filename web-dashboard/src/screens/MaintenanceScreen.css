@@ -540,6 +540,23 @@
   color: var(--navy);
 }
 
+.maint-requests-summary-body {
+  padding-top: 4px;
+}
+
+.maint-requests-link {
+  display: inline-flex;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--navy);
+  text-decoration: none;
+}
+
+.maint-requests-link:hover {
+  text-decoration: underline;
+}
+
 @media (max-width: 900px) {
   .maint-grid {
     grid-template-columns: minmax(0, 1fr);

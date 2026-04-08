@@ -44,11 +44,20 @@ export interface RobotServiceClient {
 }
 
 function mapStatusDto(dto: RobotStatusDto): RobotStatus {
+  const ct = dto.current_task;
   return {
     state: dto.status,
     batteryPercent: Math.round(dto.battery_level * 100),
     locationLabel: dto.current_location,
-    currentTaskSummary: dto.current_task?.destination ?? undefined,
+    currentTaskSummary: ct?.destination ?? undefined,
+    currentRobotTask:
+      ct?.task_id != null && String(ct.task_id).length > 0
+        ? {
+            taskId: String(ct.task_id),
+            taskType: ct.task_type ?? "",
+            destination: ct.destination ?? "",
+          }
+        : undefined,
     lastHeartbeat: dto.last_heartbeat,
   };
 }
