@@ -1,0 +1,508 @@
+# LUNA Program Sprint — All Teams
+
+**Submission structure:** **Part 1** — verbatim agent output (unchanged). **Part 2** — team final plan. Appendices reference Part 1; they do not duplicate it.
+
+## Part 1 — Verbatim AI output
+
+---
+
+## Part 2 — Human-revised sprint program
+
+**Period:** Spring 2026  
+**Purpose:** Unify **vertical integration** (discovery, catalog, student and librarian UIs on a stable API gateway) with **operational E2E** work (delivery and return tasks, robot handoffs, and consistent status). This document coordinates implementation priorities and demo readiness across repositories.
+
+**System context:** [System Design/SYSTEM_DESIGN.md](../System%20Design/SYSTEM_DESIGN.md)
+
+## Table of contents
+
+- [Part 1 — Verbatim AI output](#part-1-verbatim-ai-output)
+- [Part 2 — Human-revised sprint program](#part-2-human-revised-sprint-program)
+- [Program sprint goal](#program-sprint-goal)
+- [Teams at a glance](#teams-at-a-glance)
+- [Robot: full pipeline (order → delivery → closure)](#robot-full-pipeline-order-to-delivery-to-closure)
+- [Mobile — sprint goal & backlog](#mobile-sprint-goal-backlog)
+- [Backend — sprint goal & backlog](#backend-sprint-goal-backlog)
+- [Web Dashboard — sprint goal & backlog](#web-dashboard-sprint-goal-backlog)
+- [Robot — sprint goal & backlog](#robot-sprint-goal-backlog)
+- [Program-wide priorities (cross-team backlog)](#program-wide-priorities-cross-team-backlog)
+- [Risks and dependencies](#risks-and-dependencies)
+- [14-day sprint cadence (AI-assisted execution)](#14-day-sprint-cadence-ai-assisted-execution)
+- [Cross-team dependency matrix](#cross-team-dependency-matrix)
+- [References](#references)
+- [Human revised plan](#human-revised-plan)
+  - [Ownership](#ownership)
+  - [What’s implemented (current snapshot)](#whats-implemented-current-snapshot)
+  - [In progress and verification](#in-progress-and-verification)
+  - [What still needs to be done (task breakdown with owners)](#what-still-needs-to-be-done-task-breakdown-with-owners)
+  - [Sprint timeline (features, story points, dependencies)](#sprint-timeline-features-story-points-dependencies)
+  - [Breakdown: split large items into smaller tasks](#breakdown-split-large-items-into-smaller-tasks)
+- [Final sprint scope + assignments](#final-sprint-scope-assignments)
+  - [Critical path: FS block order](#critical-path-fs-block-order)
+  - [Risks mapped to FS assignments](#risks-mapped-to-fs-assignments)
+- [Human revision summary (team judgment)](#human-revision-summary-team-judgment)
+- [Appendices — Agent output transparency](#appendices-agent-output-transparency)
+
+---
+
+## Program sprint goal
+
+**Ship a coherent MVP slice** that is credible in a demo **and** maintainable in the repo:
+
+1. **Discovery & catalog** — Students can **find books** and see **accurate availability**; librarians can **maintain catalog** behavior that matches the **books API** (not a one-off UI shim).
+2. **Delivery & return operations** — **Request → task → preparation → robot execution → completion** (and the **return** analog) runs through **backend state**, not ad-hoc DB edits, with **explicit gates** where staff must confirm reality (e.g. **book placed before motion**).
+3. **Single source of truth for tasks** — One **authoritative state model** and **consistent labels** across mobile, dashboard (including map/maintenance views where applicable), and services—no contradictory “stuck” vs “done.”
+4. **Robot integration** — Bridge and backend **agree on contracts**; the **full pipeline** from **order intake** to **reported completion** is exercised, using **hardware or simulation** with the same transitions and payloads.
+5. **Session & real-time UX** — **Auth** (refresh, 401, logout, roles) is dependable; **task/robot status** reaches users via **push/WebSocket where implemented**, with **polling or refresh fallbacks** so demos do not depend on a perfect socket layer.
+6. **Integration discipline** — Teams share **frozen contracts** for the sprint, **env examples** stay current, and **one vertical checklist** proves mobile + backend + dashboard (and robot/sim) together—not only isolated service tests.
+
+**Success snapshot:** Scripted **request + delivery + return + catalog touch** in one pass; **known issues** triaged; **simulation or manual fallbacks** documented where hardware is uncertain.
+
+---
+
+## Teams at a glance
+
+| Track | Primary code / docs | Main users |
+|--------|---------------------|------------|
+| **Mobile** | `mobile/` | Students |
+| **Backend** | `backend/` | All clients |
+| **Web Dashboard** | `web-dashboard/` | Librarians / staff |
+| **Robot** | `robot/` | Field / integration |
+
+---
+
+## Robot: full pipeline (order → delivery → closure)
+
+Robot work must cover the **operational chain**, not only “the bridge calls `/api/v1/robot` once.”
+
+| Stage | What must be true | Notes |
+|-------|-------------------|--------|
+| **1. Order intake** | A student request (or staff workflow) creates **delivery work** with a **stable task id** in the backend. | Prefer **idempotent** APIs so mobile retries do not duplicate tasks. |
+| **2. Staff preparation** | **Book placed** (or equivalent) is recorded **before** the robot is allowed to proceed. | Enforce in **API + bridge**, not only in the dashboard UI. |
+| **3. Dispatch** | Backend and bridge share **commands / targets / status** vocabulary; task enters **in progress** when appropriate. | Lock payloads early in the sprint. |
+| **4. Progress** | Bridge **reports** progress; backend remains **canonical**; clients **render the same phase** for the same task. | Reconnect and **out-of-order** updates need a simple rule (timestamps, sequence, or “latest wins” for terminal states). |
+| **5. Completion** | Terminal **success/failure** is visible; **student confirms received** where the product requires it. | Mirror discipline for **return pickup** and **librarian closeout**. |
+| **6. Return path** | **Initiate → pickup → confirmations → close/validate** with the **same state rigor** as delivery. | Same enum/mapping layer as delivery where possible. |
+
+**Hardware vs simulation:** Prefer **simulation parity** (same JSON, same transitions) when TurtleBot or network access is scarce; state explicitly in the runbook what ran **live** vs **sim** for reviewers.
+
+---
+
+## Mobile — sprint goal & backlog
+
+**Goal:** Student flows support the **E2E narrative** (request, track, confirm; return path as designed) **and** stay **maintainable**: discovery/home/search aligned to backend, navigation stable, auth solid.
+
+| Priority | Backlog candidate | Notes |
+|----------|-------------------|--------|
+| P0 | **Request / return / my tasks** wired to real APIs | Status screens must match backend task model; test unhappy paths (empty, error, retry). |
+| P0 | **Auth**: login, session restore, **401 → refresh or logout**, role-appropriate routing | Align with `AuthContext` / `mobile/src/services/auth.ts`; avoid duplicate refresh calls. |
+| P0 | **Home ↔ search ↔ detail** regression | Params, back stack, keyboard; [HOMEPAGE_PLAN.md](../mobile/docs/HOMEPAGE_PLAN.md). |
+| P1 | **Search module** quality pass | [search-refactor-vibe.md](search-refactor-vibe.md), evidence under `docs/evidence/search-refactor/`. |
+| P1 | **Map / browse** interactions | Panning, scroll/drag, safe areas, tab bar. |
+| P1 | **Real-time or polling** for task status | Whatever backend exposes this sprint; UI must not lie if the socket drops. |
+| P2 | **Tests** for critical hooks | e.g. search controller debounce; prioritize integration smoke over unit breadth. |
+
+**Track risks:** API drift; **merge contention** on `mobile/app/(tabs)/`; **platform-specific** gestures; double-submit creating duplicate requests.
+
+---
+
+## Backend — sprint goal & backlog
+
+**Goal:** Gateway and core services are **demo-stable**: auth, books, delivery/return, and robot-facing APIs **match what clients ship**, with a **clear task state machine** and **observable failures**.
+
+| Priority | Backlog candidate | Notes |
+|----------|-------------------|--------|
+| P0 | **Smoke** gateway: `/health`, `/api/v1/auth`, `/api/v1/books`, delivery/return routes in use | [backend/README.md](../backend/README.md), Docker env hostnames. |
+| P0 | **Task lifecycle** implemented once | Explicit transitions; document **enum**; reject illegal jumps; consider **idempotency** on create. |
+| P0 | **Book-placed (or equivalent) gate** enforced server-side | Robot must not start delivery without it. |
+| P1 | **Catalog contract** stable for mobile + dashboard | Search, filters, discover/suggestions if clients call them—coordinate renames. |
+| P1 | **Robot API** payloads stable for bridge | Version or document breaking changes in the same PR. |
+| P1 | **Workers / queues** (if used) visible in ops | Stuck “pending” tasks often trace to Celery/redis down. |
+| P2 | **Integration tests** | Token expiry, concurrent updates, **duplicate submit**, illegal state transition. |
+
+**Track risks:** **schema drift**; Supabase/auth edge cases ([backend/auth/README.md](../backend/auth/README.md)); async **worker** outages; undocumented **`.env`** variables.
+
+---
+
+## Web Dashboard — sprint goal & backlog
+
+**Goal:** Librarians can run **catalog** and **task** work against **real APIs**, with **honest loading/error states** and **same task truth** as mobile.
+
+| Priority | Backlog candidate | Notes |
+|----------|-------------------|--------|
+| P0 | **Env + API** wiring | `VITE_API_BASE_URL`, CORS, restart after `.env` changes. |
+| P0 | **Catalog**: search, availability updates, add/delete aligned to books API | Match contract for CatalogScreen / top bar flows you already use. |
+| P0 | **Task queue / deliveries** | Create/confirm steps that the backend supports; **map/maintenance** views use **shared status mapping**. |
+| P1 | **Robot / safety** surfacing | E-stop or error path to backend (simulated acceptable when hardware absent). |
+| P1 | **Auth & roles** | Librarian vs admin behavior; session expiry. |
+| P1 | **Real-time or polling** for boards | Fallback UX when WS unavailable. |
+| P2 | **Demo script sections** | Operator steps mirrored in UI labels (what to click, what to expect). |
+
+**Track risks:** **Blocked** on missing endpoints; **Vite env** confusion; **CORS/mixed content** in non-local deploys.
+
+---
+
+## Robot — sprint goal & backlog
+
+**Goal:** **Full pipeline readiness**: bridge talks to the **right** robot endpoints, respects **gates**, survives **disconnect**, and can be **demoed** on hardware **or** sim without faking state in the database.
+
+| Priority | Backlog candidate | Notes |
+|----------|-------------------|--------|
+| P0 | **Repro env** | [robot/README.md](../robot/README.md) scenarios (Pi vs dev/sim machine). |
+| P0 | **Contract tests** with backend | Poll/report shapes, auth if any, error codes. |
+| P0 | **“Book placed” / start order** respected | No motion until backend says it is allowed. |
+| P1 | **Progress + completion** postbacks | Backend task moves to terminal states correctly. |
+| P1 | **Retries** on transient network failure | Define max retries and “failed” terminal state. |
+| P2 | **E-stop / fault** path | At least one **end-to-end** path to dashboard visibility (sim ok). |
+
+**Track risks:** **Hardware and Wi-Fi**; ROS **distro** skew; **bridge/backend** deploy mismatch; lab access on demo day.
+
+---
+
+## Program-wide priorities (cross-team backlog)
+
+**Priority order** for work that **touches more than one repository**:
+
+| Theme | Candidates |
+|--------|------------|
+| **E2E delivery** | Request → task → **book-placed** → robot progress → complete → **student confirmation** (mobile + backend + dashboard). |
+| **E2E return** | Initiate → pickup → confirmations → **librarian close/validate** with legal state transitions only. |
+| **One task truth** | Shared enum/mapper (or generated types); **two-client test** (mobile + web same task id). |
+| **Real-time path** | WebSocket/events if ready; **polling + pull-to-refresh** as safety net; handle **out-of-order** events. |
+| **Auth everywhere** | Single-flight refresh, clean logout, role checks across mobile and web. |
+| **Hardening** | Idempotent creates where duplicates hurt; **correlation id** in logs across gateway→services; **simulated robot** mode for demos. |
+| **NFR / demo** | Integration tests for expiry, interruption, duplicate action, **race** on status update; **seeded data**, **runbook**, **logistics** (power, network, who runs the bot). |
+
+---
+
+## Risks and dependencies
+
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| **Contract drift** | Clients break on enum/shape changes. | Early **freeze**; shared types or OpenAPI; breaking changes in one coordinated PR. |
+| **Split task state** | Users see conflicting status. | One state machine; shared mapping; acceptance test **same task, two surfaces**. |
+| **Auth / refresh races** | Logout loops or duplicate refresh. | **Single-flight** refresh; centralized HTTP layer on each client. |
+| **Real-time gap** | Stale UI if WS late or broken. | **Polling fallback**; visible “last updated”; manual refresh. |
+| **Robot / network** | E2E blocked on hardware day. | **Simulation parity** + documented **fallback** demo path. |
+| **Safety bypass** | Motion without **book-placed**. | **Server + bridge** enforcement, not UI-only. |
+| **Scope** | Too many FRs for one sprint. | Prioritize **student request/return visibility**, **librarian task + catalog**, **robot pipeline**, and **auth**; defer polish that does not change the narrative. |
+| **Async workers down** | Tasks never leave pending. | Health check in ops; show meaningful error to staff if possible. |
+| **Deploy skew** | Bridge and API **version mismatch** weird failures. | Pin compatible revisions or document **demo SHA set**. |
+
+---
+
+## 14-day sprint cadence (AI-assisted execution)
+
+**Sprint length:** 14 days. **Sequencing:** client-facing contracts and task skeleton first; delivery and return E2E plus robot integration next; hardening, real-time or polling fallbacks, and demo package last. AI tools support implementation and tests; integration, contracts, and review remain team-owned.
+
+| Days | Focus | “Done” signal |
+|------|--------|----------------|
+| **1–3** | Freeze client-facing contracts; task skeleton + **book-placed gate**; catalog/auth wiring on web + mobile; first request→task→confirm visible in at least one UI. | Interfaces documented; one happy slice observable without DB hacks. |
+| **4–10** | **Delivery + return** E2E happy paths; shared status rules; robot bridge contract validation (sim/hardware); basic integration tests; polling fallback. | Same task id consistent across mobile + dashboard for tested steps; robot/sim progress reflected. |
+| **11–14** | Hardening: retries/reconnect, safety/fault surfacing, real-time (WS if ready), NFR baseline checks, seeded demo + runbook + contingency. | One-pass scripted demo; fallbacks explicit; critical issues triaged with workarounds. |
+
+---
+
+## Cross-team dependency matrix
+
+| Dependency | Consumers | Provider | If it slips |
+|------------|-----------|----------|-------------|
+| Task + robot **payloads** | Mobile, Dashboard, Bridge | Backend | Pipeline stalls or mis-reports phase |
+| **Book-placed** rule | Bridge, safety story | Backend | Do not ship without enforcement |
+| Catalog **read/write** | Dashboard, Mobile discovery | Backend | Demo story and inventory wrong |
+| Auth **tokens + roles** | Mobile, Dashboard | Backend | 403 loops, wrong screens |
+| **Gateway** URL + health | All | Backend / hosting | False “app bugs” |
+| **Events** (WS/poll contract) | Mobile, Dashboard | Backend | Stale UI; need fallback |
+| **Seeded / fixture data** | Demo, QA | Backend / scripts | Wasted setup time |
+
+---
+
+## References
+
+| Document | Use |
+|----------|-----|
+| [SYSTEM_DESIGN.md](../System%20Design/SYSTEM_DESIGN.md) | Requirements and workflows |
+| [BACKEND_IMPLEMENTATION_DESIGN.md](../System%20Design/BACKEND_IMPLEMENTATION_DESIGN.md) | Services alignment |
+| [MOBILE_APP_IMPLEMENTATION_DESIGN.md](../System%20Design/MOBILE_APP_IMPLEMENTATION_DESIGN.md) | Student app scope |
+| [ROBOT_IMPLEMENTATION_DESIGN.md](../System%20Design/ROBOT_IMPLEMENTATION_DESIGN.md) | Bridge architecture |
+| [search-refactor-vibe.md](search-refactor-vibe.md) | Search QA |
+| [HOMEPAGE_PLAN.md](../mobile/docs/HOMEPAGE_PLAN.md) | Home vs APIs |
+| [web-dashboard/README.md](../web-dashboard/README.md), [backend/README.md](../backend/README.md), [robot/README.md](../robot/README.md) | Local setup |
+
+---
+
+## Human revised plan
+
+This section is a **human synthesis** of sprint reality across **all teams**: what is **done**, what is **in progress**, and what still **needs to be done** to reach the sprint goal—plus clear ownership.
+
+### Ownership
+
+| Track | Owners |
+|------|--------|
+| **Frontend (Web Dashboard)** | **Kelynn, Najaat** |
+| **Backend** | **Sarah, Isaac** |
+| **Robotics** | **Kritika, Isaac** |
+| **Mobile App** | **Isaac** |
+
+**Support:** Isaac provides support to the Frontend team as needed (API contract questions, status mapping, integration smoke tests).
+
+### What’s implemented (current snapshot)
+
+- **Mobile (Isaac)**:
+  - **Search refactor to feature module** (`mobile/src/features/search/*`) and thin route composition (`mobile/app/(tabs)/search.tsx`), with verification doc and evidence screenshots (`docs/search-refactor-vibe.md`, `docs/evidence/search-refactor/*`).
+  - **Home / tabs / navigation shell** improvements (tab bar component, home sections/screens under `mobile/app/home/*`, route/layout updates).
+  - **Map tab UX fixes** (drag/scroll behavior and panning bounds adjustments in `mobile/app/(tabs)/map.tsx`).
+  - **Book detail** screen and supporting services (`mobile/app/book/[id].tsx`, `mobile/src/services/books.ts`).
+  - **Auth context + login/setup flows** and profile screens (`mobile/contexts/AuthContext.tsx`, `mobile/app/login.tsx`, `mobile/app/setup-account.tsx`, account pages).
+
+- **Backend (Sarah, Isaac)**:
+  - **Book service foundation and expanded catalog/discovery/search endpoints** (new/updated `backend/book/*`, including discovery overview, suggestions, filters/facets, stats/analytics, related/random, ISBN lookup, import/maintenance utilities).
+  - **Route smoke tests** for core API behaviors (`backend/book/tests/test_routes.py`).
+  - **Redis usage** added/expanded for analytics reads and shared client (`backend/shared/redis_client.py`) plus docker compose updates.
+  - **Auth hardening tweaks** (changes under `backend/auth/*`, `backend/shared/auth_dependencies.py`).
+
+- **Frontend / Web Dashboard (Kelynn, Najaat)**:
+  - **UI refresh** across the librarian app: refreshed **TopBar** and **TopBarLayout**, **Login**, **Dashboard**, **Catalog** (`CatalogScreen` + styling), **Maintenance**, **Options**, shared theming in `index.css`, and new imagery (e.g. campus/galaxy assets, LUNA branding).
+  - **Catalog data layer** in the dashboard: `bookApi`, `catalogApi`, and `catalogTypes` wired toward backend book/catalog contracts; **`authApi`** updates for login/session flows.
+  - **Setup account** flow surfaced in the dashboard (`SetupAccountScreen` and related routing).
+  - **Environment example** updated for dashboard configuration (`web-dashboard/.env.example`).
+
+- **Robotics (Kritika, Isaac)**:
+  - **Robot onboarding complete** (ROS/TurtleBot stack running) and the TurtleBot can **run and move reliably** under manual control.
+
+### In progress and verification
+
+- **Mobile (Isaac)**:
+  - **End-to-end task flows** (request/return) are not evidenced here; mobile has the shell/screens but the sprint needs verified **request → status → completion** UX tied to backend task truth.
+  - **Real-time vs polling behavior** for task/robot status needs an explicit plan + implementation check (this doc currently assumes fallback; confirm what’s actually wired).
+
+- **Backend (Sarah, Isaac)**:
+  - **Delivery/return/task state machine**: this branch shows strong catalog work; the sprint MVP still needs a clearly enforced **task lifecycle** for delivery + return, including the **book-placed gate** and legal transitions.
+  - **Contract freeze**: confirm enums/shapes used by mobile and dashboard are stable and documented (or generated).
+
+- **Frontend / Web Dashboard (Kelynn, Najaat)**:
+  - **End-to-end QA** on a live gateway: catalog (search, filters, add/edit/delete, availability) and auth must be exercised against the real **Book** and **Auth** services; fix mismatches with OpenAPI or shared types as they appear.
+  - **Delivery/return task UI** (book-placed, queue, progress, closeout) is still the main gap for the MVP narrative—**visual refresh is not the same as** wired task state; extend Maintenance/Dashboard (or new surfaces) when backend task APIs are ready.
+- **Robotics (Kritika, Isaac)**:
+  - **Mapping + navigation pipeline** is the next milestone: build a map, verify localization, and validate repeatable point-to-point navigation in the target space.
+  - Bridge/pipeline integration still needs validation against backend robot/delivery contracts (dispatch, progress, completion, failure, reconnect).
+
+### What still needs to be done (task breakdown with owners)
+
+#### P0 — MVP E2E: Delivery + Return (must work for demo)
+
+- **Backend (Sarah, Isaac)**:
+  - **Define/lock the authoritative task state machine** for delivery + return (enums, transitions, terminal states).
+  - **Enforce the “book placed” gate server-side** (robot cannot start until confirmed).
+  - **Expose consistent task status APIs** used by both mobile and dashboard (plus any event feed if available).
+
+- **Mobile (Isaac)**:
+  - **Wire request creation + status tracking** to backend task APIs (no mock state).
+  - **Wire return initiation + status tracking** to backend task APIs.
+  - Add UX guardrails: disable double-submit, show last-updated, provide manual refresh when real-time is down.
+
+- **Frontend / Web Dashboard (Kelynn, Najaat)**:
+  - **Task queue UI**: librarian confirms book placed, monitors progress, closes/validates completion (delivery + return).
+  - **Status rendering consistency**: same mapping/labels as mobile for the same task id.
+
+- **Robotics (Kritika, Isaac)**:
+  - Build a **map** for the target demo space and validate **localization** (reliable pose estimation).
+  - Validate **navigation** between key waypoints (pickup/hand-off/destination) with repeatable outcomes.
+  - **Bridge ↔ backend contract validation**: dispatch, progress, completion, failure.
+  - Implement/verify **retry + reconnect** behavior (hardware or sim).
+
+#### P1 — Catalog + discovery polishing (dashboard already has UI + clients; confirm end-to-end)
+
+- **Backend (Sarah, Isaac)**:
+  - Confirm **books API contract** aligns with dashboard catalog operations (search, add/delete, availability updates).
+  - Keep route tests updated for any contract changes.
+
+- **Frontend / Web Dashboard (Kelynn, Najaat)**:
+  - **Prove** the refreshed **Catalog** and **Maintenance** flows against production-like data: every action in the UI should hit the correct endpoint and surface errors (loading, empty, 4xx/5xx) clearly.
+  - Close any gaps between **`catalogApi` / `bookApi`** and the backend (field names, pagination, role-guarded routes).
+
+- **Mobile (Isaac)**:
+  - Home/discover sections QA against the new discovery endpoints; confirm error states and performance on device.
+
+#### P1 — Auth hardening across clients
+
+- **Backend (Sarah, Isaac)**:
+  - Confirm refresh/token error behavior is consistent and documented.
+
+- **Mobile (Isaac)** and **Frontend (Kelynn, Najaat)**:
+  - Implement **single-flight refresh** and consistent 401 handling (logout vs retry rules), role checks, and session clear + redirect.
+
+#### P2 — Real-time reliability + NFR baseline
+
+- **Backend (Sarah, Isaac)**:
+  - If WebSocket/events exist: document event ordering rules; otherwise document polling cadence recommendations.
+
+- **Mobile (Isaac)** and **Frontend (Kelynn, Najaat)**:
+  - Implement WebSocket if available; otherwise robust polling + manual refresh affordances.
+
+- **All teams**:
+  - Add integration tests / scripts for: token expiry, network interruption, duplicate actions, and task-state race conditions.
+
+#### P2 — Demo readiness
+
+- **All teams (lead: Isaac coordinating)**:
+  - Seeded test data and a one-pass runbook: **request → book placed → robot progress → delivered → return → closeout**.
+  - Explicit fallback plan if hardware/network fails (simulation path and which screens still demonstrate truth).
+
+### Sprint timeline (features, story points, dependencies)
+
+**Story points** are **relative effort** on a Fibonacci scale (1, 2, 3, 5, 8, 13), not hours or calendar days. **Done** means **integrated**, **demoable**, and includes a clear **failure path** (error, retry, or documented fallback). AI tooling accelerates coding; **integration, QA, and contract alignment** remain the critical path.
+
+| Days | Feature / deliverable | Owners | Est. points | Dependencies | Definition of done |
+|------|------------------------|--------|-------------|--------------|--------------------|
+| 1–3 | **Contract freeze**: task statuses, payload shapes, role expectations | Backend (Sarah, Isaac) + Frontend (Kelynn, Najaat) + Mobile (Isaac) | 5 | Agreement on enums and API shapes; doc location | One shared status enum/mapping and stable request/response shapes referenced by both clients |
+| 1–3 | **Delivery/return task state machine skeleton** (authoritative) | Backend (Sarah, Isaac) | 8 | Contract freeze | Legal transitions enforced; terminal states defined; rejects invalid transitions |
+| 1–3 | **Book-placed gate enforced server-side** | Backend (Sarah, Isaac) | 3 | Task state machine | Robot/task cannot enter “start/in-progress” unless book-placed is recorded |
+| 1–3 | **Dashboard env + base wiring** (`VITE_API_BASE_URL`, auth attach) | Frontend (Kelynn, Najaat) | 3 | Backend reachable gateway | Dashboard runs against live backend; clear error state when misconfigured |
+| 1–4 | **Mobile auth hardening (single-flight refresh)** | Mobile (Isaac) + Backend support | 5 | Backend auth behavior verified | No refresh storms; clean logout/redirect on invalid session |
+| 4–10 | **E2E Delivery flow (happy path)**: request → placed → progress → delivered → confirm received | Mobile (Isaac) + Backend (Sarah, Isaac) + Frontend (Kelynn, Najaat) | 8 | Contracts + gate + task machine | Same task id shows consistent status on mobile + dashboard; no DB hand edits |
+| 4–10 | **E2E Return flow (happy path)**: initiate → pickup → confirm → close/validate | Mobile (Isaac) + Backend (Sarah, Isaac) + Frontend (Kelynn, Najaat) | 8 | Contracts + task machine | Return transitions are legal; librarian closeout reflected on mobile |
+| 4–10 | **Robot bridge contract validation** (sim or hardware) | Robotics (Kritika, Isaac) + Backend (Sarah, Isaac) | 8 | Backend robot/task endpoints stable | Bridge can start/monitor/complete (or simulate) with correct postbacks and retry-on-disconnect |
+| 4–10 | **Shared status rendering rules** (web + mobile) | Frontend (Kelynn, Najaat) + Mobile (Isaac) | 5 | Contract freeze | Same label/color for same status; ignores out-of-order updates safely (timestamp/sequence rule) |
+| 11–14 | **Real-time reliability** (WS if ready, otherwise polling + manual refresh) | Backend (Sarah, Isaac) + Frontend (Kelynn, Najaat) + Mobile (Isaac) | 8 | Endpoint/event availability | Users see timely updates; fallback works when WS drops; last-updated visible |
+| 11–14 | **NFR baseline tests** for critical failure cases | Backend (Sarah, Isaac) + Frontend (Kelynn, Najaat) + Mobile (Isaac) | 8 | E2E flows exist | Covers token expiry, network interruption, duplicate action prevention, and task-state race checks |
+| 11–14 | **Safety + operational controls** (e-stop / fault surfaced) | Robotics (Kritika, Isaac) + Frontend (Kelynn, Najaat) + Backend (Sarah, Isaac) | 5 | Robot pipeline | At least one end-to-end “fault/stop” path is visible in dashboard with clear operator instruction |
+| 11–14 | **Demo package**: seeded data + runbook + checklist + fallback plan | All teams (coord: Isaac) | 5 | E2E flows | One-pass rehearsal succeeds; fallback (sim mode) documented and tested |
+
+### Breakdown: split large items into smaller tasks
+
+Decomposition of timeline rows into sized work items (same point scale as above).
+
+| Epic (from timeline) | Smaller task | Owners | Est. points | Dependencies | Acceptance / done |
+|----------------------|--------------|--------|-------------|--------------|-------------------|
+| E2E Delivery | Define delivery status enum + transition rules (shared doc) | Backend (Sarah, Isaac) + Frontend (Kelynn, Najaat) + Mobile (Isaac) | 3 | Contract freeze | All three surfaces use the same names/mapping for delivery states |
+| E2E Delivery | API: create delivery request returns canonical task id + initial status | Backend (Sarah, Isaac) | 3 | Task state machine skeleton | Create returns stable id; duplicate submit is handled (dedupe or safe failure) |
+| E2E Delivery | Dashboard: “confirm book placed” action wired + visible | Frontend (Kelynn, Najaat) + Backend (Sarah, Isaac) | 3 | Book-placed gate endpoint | Clicking updates status; button disables appropriately; errors visible |
+| E2E Delivery | Mobile: request creation wired + “My requests” shows status | Mobile (Isaac) + Backend support | 3 | Create request API | New request appears with correct status after refresh |
+| E2E Delivery | Robot/bridge: start only after book-placed + post “in progress” | Robotics (Kritika, Isaac) + Backend (Sarah, Isaac) | 5 | Book-placed gate + robot contract | Cannot start early; progress updates reach backend |
+| E2E Delivery | Completion: mark delivered + student confirm received (if required) | Backend (Sarah, Isaac) + Mobile (Isaac) + Frontend (Kelynn, Najaat) | 5 | Robot progress reporting | Terminal status consistent across mobile + dashboard; confirm step recorded |
+| E2E Return | Define return status enum + transition rules (shared doc) | Backend (Sarah, Isaac) + Frontend (Kelynn, Najaat) + Mobile (Isaac) | 3 | Contract freeze | Same mapping/labels across surfaces for return states |
+| E2E Return | Mobile: initiate return + status tracking | Mobile (Isaac) + Backend support | 3 | Return create API | Return task appears; status updates on refresh |
+| E2E Return | Robot/bridge: pickup flow status updates | Robotics (Kritika, Isaac) + Backend (Sarah, Isaac) | 5 | Robot contract + mapping | Pickup progress and completion/failure recorded |
+| E2E Return | Dashboard: librarian close/validate completion | Frontend (Kelynn, Najaat) + Backend (Sarah, Isaac) | 3 | Return terminal state support | Close action updates status; shows audit/error on failure |
+| Robot mapping & nav | Build map of demo space | Robotics (Kritika, Isaac) | 5 | TurtleBot running | Map artifact produced and reused; documented procedure |
+| Robot mapping & nav | Localization sanity + waypoint navigation rehearsal | Robotics (Kritika, Isaac) | 5 | Map | Robot can navigate between key waypoints repeatably |
+| Real-time reliability | Define update strategy: WS vs polling + cadence + last-updated UX | Backend (Sarah, Isaac) + Frontend (Kelynn, Najaat) + Mobile (Isaac) | 3 | Event/poll endpoints | Both clients implement the same rules and show last-updated |
+| Real-time reliability | Implement polling fallback for tasks in mobile + dashboard | Mobile (Isaac) + Frontend (Kelynn, Najaat) | 5 | Task list/detail endpoints | Works when sockets are off; refresh doesn’t duplicate actions |
+| NFR baseline tests | Token expiry / refresh single-flight tests | Backend (Sarah, Isaac) + Mobile (Isaac) + Frontend (Kelynn, Najaat) | 5 | Auth hardening | Multiple concurrent 401s behave predictably |
+| NFR baseline tests | Race/duplicate action tests (double tap, retry, reconnect) | Backend (Sarah, Isaac) + Mobile (Isaac) + Frontend (Kelynn, Najaat) | 5 | E2E create endpoints | No duplicate tasks or contradictory terminal states |
+| Safety + ops controls | E-stop / fault surfaced end-to-end (sim acceptable) | Robotics (Kritika, Isaac) + Backend (Sarah, Isaac) + Frontend (Kelynn, Najaat) | 5 | Robot pipeline | Dashboard shows stop/fault with clear operator instruction |
+| Demo package | Seed data + one-pass runbook + fallback (sim) | All teams (coord: Isaac) | 3 | E2E flows | Rehearsal succeeds; fallback steps documented |
+
+---
+
+## Final sprint scope + assignments
+
+**14-day execution plan:** committed deliverables, owners, dependencies, and target windows. **Support** = consult, pair, and unblock; it does not replace primary ownership.
+
+| ID | Task / deliverable | In scope (this sprint) | Priority | Primary owner | Support | Depends on | Target (days) |
+|----|--------------------|-------------------------|----------|---------------|---------|------------|---------------|
+| FS-01 | **Shared task + robot status contract** (doc or generated types): enums, transitions, error shapes | Yes | P0 | Sarah + Isaac (Backend) | Kelynn + Najaat (Frontend), Isaac (Mobile) | Team agreement on single source of truth | 1–3 |
+| FS-02 | **Authoritative delivery/return state machine** in backend (legal transitions, terminal states) | Yes | P0 | Sarah + Isaac (Backend) | — | FS-01 | 1–4 |
+| FS-03 | **Book-placed gate** enforced **server-side** (no robot start without it) | Yes | P0 | Sarah + Isaac (Backend) | Kritika + Isaac (Robotics) | FS-02 | 1–4 |
+| FS-04 | **Delivery request API** + **mobile** “create request” + list/detail status | Yes | P0 | Isaac (Mobile) | Sarah + Isaac (Backend) | FS-02 | 4–8 |
+| FS-05 | **Dashboard**: confirm **book placed**, task list, progress visibility for **delivery** | Yes | P0 | Kelynn + Najaat (Frontend) | Isaac (integration) | FS-03, FS-02 | 4–9 |
+| FS-06 | **Robot**: **map** demo space + **localization** + waypoint rehearsal | Yes | P0 | Kritika + Isaac (Robotics) | Sarah + Isaac (Backend) for any pose/goal contract | Hardware/sim availability | 4–10 |
+| FS-07 | **Bridge**: progress + completion postbacks; **retry/reconnect** | Yes | P0 | Kritika + Isaac (Robotics) | Sarah + Isaac (Backend) | FS-03, robot API stability | 4–10 |
+| FS-08 | **Return** flow: mobile initiate + status; backend transitions | Yes | P0 | Isaac (Mobile) + Sarah + Isaac (Backend) | — | FS-02 | 5–10 |
+| FS-09 | **Return** closeout / validate on **dashboard** | Yes | P0 | Kelynn + Najaat (Frontend) | Sarah + Isaac (Backend) | FS-08 | 6–10 |
+| FS-10 | **Catalog + maintenance E2E QA** (refreshed UI against real `books` APIs) | Yes | P1 | Kelynn + Najaat (Frontend) | Isaac (Backend + Mobile as needed) | Stable catalog contract | 1–10 |
+| FS-11 | **Auth hardening**: single-flight refresh, 401, logout, roles (**mobile**) | Yes | P1 | Isaac (Mobile) | Sarah + Isaac (Backend) | Documented auth errors | 1–6 |
+| FS-12 | **Auth hardening** same rules (**dashboard**) | Yes | P1 | Kelynn + Najaat (Frontend) | Isaac (support) | FS-11 parity with backend | 2–7 |
+| FS-13 | **Shared status labels** on mobile + dashboard (same task id) | Yes | P1 | Kelynn + Najaat (Frontend) + Isaac (Mobile) | Sarah + Isaac (Backend) | FS-01 | 6–10 |
+| FS-14 | **Real-time strategy**: WS if ready, else **polling + last-updated** UX | Yes | P2 | Sarah + Isaac (Backend) | Isaac (Mobile), Kelynn + Najaat (Frontend) | Task list/detail endpoints | 8–14 |
+| FS-15 | **NFR smoke**: duplicate submit, token expiry, reconnect | Yes | P2 | Sarah + Isaac (Backend) | All clients | FS-04, FS-08 | 10–14 |
+| FS-16 | **Safety / fault / e-stop** visible on dashboard (sim ok) | Yes | P2 | Kritika + Isaac (Robotics) + Kelynn + Najaat (Frontend) | Sarah + Isaac (Backend) | FS-07 | 11–14 |
+| FS-17 | **Demo package**: seed data, runbook, contingency (sim fallback) | Yes | P0 (for submission) | Isaac (coordination) | Whole team | FS-04–FS-09 minimum happy path | 12–14 |
+
+### Critical path: FS block order
+
+**Rule:** No client feature (FS-04+) can claim “done” until **FS-01 → FS-02** exist; robot motion work (FS-07) must not proceed without **FS-03**.
+
+```mermaid
+flowchart TD
+  FS01[FS-01 Contract / shared status truth]
+  FS02[FS-02 State machine]
+  FS03[FS-03 Book-placed gate]
+  FS04[FS-04 Mobile delivery API + UI]
+  FS05[FS-05 Dashboard delivery UI]
+  FS06[FS-06 Map + localization]
+  FS07[FS-07 Bridge postbacks + retry]
+  FS08[FS-08 Return mobile + backend]
+  FS09[FS-09 Dashboard return closeout]
+  FS17[FS-17 Demo package]
+  FS01 --> FS02
+  FS02 --> FS03
+  FS02 --> FS04
+  FS03 --> FS05
+  FS03 --> FS07
+  FS02 --> FS08
+  FS08 --> FS09
+  FS06 --> FS07
+  FS04 --> FS17
+  FS05 --> FS17
+  FS07 --> FS17
+  FS09 --> FS17
+```
+
+**Parallel tracks (still bounded by FS-01/02):** FS-10 (catalog QA) and FS-11/12 (auth) can run alongside early backend work but must not delay **FS-03**. FS-14–FS-16 are **P2** and must not block **FS-17** if time runs short—use polling fallback and document sim-only faults.
+
+### Risks mapped to FS assignments
+
+| Risk | Impacted FS IDs | Mitigation | Primary owner |
+|------|-----------------|------------|---------------|
+| **API / enum drift** after “freeze” | FS-01, FS-04, FS-05, FS-08, FS-09, FS-13 | Single doc or generated types; breaking changes only in coordinated PR | Sarah + Isaac (Backend) |
+| **Split task truth** (mobile ≠ dashboard) | FS-13, FS-04, FS-05, FS-08, FS-09 | Two-client acceptance test on same `task_id`; shared mapping layer | Kelynn + Najaat + Isaac (Mobile), Sarah + Isaac |
+| **Book-placed bypass** (unsafe or client-only gate) | FS-03, FS-07 | Enforce in **API + bridge**; robotics verifies no motion before backend allows | Sarah + Isaac + Kritika (Robotics) |
+| **Hardware / Wi-Fi failure on demo day** | FS-06, FS-07, FS-16, FS-17 | Simulation parity + runbook contingency (FS-17); map rehearsal early | Kritika + Isaac (Robotics), Isaac (coord.) |
+
+**Out of scope for this sprint:** Extended analytics beyond MVP needs; new discovery scope beyond a contract-stable catalog; autonomous shelf retrieval; visual or architectural redesign not required for the demo narrative.
+
+**Escalation:** If a P0 item misses its target window, **stop P2 expansion** and run a focused contract and integration sync (Backend, affected client owners, integration support).
+
+---
+
+## Human revision summary (team judgment)
+
+This sprint document was **iteratively revised by the team** after initial AI-assisted drafting. Below is evidence of **critical judgment** (not blind adoption).
+
+- **Widened scope from single-track output to a program plan:** Early agent-oriented material centered on one area (e.g. search refactor / one integration branch). The **final submission** is explicitly **all teams** (Mobile, Backend, Web Dashboard, Robotics) with shared dependencies.
+- **Merged and balanced multiple inputs:** A teammate’s **frontend-leaning MVP/E2E** list was **combined** with backend/robot critical path and **mobile** ownership so no one track reads as “owning” the whole sprint.
+- **Renamed and reframed “story points”:** Clarified **Fibonacci effort** so numbers are not mistaken for **days or hours**; added a **smaller-task breakdown** table for large epics.
+- **Compressed the calendar:** Replaced a longer default cadence with a **14-day** plan and **AI-assisted** execution, with explicit **P2/Fallback** rules so the demo can still pass if real-time or hardware lags.
+- **Grounded robotics in reality:** Updated robotics from generic “API check” to **onboarding complete**, **motion verified**, and **next: map + localization + bridge contracts**.
+- **Refreshed frontend status after integration:** Once the **dashboard UI refresh** landed, the **Human revised plan** was updated so catalog work reads as **QA/contract alignment**, not “missing dashboard.”
+- **Structured for assessment and execution:** Table of contents; **FS-01–FS-17** assignment table; critical path diagram; risk-to-FS mapping; appendices linking **Part 1** to **Part 2** with a contrast table.
+
+---
+
+## Appendices — Agent output transparency
+
+### Appendix A — Verbatim agent output (Part 1)
+
+**Part 1** (**[Part 1 — Verbatim AI output](#part-1-verbatim-ai-output)**) contains the **complete unedited** agent-generated material. **Part 2** (**[Part 2 — Human-revised sprint program](#part-2-human-revised-sprint-program)**) begins at the **Period** line and continues through the end of the document. **Appendices A and B do not duplicate Part 1.**
+
+### Appendix B — Contrast: agent draft → final submitted plan
+
+| # | Part 1 — Agent output (verbatim) | Part 2 — Human-revised final | Human judgment (why we changed it) |
+|---|-------------------------------------------------------|----------------------------|------------------------------------|
+| 1 | **Narrow** sprint note (e.g. search modular refactor / one branch as the center of gravity) | **Program-wide** sprint: all tracks, one gateway, shared MVP/E2E narrative | ABET assessment expects **problem decomposition across the system**, not one subsystem only. |
+| 2 | **Fragmented** guidance (separate chat outputs, frontend-heavy backlog from one teammate pasted verbatim) | **Single** `docs/SPRINT_PROGRAM.md` with TOC, cadence, FS table, diagrams, appendices | One **professional artifact** for graders; **ownership** and **dependencies** are traceable in one place. |
+| 3 | **Ambiguous estimation** (numbers that could read as days) | **Fibonacci** story points defined as **relative effort**, not hours; large rows split into **smaller tasks** | Avoid misinterpretation; align with standard sprint hygiene. |
+| 4 | **Default multi-week** pacing | **14-day** compressed cadence + **AI assist** note + **P2** deferral / demo fallback | Matches **declared sprint length** and **risk-conscious** delivery. |
+| 5 | Robotics described generically (“wire bridge”) | **Pipeline** stages + **map/localization** milestone after **onboarding + motion** verified | Matches **lab reality** and sequences risk correctly. |
+| 6 | No explicit **raw vs final** artifact | **Part 1 (verbatim AI)** + **Part 2 (human)** + **Appendices A–B** | Satisfies **Use of Agent Output (Transparency)** on the rubric with **one** agent copy (Part 1) and no duplicate paste. |
+| 7 | Web dashboard status implied “not started” after early git snapshot | **Human revised plan** updated for **UI refresh + catalog clients** with **E2E QA** as remaining gap | Reflects **merged** work; separates **visual refresh** from **task/delivery** integration. |
+
+**Team attestation**
+
+| | |
+|--|--|
+| **Names** | |
+| **Date** | |
+
+We attest that **Part 1** is the **complete verbatim** agent output (no team edits) and **Part 2** is our final human-revised plan; **Appendix B** accurately summarizes substantive changes from Part 1 to Part 2.

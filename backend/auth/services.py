@@ -10,7 +10,14 @@ from supabase import create_client
 from auth.supabase_client import get_supabase
 from auth.schemas import UserRole, UserResponse
 from shared.db import SessionLocal
-from shared.models import UserProfile, UserRole as DbUserRole
+from shared.models import (
+    BookRequest,
+    BookReturn,
+    Notification,
+    NotificationPreference,
+    UserProfile,
+    UserRole as DbUserRole,
+)
 from shared.redis_client import (
     invalidate_refresh_token,
     is_refresh_token_valid,
@@ -94,7 +101,36 @@ def _sync_user_profile(user: UserResponse) -> None:
     """
     db = SessionLocal()
     try:
+        # First try by canonical auth user ID (expected happy path).
         existing = db.get(UserProfile, user.id)
+
+        # If not found, fall back to email to repair out-of-band deletes
+        # in Supabase Auth that left a local profile row behind.
+        if existing is None and user.email:
+            existing_by_email = (
+                db.query(UserProfile).filter(UserProfile.email == user.email).one_or_none()
+            )
+            if existing_by_email is not None and existing_by_email.id != user.id:
+                old_id = existing_by_email.id
+
+                # Migrate dependent rows to the new auth/user ID so local
+                # relationships stay intact.
+                db.query(BookRequest).filter(BookRequest.user_id == old_id).update(
+                    {BookRequest.user_id: user.id}
+                )
+                db.query(BookReturn).filter(BookReturn.user_id == old_id).update(
+                    {BookReturn.user_id: user.id}
+                )
+                db.query(Notification).filter(Notification.user_id == old_id).update(
+                    {Notification.user_id: user.id}
+                )
+                db.query(NotificationPreference).filter(
+                    NotificationPreference.user_id == old_id
+                ).update({NotificationPreference.user_id: user.id})
+
+                existing_by_email.id = user.id
+                existing = existing_by_email
+
         if existing is None:
             db.add(
                 UserProfile(

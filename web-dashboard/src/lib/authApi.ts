@@ -341,6 +341,7 @@ export type RegisterAccountInput = {
   firstName: string;
   lastName: string;
   phone?: string;
+  role?: "LIBRARIAN" | "STUDENT";
 };
 
 export type RegisterAccountResult = {
@@ -357,6 +358,7 @@ export async function registerAccount(input: RegisterAccountInput): Promise<Regi
   const password = input.password;
   const first_name = input.firstName.trim();
   const last_name = input.lastName.trim();
+  const role = input.role ?? "LIBRARIAN";
   if (!email || !password || !first_name || !last_name) {
     throw new Error("Please fill in all required fields.");
   }
@@ -378,7 +380,7 @@ export async function registerAccount(input: RegisterAccountInput): Promise<Regi
       first_name,
       last_name,
       phone_number: input.phone?.trim() || null,
-      role: "LIBRARIAN",
+      role,
     }),
   });
   if (!res.ok) {

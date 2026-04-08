@@ -30,7 +30,7 @@ const OVERLAY = 'rgba(250, 252, 255, 0.52)';
 const BLUE_LIGHT = '#7BA3C7';
 
 type LoginViewProps = {
-  onSuccess: () => void;
+  onSuccess: () => void | Promise<void>;
 };
 
 export default function LoginView({ onSuccess }: LoginViewProps) {
@@ -81,7 +81,8 @@ export default function LoginView({ onSuccess }: LoginViewProps) {
         return;
       }
       await setTokens(accessToken, refreshToken);
-      onSuccess();
+      await onSuccess?.();
+      router.replace('/(tabs)');
     } catch {
       setError('Unable to reach the server. Check your connection and try again.');
     } finally {

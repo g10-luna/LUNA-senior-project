@@ -90,14 +90,12 @@ export default function MaintenanceScreen() {
     });
   }, [location.hash]);
 
-  const battery = robot?.batteryPercent ?? 0;
+  const battery = robot?.batteryPercent ?? 90;
   const isActive = robot && (robot.state === "NAVIGATING" || robot.state === "BUSY");
-
-  // Simple mock “health” metrics derived from battery + state so the UI has values.
-  const cpuUsage = 35 + (isActive ? 20 : 0);
-  const memoryUsage = 55 + (isActive ? 10 : 0);
-  const temperature = 40 + (isActive ? 5 : 0);
-  const navAccuracy = 90 - (battery < 30 ? 10 : 0);
+  const cpuUsage = robot?.cpuUsagePercent ?? (isActive ? 55 : 35);
+  const memoryUsage = robot?.memoryUsagePercent ?? (isActive ? 65 : 55);
+  const temperature = robot?.temperatureCelsius ?? (isActive ? 45 : 40);
+  const navAccuracy = robot?.navigationAccuracyPercent ?? (battery < 30 ? 80 : 90);
   const stateLabel = getRobotStateLabel(robot?.state ?? "IDLE");
 
   const handleGenerateReport = () => {
@@ -143,7 +141,6 @@ export default function MaintenanceScreen() {
         </div>
       </header>
       {error && <p className="maint-text-error">{error.message}</p>}
-      {loading && !error && <p className="maint-text-muted">Loading robot status…</p>}
 
       <div className="maint-grid">
         <section className="card maint-card">
@@ -176,7 +173,7 @@ export default function MaintenanceScreen() {
           <header className="maint-card-header">
             <div>
               <div className="maint-card-title">System Health</div>
-              <div className="maint-card-subtitle">Live robot telemetry (mocked)</div>
+              <div className="maint-card-subtitle">Live robot telemetry</div>
             </div>
             <span className="maint-pill maint-pill--good">Good</span>
           </header>

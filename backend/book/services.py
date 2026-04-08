@@ -3,11 +3,13 @@ Business logic layer for Book Service.
 """
 from __future__ import annotations
 
-import logging
 import json
+import logging
 import time
 from dataclasses import dataclass
 from datetime import datetime
+from urllib.parse import urlencode
+from urllib.request import urlopen
 from uuid import UUID
 
 from shared.db import SessionLocal
@@ -356,6 +358,43 @@ def get_random_discovery_books(*, limit: int):
         return list(repository.get_random_available_books(db, limit=limit))
     finally:
         db.close()
+
+
+OPEN_LIBRARY_AUTHOR_SEARCH = "https://openlibrary.org/search/authors.json"
+OPEN_LIBRARY_AUTHOR_IMAGE_BASE = "https://covers.openlibrary.org/a/olid"
+AUTHOR_IMAGE_CACHE_TTL = 7 * 24 * 3600  # 7 days
+
+
+def get_author_image_url(author_name: str) -> str | None:
+    """Resolve Open Library author photo URL by name. Cached in Redis. Returns None on miss or error."""
+    if not (author_name or "").strip():
+        return None
+    key_normalized = author_name.strip().lower()[:100].replace(" ", "_")
+    cache_key = f"author_img:{key_normalized}"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached if cached else None
+    try:
+        q = urlencode({"q": author_name.strip(), "limit": 1})
+        url = f"{OPEN_LIBRARY_AUTHOR_SEARCH}?{q}"
+        with urlopen(url, timeout=2) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        docs = data.get("docs") or []
+        if not docs:
+            cache_set(cache_key, "", ttl_seconds=AUTHOR_IMAGE_CACHE_TTL)
+            return None
+        olid = docs[0].get("key")
+        if not olid or not isinstance(olid, str):
+            cache_set(cache_key, "", ttl_seconds=AUTHOR_IMAGE_CACHE_TTL)
+            return None
+        olid = olid.replace("/authors/", "").strip()
+        image_url = f"{OPEN_LIBRARY_AUTHOR_IMAGE_BASE}/{olid}-M.jpg"
+        cache_set(cache_key, image_url, ttl_seconds=AUTHOR_IMAGE_CACHE_TTL)
+        return image_url
+    except Exception as e:
+        logger.debug("Open Library author image lookup failed for %r: %s", author_name, e)
+        cache_set(cache_key, "", ttl_seconds=3600)
+        return None
 
 
 def get_top_authors(*, limit: int) -> list[tuple[str, int]]:

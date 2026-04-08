@@ -42,12 +42,13 @@ export async function fetchBookMetadataByIsbn(isbnRaw: string, init?: RequestIni
     })
     .filter(Boolean)
     .join(", ");
+  const coverObj =
+    o.cover && typeof o.cover === "object" ? (o.cover as Record<string, unknown>) : null;
+  const cover_image_url =
+    (coverObj && typeof coverObj.large === "string" ? coverObj.large : null) ||
+    (coverObj && typeof coverObj.medium === "string" ? coverObj.medium : null) ||
+    (coverObj && typeof coverObj.small === "string" ? coverObj.small : null) ||
+    undefined;
   if (!title && !author) return null;
-  let cover_image_url: string | null = null;
-  const cover = o.cover && typeof o.cover === "object" ? (o.cover as Record<string, unknown>) : null;
-  if (cover) {
-    const medium = cover.medium;
-    if (typeof medium === "string" && medium.trim()) cover_image_url = medium.trim();
-  }
   return { title, author, isbn, cover_image_url };
 }

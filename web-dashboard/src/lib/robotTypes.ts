@@ -14,5 +14,9 @@ export interface RobotStatus {
   /** When present, used to auto-queue work on the Requests tab */
   currentRobotTask?: RobotCurrentTask;
   lastHeartbeat: string;
+  cpuUsagePercent?: number;
+  memoryUsagePercent?: number;
+  temperatureCelsius?: number;
+  navigationAccuracyPercent?: number;
 }
 
