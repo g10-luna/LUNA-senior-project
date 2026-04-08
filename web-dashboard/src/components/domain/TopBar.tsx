@@ -6,6 +6,7 @@ import {
   CACHED_USER_DISPLAY_NAME_KEY,
   getLibrarianDisplayName,
   getStoredUserProfile,
+  hasLibrarianSessionHint,
   USER_PROFILE_CHANGED_EVENT,
 } from "../../lib/sessionProfile";
 import "./TopBar.css";
