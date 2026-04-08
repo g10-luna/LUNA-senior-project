@@ -22,13 +22,13 @@ export const DEMO_LIBRARIAN_NAME = [DEMO_LIBRARIAN_FIRST_NAME, DEMO_LIBRARIAN_LA
   .join(" ")
   .trim();
 
+/** Session cache for UI — omit phone_number (avoid clear-text sensitive storage in sessionStorage). */
 export type StoredUserProfile = {
   id?: string;
   email?: string;
   first_name?: string;
   last_name?: string;
   role?: string;
-  phone_number?: string | null;
 };
 
 /** Single mock logged-in user when `VITE_USE_MOCK_AUTH=true`; edit here only. */
@@ -38,7 +38,6 @@ export const MOCK_LIBRARIAN_PROFILE: StoredUserProfile = {
   first_name: DEMO_LIBRARIAN_FIRST_NAME,
   last_name: DEMO_LIBRARIAN_LAST_NAME,
   role: "LIBRARIAN",
-  phone_number: null,
 };
 
 function greetingTokenFromEmail(email: string): string {
@@ -87,6 +86,8 @@ export function getLibrarianDisplayName(): string {
     if (full) return full;
     if (p.email) return p.email;
   }
+  const loginEmail = getStoredLibrarianEmail();
+  if (loginEmail) return loginEmail;
   return DEMO_LIBRARIAN_NAME;
 }
 
@@ -110,4 +111,9 @@ export function clearSessionProfile() {
 function getStoredLibrarianEmail(): string | null {
   const v = sessionStorage.getItem(EMAIL_KEY);
   return v?.trim() ? v.trim() : null;
+}
+
+/** Profile cache and/or email saved at login — for TopBar until /me returns. */
+export function hasLibrarianSessionHint(): boolean {
+  return getStoredUserProfile() != null || getStoredLibrarianEmail() != null;
 }

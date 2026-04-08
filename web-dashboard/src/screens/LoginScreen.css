@@ -35,6 +35,124 @@
   box-shadow: 0 18px 40px rgba(15, 23, 42, 0.35);
 }
 
+/*
+ * Global `index.css` styles `button` and `.card button` with borders/padding.
+ * Auth cards mix real CTAs and text-like controls — scope overrides here.
+ */
+.login-card .login-link-button {
+  display: inline;
+  width: auto;
+  align-self: flex-start;
+  background: transparent !important;
+  border: none !important;
+  padding: 0;
+  margin: 0;
+  border-radius: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--navy-light);
+  box-shadow: none !important;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.login-card .login-link-button:hover {
+  background: transparent !important;
+  color: var(--navy);
+  box-shadow: none !important;
+  text-decoration: underline;
+}
+
+.login-card .login-link-button:focus,
+.login-card .login-link-button:focus-visible {
+  outline: none;
+  box-shadow: none !important;
+}
+
+.login-card .login-link-button:focus-visible {
+  text-decoration: underline;
+}
+
+.login-card .login-submit {
+  margin-top: 8px;
+  padding: 10px 18px;
+  border: none !important;
+  border-radius: 999px;
+  background-color: #e11d48 !important;
+  color: #ffffff !important;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background-color 0.15s ease, transform 0.05s ease, box-shadow 0.15s ease;
+}
+
+.login-card .login-submit:hover:not(:disabled) {
+  background-color: #be123c !important;
+  color: #ffffff !important;
+  box-shadow: 0 6px 16px rgba(190, 18, 60, 0.5);
+  transform: translateY(-1px);
+}
+
+.login-card .login-submit:disabled {
+  opacity: 0.85;
+  cursor: not-allowed;
+}
+
+.login-card .login-sso-button {
+  margin-top: 24px;
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid #143a79 !important;
+  background-color: #17408b !important;
+  color: #ffffff !important;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
+}
+
+.login-card .login-sso-button:hover {
+  background-color: #102f66 !important;
+  color: #ffffff !important;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.5);
+  transform: translateY(-1px);
+}
+
+.login-card .login-label-text,
+.login-card .login-input {
+  font-size: 13px;
+}
+
+.login-card .login-error,
+.login-card .login-success {
+  font-size: 13px;
+}
+
+.login-card .setup-back-button {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border: 1.5px solid rgba(15, 23, 42, 0.22) !important;
+  color: var(--navy) !important;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.login-card .setup-back-button:hover {
+  background: #0f172a !important;
+  color: #ffffff !important;
+  border-color: #0f172a !important;
+}
+
 .login-mock-banner {
   font-size: 0.8rem;
   line-height: 1.45;
@@ -211,6 +329,35 @@
   text-align: left;
 }
 
+.login-success {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(22, 163, 74, 0.08);
+  border: 1px solid rgba(22, 163, 74, 0.35);
+  color: #166534;
+  text-align: left;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.forgot-password-lead {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-dark);
+  opacity: 0.88;
+}
+
+/* Base text-link reset; `.login-card .login-link-button` above wins inside auth cards */
+.login-link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
 .login-submit {
   margin-top: 8px;
   padding: 12px 14px;
@@ -242,21 +389,25 @@
 }
 
 .login-links {
-  margin-top: 24px;
+  margin-top: 20px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   align-items: flex-start;
   text-align: left;
+  font-size: 13px;
 }
 
 .login-link {
   color: var(--navy-light);
   text-decoration: none;
+  font-size: inherit;
 }
 
 .login-signup-text {
   color: var(--text-dark);
+  font-size: inherit;
+  line-height: 1.45;
 }
 
 .login-signup-link {

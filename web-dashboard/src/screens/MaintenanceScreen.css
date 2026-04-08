@@ -246,6 +246,275 @@
   margin: 0;
 }
 
+.maint-card--task-board .maint-task-board-wrap {
+  gap: 16px;
+}
+
+.maint-task-board-header {
+  margin-bottom: 0;
+}
+
+.maint-task-create {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 0 4px;
+  border-top: 1px solid rgba(24, 68, 104, 0.12);
+  margin-top: 4px;
+}
+
+.maint-task-create-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.maint-task-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.maint-task-field-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.maint-task-input,
+.maint-task-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(24, 68, 104, 0.2);
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text-dark);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.maint-task-textarea {
+  resize: vertical;
+  min-height: 52px;
+}
+
+.maint-task-input:focus,
+.maint-task-textarea:focus {
+  outline: none;
+  border-color: var(--navy);
+  box-shadow: 0 0 0 2px rgba(24, 68, 104, 0.15);
+}
+
+.maint-task-create-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+
+.maint-task-assign-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.maint-task-board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(24, 68, 104, 0.12);
+  margin-top: 8px;
+}
+
+.maint-task-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-radius: 14px;
+  background: rgba(24, 68, 104, 0.05);
+  padding: 10px 10px 12px;
+}
+
+.maint-task-column-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 0 2px;
+}
+
+.maint-task-column-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.maint-task-col-pill {
+  flex-shrink: 0;
+  min-width: 22px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.maint-task-col-pill--todo {
+  background: rgba(100, 116, 139, 0.2);
+  color: #334155;
+}
+
+.maint-task-col-pill--progress {
+  background: rgba(37, 99, 235, 0.18);
+  color: #1d4ed8;
+}
+
+.maint-task-col-pill--done {
+  background: rgba(16, 185, 129, 0.2);
+  color: #047857;
+}
+
+.maint-task-column-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.maint-task-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 12px 8px;
+  text-align: center;
+}
+
+.maint-task-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 10px 8px;
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.maint-task-card-body {
+  min-width: 0;
+}
+
+.maint-task-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dark);
+  line-height: 1.35;
+}
+
+.maint-task-detail {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.maint-task-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+.maint-task-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(24, 68, 104, 0.08);
+}
+
+.maint-task-action-btn {
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid rgba(24, 68, 104, 0.22);
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--text-dark);
+}
+
+.maint-task-action-btn:hover:not(:disabled) {
+  background: rgba(24, 68, 104, 0.08);
+  border-color: rgba(24, 68, 104, 0.35);
+  box-shadow: none;
+  transform: none;
+}
+
+.maint-task-action-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.maint-task-action-btn--primary {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+}
+
+.maint-task-action-btn--primary:hover:not(:disabled) {
+  background: #143a5a;
+  border-color: #143a5a;
+  filter: none;
+  box-shadow: none;
+}
+
+.maint-task-action-btn--danger {
+  margin-left: auto;
+  border-color: rgba(220, 38, 38, 0.35);
+  color: #b91c1c;
+  background: rgba(254, 242, 242, 0.9);
+}
+
+.maint-task-action-btn--danger:hover:not(:disabled) {
+  background: rgba(254, 226, 226, 0.95);
+  border-color: rgba(220, 38, 38, 0.5);
+  box-shadow: none;
+}
+
+/* Override global `.card button` (red hover) for task board */
+.maint-card--task-board button.maint-report-btn {
+  background: var(--navy);
+  color: #fff;
+  border: none;
+}
+
+.maint-card--task-board button.maint-report-btn:hover:not(:disabled) {
+  filter: brightness(1.06);
+  background: var(--navy);
+  box-shadow: none;
+}
+
+.maint-card--task-board button.maint-report-btn:disabled {
+  opacity: 0.55;
+}
+
+.maint-card--task-board button.maint-task-action-btn {
+  color: var(--text-dark);
+}
+
+.maint-card--task-board button.maint-task-action-btn--primary {
+  color: #fff;
+}
+
+.maint-card--task-board button.maint-task-action-btn--danger {
+  color: #b91c1c;
+}
+
 .maint-schedule {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -274,6 +543,10 @@
 @media (max-width: 900px) {
   .maint-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .maint-task-board {
+    grid-template-columns: 1fr;
   }
 }
 

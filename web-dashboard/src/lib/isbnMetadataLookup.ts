@@ -8,7 +8,8 @@ export type IsbnMetadata = {
   title: string;
   author: string;
   isbn: string;
-  cover_image_url?: string;
+  /** Open Library `cover.medium` when present */
+  cover_image_url?: string | null;
 };
 
 /** Accept ISBN-10 (incl. check X) or ISBN-13 after trimming / hyphen removal. */

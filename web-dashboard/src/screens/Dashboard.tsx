@@ -257,7 +257,7 @@ export default function DashboardScreen() {
             <button
               type="button"
               className="dashboard-quick-button"
-              onClick={() => setActivityModalOpen(true)}
+              onClick={() => navigate(`${ROUTES.MAINTENANCE}#tasks-completed`)}
             >
               <span className="dashboard-quick-button-label">
                 <span className="dashboard-quick-button-icon" aria-hidden>🧾</span>

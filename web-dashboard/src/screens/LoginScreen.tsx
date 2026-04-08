@@ -31,10 +31,16 @@ export default function LoginScreen() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [passwordResetBanner, setPasswordResetBanner] = useState(false);
 
   useEffect(() => {
     if (searchParams.get("session_expired") === "1") {
       setError("Session expired — please log in again.");
+      setSearchParams({}, { replace: true });
+      return;
+    }
+    if (searchParams.get("password_reset") === "1") {
+      setPasswordResetBanner(true);
       setSearchParams({}, { replace: true });
     }
   }, [searchParams, setSearchParams]);
@@ -91,6 +97,11 @@ export default function LoginScreen() {
             <code>printenv VITE_USE_MOCK_AUTH</code> is empty, then restart <code>npm run dev</code>.
           </div>
         )}
+        {passwordResetBanner && (
+          <div className="login-success" role="status">
+            Password updated. Sign in with your new password.
+          </div>
+        )}
         <form onSubmit={onSubmit} className="login-form">
           {FIELDS.map(({ key, type, label, placeholder, autoComplete }) => (
             <label key={key} className="login-label">
@@ -112,15 +123,13 @@ export default function LoginScreen() {
           </button>
         </form>
         <div className="login-links">
-          <a
-            href="#"
-            className="login-link"
-            onClick={(e) => {
-              e.preventDefault();
-            }}
+          <button
+            type="button"
+            className="login-link login-link-button"
+            onClick={() => navigate(ROUTES.FORGOT_PASSWORD)}
           >
-            Forgot Password?
-          </a>
+            Forgot password?
+          </button>
           <span className="login-signup-text">
             First time here?{" "}
             <a

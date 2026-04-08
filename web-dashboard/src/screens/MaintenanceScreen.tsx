@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import "./MaintenanceScreen.css";
+import RobotTaskBoard from "../components/domain/RobotTaskBoard";
 import { useRobotStatus } from "../lib/useRobotStatus";
 import { getRobotStateLabel } from "../lib/robotStateUi";
 
@@ -73,8 +74,9 @@ export default function MaintenanceScreen() {
   const [reportMessage, setReportMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (location.hash !== "#maintenance-report") return;
-    const el = document.getElementById("maintenance-report");
+    const id = location.hash.replace(/^#/, "");
+    if (id !== "maintenance-report" && id !== "tasks-completed") return;
+    const el = document.getElementById(id);
     if (!el) return;
     window.requestAnimationFrame(() => {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -197,6 +199,12 @@ export default function MaintenanceScreen() {
               <span className="maint-row-label">Drive Motors</span>
               <span className="maint-sensor-chip maint-sensor-chip--warn">Warm</span>
             </div>
+          </div>
+        </section>
+
+        <section className="card maint-card maint-card--wide maint-card--task-board" id="tasks-completed">
+          <div className="maint-card-body maint-task-board-wrap">
+            <RobotTaskBoard />
           </div>
         </section>
 

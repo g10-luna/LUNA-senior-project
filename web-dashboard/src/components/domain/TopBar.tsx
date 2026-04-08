@@ -19,13 +19,12 @@ export default function TopBar({ title }: { title?: string }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const [userDisplayName, setUserDisplayName] = useState(() => {
-    // Session profile wins (same source as mock API user / /me); avoid stale localStorage first.
     if (getStoredUserProfile()) {
       return getLibrarianDisplayName();
     }
     const cached = localStorage.getItem(CACHED_USER_DISPLAY_NAME_KEY);
     if (cached) return cached;
-    return getLibrarianDisplayName();
+    return hasLibrarianSessionHint() ? getLibrarianDisplayName() : "Librarian";
   });
 
   useEffect(() => {
@@ -33,10 +32,16 @@ export default function TopBar({ title }: { title?: string }) {
 
     const loadUser = async () => {
       const user = await fetchCurrentUser();
-      if (cancelled || !user) return;
-      const nextName = displayNameFromCurrentUser(user) || getLibrarianDisplayName();
-      setUserDisplayName(nextName);
-      localStorage.setItem(CACHED_USER_DISPLAY_NAME_KEY, nextName);
+      if (cancelled) return;
+      if (user) {
+        const nextName = displayNameFromCurrentUser(user) || getLibrarianDisplayName();
+        setUserDisplayName(nextName);
+        localStorage.setItem(CACHED_USER_DISPLAY_NAME_KEY, nextName);
+        return;
+      }
+      if (hasLibrarianSessionHint()) {
+        setUserDisplayName(getLibrarianDisplayName());
+      }
     };
 
     void loadUser();
@@ -117,10 +122,6 @@ export default function TopBar({ title }: { title?: string }) {
       </form>
 
       <div className="topbar-right">
-        <button type="button" className="topbar-notifications topbar-icon" title="Notifications" aria-label="Notifications">
-          <span className="topbar-bell-icon">🔔</span>
-          <span className="topbar-notification-badge" aria-hidden>1</span>
-        </button>
         <div className="topbar-profile-wrap">
           <button
             type="button"

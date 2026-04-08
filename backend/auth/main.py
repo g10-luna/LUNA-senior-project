@@ -3,6 +3,7 @@ LUNA Auth Service - FastAPI application.
 Base path: /api/v1/auth
 """
 import os
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -27,13 +28,23 @@ def _validate_startup():
         raise RuntimeError(
             "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in .env"
         )
-    try:
-        from shared.redis_client import get_redis
-        get_redis().ping()
-    except Exception as e:
-        raise RuntimeError(
-            "Redis is not running. Start it with: cd backend/docker && docker compose up -d"
-        ) from e
+    # Retry: on container restart, Docker DNS may not resolve `redis` for a short window.
+    from shared.redis_client import get_redis, reset_redis_client
+
+    last_err: Exception | None = None
+    for attempt in range(30):
+        try:
+            get_redis().ping()
+            return
+        except Exception as e:
+            last_err = e
+            reset_redis_client()
+            if attempt < 29:
+                time.sleep(0.5)
+    raise RuntimeError(
+        "Redis is not reachable at REDIS_URL. In Docker use redis://redis:6379/0, "
+        "then: cd backend/docker && docker compose up -d && docker compose restart auth-service"
+    ) from last_err
 
 
 @asynccontextmanager

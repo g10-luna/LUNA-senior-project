@@ -99,6 +99,7 @@ If you see "Registration failed due to an internal error" (or the same for login
   - `SUPABASE_URL`
   - `SUPABASE_SERVICE_ROLE_KEY`
   - `SUPABASE_ANON_KEY`
+- **Password reset emails:** set `PASSWORD_RESET_REDIRECT_URL` to your dashboard reset page (e.g. `http://localhost:5173/reset-password` for local Vite). Add the **same** URL under Supabase → Authentication → URL Configuration → **Redirect URLs**.
 - Use a valid test email format; some placeholder domains may be rejected.
 - For faster local testing, email confirmation can be temporarily disabled in Supabase Auth settings.
 
