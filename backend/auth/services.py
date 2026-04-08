@@ -20,6 +20,31 @@ from shared.redis_client import (
 logger = logging.getLogger(__name__)
 
 
+def _signup_error_message_for_user(exc: BaseException) -> str:
+    """Map Supabase / network errors to a safe, user-facing registration message."""
+    raw = str(exc).strip()
+    low = raw.lower()
+    if not raw:
+        return "Registration failed. Check your connection and try again."
+    if "supabase_url" in low and "service_role" in low:
+        return "Server configuration error: Supabase is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY."
+    if "already" in low and any(x in low for x in ("registered", "exists", "taken", "duplicate")):
+        return "This email is already registered. Sign in, or use Forgot password."
+    if "signups not allowed" in low or "signup_disabled" in low or "sign up is disabled" in low:
+        return "New sign-ups are disabled for this project. Contact your administrator."
+    if "password" in low and any(x in low for x in ("weak", "short", "least", "characters")):
+        return "Password does not meet requirements. Use a stronger password (at least 8 characters)."
+    if "invalid" in low and "email" in low:
+        return "This email address is not valid or cannot be used."
+    if "rate limit" in low or "too many requests" in low:
+        return "Too many attempts. Wait a few minutes and try again."
+    if "fetch" in low or "connection" in low or "timeout" in low:
+        return "Could not reach the sign-up service. Try again in a moment."
+    if len(raw) > 200:
+        return "Registration failed. If this persists, check server logs or contact support."
+    return raw
+
+
 def _get_fresh_supabase_service_client():
     """
     Get a fresh Supabase client using service role key.
@@ -127,24 +152,29 @@ def register_user(
     supabase = get_supabase()
     try:
         response = supabase.auth.sign_up(
-        {
-            "email": email,
-            "password": password,
-            "options": {
-                "data": {
-                    "first_name": first_name,
-                    "last_name": last_name,
-                    "phone_number": phone_number or "",
-                    "role": role.value,
-                }
-            },
-        }
-    )
+            {
+                "email": email,
+                "password": password,
+                "options": {
+                    "data": {
+                        "first_name": first_name,
+                        "last_name": last_name,
+                        "phone_number": phone_number or "",
+                        "role": role.value,
+                    }
+                },
+            }
+        )
     except Exception as e:
         logger.exception("register_user: Supabase sign_up failed for email=%s", email)
-        raise
+        raise ValueError(_signup_error_message_for_user(e)) from e
     if response.user is None:
-        raise ValueError("Registration failed")
+        provider_hint = getattr(response, "message", None) or getattr(response, "msg", None)
+        if isinstance(provider_hint, str) and provider_hint.strip():
+            raise ValueError(_signup_error_message_for_user(ValueError(provider_hint.strip())))
+        raise ValueError(
+            "Could not create the account. The email may already be registered, or email sign-ups may be disabled in Supabase."
+        )
     logger.info("register_user: sign_up ok, syncing profile for user_id=%s", getattr(response.user, "id", response.user.get("id") if isinstance(response.user, dict) else None))
     user = response.user
     user_id = user.id if hasattr(user, "id") else user["id"]

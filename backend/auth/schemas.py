@@ -45,6 +45,14 @@ class ResetPasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=8)
 
 
+class CompletePasswordRecoveryRequest(BaseModel):
+    """After Supabase redirects with access_token + refresh_token in the URL hash (type=recovery)."""
+
+    access_token: str = Field(..., min_length=1)
+    refresh_token: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=8)
+
+
 # --- Change Password ---
 class ChangePasswordRequest(BaseModel):
     current_password: str

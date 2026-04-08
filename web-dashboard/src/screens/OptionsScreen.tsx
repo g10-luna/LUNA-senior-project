@@ -36,7 +36,7 @@ const SECTIONS: OptionSection[] = [
   },
   {
     title: "Account",
-    items: [{ title: "Account Settings", description: "Manage user profile, permissions, and notification preferences", to: ROUTES.ACCOUNT }],
+    items: [{ title: "Account Settings", description: "Manage user profile and permissions", to: ROUTES.ACCOUNT }],
   },
 ];
 

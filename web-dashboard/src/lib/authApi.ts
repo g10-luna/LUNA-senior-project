@@ -20,7 +20,21 @@ async function readHttpDetail(res: Response, fallback: string): Promise<string> 
     }
   }
   try {
-    const j = JSON.parse(text) as { detail?: unknown };
+    const j = JSON.parse(text) as {
+      detail?: unknown;
+      success?: unknown;
+      error?: { message?: unknown; code?: unknown };
+    };
+    const errObj = j.error;
+    if (
+      errObj &&
+      typeof errObj === "object" &&
+      "message" in errObj &&
+      typeof (errObj as { message: unknown }).message === "string"
+    ) {
+      const m = (errObj as { message: string }).message.trim();
+      if (m) return m;
+    }
     const d = j.detail;
     if (typeof d === "string") return d;
     if (Array.isArray(d)) {
@@ -32,10 +46,16 @@ async function readHttpDetail(res: Response, fallback: string): Promise<string> 
         )
         .join(" ");
     }
+    if (d && typeof d === "object" && !Array.isArray(d)) {
+      const m = (d as { message?: unknown }).message;
+      if (typeof m === "string" && m.trim()) return m;
+    }
   } catch {
     /* ignore */
   }
-  return text.trim() || fallback;
+  const trimmed = text.trim();
+  if (trimmed) return trimmed;
+  return status ? `${fallback} (HTTP ${status})` : fallback;
 }
 
 function parseTokenPayload(json: Record<string, unknown>) {
@@ -364,7 +384,15 @@ export async function registerAccount(input: RegisterAccountInput): Promise<Regi
   if (!res.ok) {
     throw new Error(await readHttpDetail(res, "Unable to create account."));
   }
-  const json = (await res.json()) as { data?: { access_token?: string | null; message?: string } };
+  const json = (await res.json()) as {
+    success?: boolean;
+    error?: { message?: string };
+    data?: { access_token?: string | null; message?: string };
+  };
+  if (json && json.success === false) {
+    const msg = json.error?.message?.trim() || "Unable to create account.";
+    throw new Error(msg);
+  }
   const access = json?.data?.access_token;
   const needsEmailConfirmation = typeof access !== "string" || access.length === 0;
   return { needsEmailConfirmation };
@@ -405,5 +433,54 @@ export async function requestPasswordResetEmail(email: string): Promise<void> {
   });
   if (!res.ok) {
     throw new Error(await readHttpDetail(res, "Could not send reset email."));
+  }
+}
+
+/** Server-side OTP path when the email link carries `token` / `token_hash` (not the hash JWT flow). */
+export async function resetPasswordWithToken(token: string, newPassword: string): Promise<void> {
+  const t = token.trim();
+  if (!t) throw new Error("Reset link is missing a token. Open the link from your email again.");
+  if (newPassword.length < 8) {
+    throw new Error("Password must be at least 8 characters.");
+  }
+  if (USE_MOCK_AUTH) return;
+
+  const res = await apiFetch("/api/v1/auth/reset-password", {
+    method: "POST",
+    skipAuthRedirect: true,
+    omitAuthHeader: true,
+    body: JSON.stringify({ token: t, new_password: newPassword }),
+  });
+  if (!res.ok) {
+    throw new Error(await readHttpDetail(res, "Could not reset password."));
+  }
+}
+
+/** Default Supabase recovery flow: tokens in the redirect URL hash after clicking the email link. */
+export async function completePasswordRecovery(
+  accessToken: string,
+  refreshToken: string,
+  newPassword: string
+): Promise<void> {
+  const at = accessToken.trim();
+  const rt = refreshToken.trim();
+  if (!at || !rt) throw new Error("Reset link is invalid or expired. Request a new reset email.");
+  if (newPassword.length < 8) {
+    throw new Error("Password must be at least 8 characters.");
+  }
+  if (USE_MOCK_AUTH) return;
+
+  const res = await apiFetch("/api/v1/auth/complete-password-recovery", {
+    method: "POST",
+    skipAuthRedirect: true,
+    omitAuthHeader: true,
+    body: JSON.stringify({
+      access_token: at,
+      refresh_token: rt,
+      new_password: newPassword,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(await readHttpDetail(res, "Could not reset password."));
   }
 }

@@ -110,10 +110,6 @@ export default function TopBar({ title }: { title?: string }) {
       </form>
 
       <div className="topbar-right">
-        <button type="button" className="topbar-notifications topbar-icon" title="Notifications" aria-label="Notifications">
-          <span className="topbar-bell-icon">🔔</span>
-          <span className="topbar-notification-badge" aria-hidden>1</span>
-        </button>
         <div className="topbar-profile-wrap">
           <button
             type="button"

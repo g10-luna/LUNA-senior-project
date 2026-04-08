@@ -137,26 +137,6 @@ button:focus-visible {
   transform: translateY(1px);
 }
 
-/* TopBar icon buttons */
-.topbar-icon {
-  background: var(--bg);
-  border: 2px solid var(--border);
-  color: white;
-  border-radius: 10px;
-  padding: 8px 10px;
-  cursor: pointer;
-  transition: background-color 150ms ease, transform 80ms ease;
-}
-
-.topbar-icon:hover {
-  border-color: #5181A8;
-  background: #184468aa;
-}
-
-.topbar-icon:active {
-  transform: translateY(1px);
-}
-
 .card {
   background: var(--surface);
   border-radius: 16px;
