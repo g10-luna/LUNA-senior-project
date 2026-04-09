@@ -9,19 +9,49 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { listBooks, updateBook } from "../lib/catalogApi";
+import type { Book } from "../lib/catalogTypes";
 import { getCurrentQueuerProfile } from "../lib/queuedByProfile";
 import {
   addRobotTaskToQueue,
+  getInProgressTaskProgress,
+  markTaskBookUnavailable,
   moveQueuedTask,
+  pauseRobotTask,
   removeRobotTask,
   reorderQueuedTasks,
+  resumeRobotTask,
   type RobotTask,
   updateRobotTaskStatus,
   useRobotTasksState,
 } from "../lib/robotTasksStore";
 import "./RequestsScreen.css";
+
+type QueueTaskOption = {
+  id: string;
+  label: string;
+  requiresBook: boolean;
+  detailTemplate: string;
+};
+
+const TASK_OPTIONS: QueueTaskOption[] = [
+  { id: "book_pickup", label: "Book pickup", requiresBook: true, detailTemplate: "Pick up selected title from {location}." },
+  { id: "returns_pickup", label: "Returns pickup", requiresBook: false, detailTemplate: "Collect returns from {location}." },
+  { id: "shelving_cart", label: "Shelving cart transfer", requiresBook: false, detailTemplate: "Move shelving cart from {location}." },
+  { id: "hold_dropoff", label: "Hold drop-off", requiresBook: false, detailTemplate: "Deliver hold materials to {location}." },
+  { id: "inventory_scan", label: "Inventory scan assist", requiresBook: false, detailTemplate: "Run scan support in {location}." },
+];
+
+const PICKUP_LOCATIONS = [
+  "Reserve Hold Desk",
+  "Circulation Desk",
+  "Returns Bin - Ground Floor",
+  "Stacks A-12",
+  "Stacks B-07",
+  "Media Desk",
+];
 
 function formatCreated(iso: string) {
   try {
@@ -53,7 +83,6 @@ function QueuedByAside({ name, initials, compact }: { name: string; initials: st
 
 function SortableQueueRow({
   task,
-  onComplete,
   onRemove,
   onMoveUp,
   onMoveDown,
@@ -61,7 +90,6 @@ function SortableQueueRow({
   disableDown,
 }: {
   task: RobotTask;
-  onComplete: () => void;
   onRemove: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
@@ -104,9 +132,6 @@ function SortableQueueRow({
             ↓
           </button>
         </div>
-        <button type="button" className="requests-action-btn" onClick={onComplete}>
-          Complete
-        </button>
         <button type="button" className="requests-action-btn requests-action-btn--danger" onClick={onRemove}>
           Remove
         </button>
@@ -118,8 +143,16 @@ function SortableQueueRow({
 export default function RequestsScreen() {
   const location = useLocation();
   const store = useRobotTasksState();
-  const [newTitle, setNewTitle] = useState("");
-  const [newDescription, setNewDescription] = useState("");
+  const [selectedTaskId, setSelectedTaskId] = useState<string>(TASK_OPTIONS[0]?.id ?? "");
+  const [pickupLocation, setPickupLocation] = useState<string>(PICKUP_LOCATIONS[0] ?? "");
+  const [selectedBookId, setSelectedBookId] = useState<string>("");
+  const [bookQuery, setBookQuery] = useState("");
+  const [books, setBooks] = useState<Book[]>([]);
+  const [booksLoading, setBooksLoading] = useState(false);
+  const [booksError, setBooksError] = useState<string | null>(null);
+  const [bookStatusSyncError, setBookStatusSyncError] = useState<string | null>(null);
+  const [, setProgressTick] = useState(0);
+  const syncingBookTaskIds = useRef(new Set<string>());
 
   const queuerPreview = getCurrentQueuerProfile();
 
@@ -128,8 +161,9 @@ export default function RequestsScreen() {
     return store.queueOrder.map((id) => byId.get(id)).filter((t): t is RobotTask => !!t && t.status === "queued");
   }, [store.tasks, store.queueOrder]);
 
-  const inProgress = useMemo(() => store.tasks.filter((t) => t.status === "in_progress"), [store.tasks]);
+  const inProgress = useMemo(() => store.tasks.filter((t) => t.status === "in_progress" || t.status === "paused"), [store.tasks]);
   const completed = useMemo(() => store.tasks.filter((t) => t.status === "completed"), [store.tasks]);
+  const selectedTask = useMemo(() => TASK_OPTIONS.find((t) => t.id === selectedTaskId) ?? TASK_OPTIONS[0], [selectedTaskId]);
 
   useEffect(() => {
     const id = location.hash.replace(/^#/, "");
@@ -138,6 +172,83 @@ export default function RequestsScreen() {
     if (!el) return;
     window.requestAnimationFrame(() => el.scrollIntoView({ behavior: "smooth", block: "start" }));
   }, [location.hash]);
+
+  useEffect(() => {
+    const hasInProgress = store.tasks.some((t) => t.status === "in_progress");
+    if (!hasInProgress) return;
+    const interval = window.setInterval(() => {
+      setProgressTick((v) => (v + 1) % 10_000);
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [store.tasks]);
+
+  useEffect(() => {
+    if (!selectedTask?.requiresBook) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void Promise.resolve()
+        .then(() => {
+          if (cancelled) return;
+          setBooksLoading(true);
+          setBooksError(null);
+        })
+        .then(() =>
+          listBooks({
+            q: bookQuery.trim() || undefined,
+            limit: 25,
+            sort: "title",
+            order: "asc",
+          })
+        )
+        .then((res) => {
+          if (cancelled) return;
+          setBooks(res.items);
+        })
+        .catch((err: unknown) => {
+          if (cancelled) return;
+          const message = err instanceof Error ? err.message : "Failed to load books.";
+          setBooksError(message);
+        })
+        .finally(() => {
+          if (cancelled) return;
+          setBooksLoading(false);
+        });
+    }, 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [selectedTask?.requiresBook, bookQuery]);
+
+  useEffect(() => {
+    const candidates = store.tasks.filter(
+      (t) =>
+        t.status === "completed" &&
+        !!t.relatedBookId &&
+        !!t.relatedBookTitle &&
+        !!t.relatedBookAuthor &&
+        !t.bookMarkedUnavailableAt
+    );
+    for (const task of candidates) {
+      if (syncingBookTaskIds.current.has(task.id)) continue;
+      syncingBookTaskIds.current.add(task.id);
+      void updateBook(task.relatedBookId!, {
+        title: task.relatedBookTitle!,
+        author: task.relatedBookAuthor!,
+        status: "UNAVAILABLE",
+      })
+        .then(() => {
+          markTaskBookUnavailable(task.id);
+        })
+        .catch((err: unknown) => {
+          const message = err instanceof Error ? err.message : "Failed to mark picked book unavailable.";
+          setBookStatusSyncError(message);
+        })
+        .finally(() => {
+          syncingBookTaskIds.current.delete(task.id);
+        });
+    }
+  }, [store.tasks]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -156,16 +267,33 @@ export default function RequestsScreen() {
 
   const onSubmitManual = (e: FormEvent) => {
     e.preventDefault();
+    if (!selectedTask) return;
+    if (!pickupLocation.trim()) return;
+    const selectedBook = selectedTask.requiresBook ? books.find((b) => b.id === selectedBookId) ?? null : null;
+    if (selectedTask.requiresBook && !selectedBook) return;
+
+    const taskTitle = selectedTask.requiresBook
+      ? `${selectedTask.label} - ${selectedBook?.title ?? "Selected book"}`
+      : `${selectedTask.label} - ${pickupLocation}`;
+    const taskDescription = selectedTask.requiresBook
+      ? `${selectedTask.detailTemplate.replace("{location}", pickupLocation)} Book: ${selectedBook?.title ?? ""}${selectedBook?.author ? ` by ${selectedBook.author}` : ""}.`
+      : selectedTask.detailTemplate.replace("{location}", pickupLocation);
+
     const q = getCurrentQueuerProfile();
     addRobotTaskToQueue({
-      title: newTitle,
-      description: newDescription,
+      title: taskTitle,
+      description: taskDescription,
       queuedByName: q.queuedByName,
       queuedByInitials: q.queuedByInitials,
       source: "manual",
+      relatedBookId: selectedTask.requiresBook ? selectedBook?.id : undefined,
+      relatedBookTitle: selectedTask.requiresBook ? selectedBook?.title : undefined,
+      relatedBookAuthor: selectedTask.requiresBook ? selectedBook?.author : undefined,
     });
-    setNewTitle("");
-    setNewDescription("");
+    if (selectedTask.requiresBook) {
+      setSelectedBookId("");
+      setBookQuery("");
+    }
   };
 
   const openCount = queuedOrdered.length + inProgress.length;
@@ -190,27 +318,73 @@ export default function RequestsScreen() {
         <h2 className="requests-section-label">Add to queue</h2>
         <div className="requests-add-fields">
           <label className="requests-field">
-            <span className="requests-field-label">Task title</span>
-            <input
+            <span className="requests-field-label">Task type</span>
+            <select
               className="requests-input"
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              placeholder="e.g. Pick up returns — desk 2"
-              maxLength={200}
-              autoComplete="off"
-            />
+              value={selectedTaskId}
+              onChange={(e) => setSelectedTaskId(e.target.value)}
+            >
+              {TASK_OPTIONS.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="requests-field">
-            <span className="requests-field-label">Details (optional)</span>
-            <textarea
-              className="requests-textarea"
-              value={newDescription}
-              onChange={(e) => setNewDescription(e.target.value)}
-              placeholder="Call number, patron, location…"
-              rows={2}
-              maxLength={500}
-            />
+            <span className="requests-field-label">Pick up location</span>
+            <select className="requests-input" value={pickupLocation} onChange={(e) => setPickupLocation(e.target.value)}>
+              {PICKUP_LOCATIONS.map((loc) => (
+                <option key={loc} value={loc}>
+                  {loc}
+                </option>
+              ))}
+            </select>
           </label>
+          {selectedTask?.requiresBook && (
+            <label className="requests-field">
+              <span className="requests-field-label">Book</span>
+              <input
+                className="requests-input"
+                type="search"
+                value={bookQuery}
+                onChange={(e) => setBookQuery(e.target.value)}
+                placeholder="Search title, author, or ISBN..."
+                disabled={booksLoading || books.length === 0}
+              />
+              {!booksLoading && books.length > 0 && (
+                <div className="requests-book-search-results" role="listbox" aria-label="Book search results">
+                  {books.map((book) => {
+                    const isSelected = selectedBookId === book.id;
+                    return (
+                      <button
+                        key={book.id}
+                        type="button"
+                        className={`requests-book-result${isSelected ? " requests-book-result--selected" : ""}`}
+                        onClick={() => {
+                          setSelectedBookId(book.id);
+                          setBookQuery(book.title);
+                        }}
+                      >
+                        {book.title}
+                        {book.author ? ` - ${book.author}` : ""}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {!booksLoading && bookQuery.trim() && books.length === 0 && (
+                <span className="requests-field-label">No books match your search.</span>
+              )}
+              {selectedBookId && (
+                <span className="requests-field-label">
+                  Selected: {books.find((b) => b.id === selectedBookId)?.title ?? "Book"}
+                </span>
+              )}
+              {booksLoading && <span className="requests-field-label">Loading books...</span>}
+              {booksError && <span className="requests-field-label">{booksError}</span>}
+            </label>
+          )}
         </div>
         <div className="requests-form-footer">
           <p className="requests-queuer-hint">
@@ -222,10 +396,15 @@ export default function RequestsScreen() {
               <strong>{queuerPreview.queuedByName}</strong>
             </span>
           </p>
-          <button type="submit" className="requests-submit-btn" disabled={!newTitle.trim()}>
+          <button
+            type="submit"
+            className="requests-submit-btn"
+            disabled={!selectedTask || !pickupLocation || (selectedTask.requiresBook && (!selectedBookId || booksLoading))}
+          >
             Add to queue
           </button>
         </div>
+        {bookStatusSyncError && <p className="requests-side-hint">{bookStatusSyncError}</p>}
       </form>
 
       <section className="card requests-queue-card" id="requests-queue">
@@ -249,7 +428,6 @@ export default function RequestsScreen() {
                   <SortableQueueRow
                     key={task.id}
                     task={task}
-                    onComplete={() => updateRobotTaskStatus(task.id, "completed")}
                     onRemove={() => removeRobotTask(task.id)}
                     onMoveUp={() => moveQueuedTask(task.id, "up")}
                     onMoveDown={() => moveQueuedTask(task.id, "down")}
@@ -266,7 +444,7 @@ export default function RequestsScreen() {
       <div className="requests-columns">
         <section className="card requests-side-card">
           <h2 className="requests-section-label">In progress</h2>
-          <p className="requests-side-hint">Single active robot job. Completing it starts the next waiting task.</p>
+          <p className="requests-side-hint">Single active robot job. Pause stops auto-complete until you resume.</p>
           <ul className="requests-side-list">
             {inProgress.length === 0 ? (
               <li className="requests-empty requests-empty--inline">None — the next waiting task will appear here automatically.</li>
@@ -277,10 +455,30 @@ export default function RequestsScreen() {
                     <QueuedByAside compact name={task.queuedByName} initials={task.queuedByInitials} />
                     <div className="requests-side-item-main">
                       <div className="requests-side-title">{task.title}</div>
+                      {task.status === "paused" ? <div className="requests-progress-label">Task Paused</div> : (() => {
+                        const progress = getInProgressTaskProgress(task);
+                        if (!progress) return null;
+                        return (
+                          <div className="requests-progress" role="status" aria-live="polite">
+                            <div className="requests-progress-track" aria-hidden>
+                              <div className="requests-progress-fill" style={{ width: `${Math.round(progress.ratio * 100)}%` }} />
+                            </div>
+                            <div className="requests-progress-label">
+                              Task completes in {Math.max(1, Math.ceil(progress.remainingMs / 1000))}s
+                            </div>
+                          </div>
+                        );
+                      })()}
                       <div className="requests-side-actions">
-                        <button type="button" className="requests-action-btn requests-action-btn--primary" onClick={() => updateRobotTaskStatus(task.id, "completed")}>
-                          Complete
-                        </button>
+                        {task.status === "paused" ? (
+                          <button type="button" className="requests-action-btn requests-action-btn--primary" onClick={() => resumeRobotTask(task.id)}>
+                            Resume
+                          </button>
+                        ) : (
+                          <button type="button" className="requests-action-btn requests-action-btn--primary" onClick={() => pauseRobotTask(task.id)}>
+                            Pause
+                          </button>
+                        )}
                         <button type="button" className="requests-action-btn" onClick={() => updateRobotTaskStatus(task.id, "queued")}>
                           Back to queue
                         </button>

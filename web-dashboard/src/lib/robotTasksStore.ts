@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { TELEMETRY_QUEUED_BY, displayNameToInitials } from "./queuedByProfile";
 
-export type RobotTaskStatus = "queued" | "in_progress" | "completed";
+export type RobotTaskStatus = "queued" | "in_progress" | "paused" | "completed";
 
 export type RobotTask = {
   id: string;
@@ -15,6 +15,12 @@ export type RobotTask = {
   startedAt?: string;
   source?: "manual" | "robot_api";
   robotTaskId?: string;
+  /** Remaining auto-complete time when paused/in queue after pause. */
+  autoCompleteRemainingMs?: number;
+  relatedBookId?: string;
+  relatedBookTitle?: string;
+  relatedBookAuthor?: string;
+  bookMarkedUnavailableAt?: string;
 };
 
 export type RobotTasksState = {
@@ -24,10 +30,55 @@ export type RobotTasksState = {
 
 const STORAGE_KEY = "luna-robot-tasks-v2";
 const LEGACY_KEY = "luna-robot-tasks-v1";
+const AUTO_COMPLETE_MIN_MS = 20_000;
+const AUTO_COMPLETE_MAX_MS = 45_000;
 
 const listeners = new Set<() => void>();
+const autoCompleteTimers = new Map<string, ReturnType<typeof window.setTimeout>>();
+const autoCompleteDeadlines = new Map<string, number>();
 
 let state: RobotTasksState = loadInitialState();
+
+function randomAutoCompleteDelayMs() {
+  const span = AUTO_COMPLETE_MAX_MS - AUTO_COMPLETE_MIN_MS;
+  return AUTO_COMPLETE_MIN_MS + Math.floor(Math.random() * (span + 1));
+}
+
+function completeIfStillInProgress(taskId: string) {
+  const task = state.tasks.find((t) => t.id === taskId);
+  if (!task || task.status !== "in_progress") return;
+  setState({
+    tasks: state.tasks.map((t) => (t.id === taskId ? { ...t, status: "completed", autoCompleteRemainingMs: undefined } : t)),
+    queueOrder: state.queueOrder.filter((id) => id !== taskId),
+  });
+}
+
+function syncAutoCompleteTimers(next: RobotTasksState) {
+  const inProgressIds = new Set(next.tasks.filter((t) => t.status === "in_progress").map((t) => t.id));
+
+  for (const [taskId, timer] of autoCompleteTimers) {
+    if (inProgressIds.has(taskId)) continue;
+    window.clearTimeout(timer);
+    autoCompleteTimers.delete(taskId);
+    autoCompleteDeadlines.delete(taskId);
+  }
+
+  for (const taskId of inProgressIds) {
+    if (autoCompleteTimers.has(taskId)) continue;
+    const task = next.tasks.find((t) => t.id === taskId);
+    const delay =
+      task && typeof task.autoCompleteRemainingMs === "number"
+        ? Math.max(1, task.autoCompleteRemainingMs)
+        : randomAutoCompleteDelayMs();
+    autoCompleteDeadlines.set(taskId, Date.now() + delay);
+    const timer = window.setTimeout(() => {
+      autoCompleteTimers.delete(taskId);
+      autoCompleteDeadlines.delete(taskId);
+      completeIfStillInProgress(taskId);
+    }, delay);
+    autoCompleteTimers.set(taskId, timer);
+  }
+}
 
 function emit() {
   listeners.forEach((l) => l());
@@ -61,13 +112,15 @@ function normalizeState(s: RobotTasksState): RobotTasksState {
 
 /** One robot: at most one in_progress; when idle, queue head auto-promotes. */
 function reconcileSingleRobot(s: RobotTasksState): RobotTasksState {
-  let tasks = s.tasks.map((t) => ({ ...t }));
+  const tasks = s.tasks.map((t) => ({ ...t }));
   let queueOrder = [...s.queueOrder];
 
   let inProgress = tasks.filter((t) => t.status === "in_progress");
+  let paused = tasks.filter((t) => t.status === "paused");
+  let active = tasks.filter((t) => t.status === "in_progress" || t.status === "paused");
 
-  if (inProgress.length > 1) {
-    const scored = inProgress.map((t) => ({ t, key: t.startedAt ?? t.createdAt }));
+  if (active.length > 1) {
+    const scored = active.map((t) => ({ t, key: t.startedAt ?? t.createdAt }));
     scored.sort((a, b) => a.key.localeCompare(b.key));
     for (const { t } of scored.slice(1)) {
       const idx = tasks.findIndex((x) => x.id === t.id);
@@ -76,18 +129,23 @@ function reconcileSingleRobot(s: RobotTasksState): RobotTasksState {
       if (!queueOrder.includes(t.id)) queueOrder.push(t.id);
     }
     inProgress = tasks.filter((t) => t.status === "in_progress");
+    paused = tasks.filter((t) => t.status === "paused");
+    active = tasks.filter((t) => t.status === "in_progress" || t.status === "paused");
   }
 
-  if (inProgress.length === 0) {
+  // If a task is paused, the robot is considered occupied and queue must wait.
+  if (active.length === 0 && inProgress.length === 0 && paused.length === 0) {
     while (queueOrder.length > 0) {
       const headId = queueOrder[0];
       const task = tasks.find((t) => t.id === headId);
       if (task && task.status === "queued") {
         const idx = tasks.indexOf(task);
+        const remaining = typeof task.autoCompleteRemainingMs === "number" ? Math.max(1, task.autoCompleteRemainingMs) : undefined;
         tasks[idx] = {
           ...task,
           status: "in_progress",
           startedAt: new Date().toISOString(),
+          autoCompleteRemainingMs: remaining,
         };
         queueOrder = queueOrder.filter((id) => id !== headId);
         break;
@@ -105,12 +163,15 @@ function finalizeState(raw: RobotTasksState): RobotTasksState {
 
 function setState(next: RobotTasksState) {
   state = finalizeState(next);
+  syncAutoCompleteTimers(state);
   persist(state);
   emit();
 }
 
+syncAutoCompleteTimers(state);
+
 function isTaskStatus(x: string): x is RobotTaskStatus {
-  return x === "queued" || x === "in_progress" || x === "completed";
+  return x === "queued" || x === "in_progress" || x === "paused" || x === "completed";
 }
 
 function taskFromUnknown(item: unknown): RobotTask | null {
@@ -147,6 +208,11 @@ function taskFromUnknown(item: unknown): RobotTask | null {
     startedAt: typeof o.startedAt === "string" ? o.startedAt : undefined,
     source: o.source === "robot_api" || o.source === "manual" ? o.source : undefined,
     robotTaskId: typeof o.robotTaskId === "string" ? o.robotTaskId : undefined,
+    autoCompleteRemainingMs: typeof o.autoCompleteRemainingMs === "number" ? o.autoCompleteRemainingMs : undefined,
+    relatedBookId: typeof o.relatedBookId === "string" ? o.relatedBookId : undefined,
+    relatedBookTitle: typeof o.relatedBookTitle === "string" ? o.relatedBookTitle : undefined,
+    relatedBookAuthor: typeof o.relatedBookAuthor === "string" ? o.relatedBookAuthor : undefined,
+    bookMarkedUnavailableAt: typeof o.bookMarkedUnavailableAt === "string" ? o.bookMarkedUnavailableAt : undefined,
   };
 }
 
@@ -207,6 +273,7 @@ function migrateV1Legacy(arr: unknown[]): RobotTasksState {
     let status: RobotTaskStatus = "queued";
     if (raw === "todo") status = "queued";
     else if (raw === "in_progress") status = "in_progress";
+    else if (raw === "paused") status = "paused";
     else if (raw === "completed") status = "completed";
     else if (isTaskStatus(raw ?? "")) status = raw as RobotTaskStatus;
     const id = (item as RobotTask).id;
@@ -267,6 +334,9 @@ export function addRobotTaskToQueue(input: {
   queuedByName: string;
   queuedByInitials: string;
   source?: RobotTask["source"];
+  relatedBookId?: string;
+  relatedBookTitle?: string;
+  relatedBookAuthor?: string;
 }) {
   const title = input.title.trim();
   if (!title) return;
@@ -281,6 +351,9 @@ export function addRobotTaskToQueue(input: {
     queuedByName: qbName,
     queuedByInitials: (input.queuedByInitials.trim() || displayNameToInitials(qbName)).slice(0, 3).toUpperCase(),
     source: input.source ?? "manual",
+    relatedBookId: input.relatedBookId?.trim() || undefined,
+    relatedBookTitle: input.relatedBookTitle?.trim() || undefined,
+    relatedBookAuthor: input.relatedBookAuthor?.trim() || undefined,
   };
   setState({
     tasks: [task, ...state.tasks],
@@ -347,6 +420,10 @@ export function updateRobotTaskStatus(id: string, status: RobotTaskStatus) {
       const next: RobotTask = { ...t, status };
       if (status === "queued") {
         next.startedAt = undefined;
+        next.autoCompleteRemainingMs = undefined;
+      }
+      if (status === "completed") {
+        next.autoCompleteRemainingMs = undefined;
       }
       return next;
     }),
@@ -358,5 +435,62 @@ export function removeRobotTask(id: string) {
   setState({
     tasks: state.tasks.filter((t) => t.id !== id),
     queueOrder: state.queueOrder.filter((x) => x !== id),
+  });
+}
+
+export function getInProgressTaskProgress(task: RobotTask): { ratio: number; remainingMs: number } | null {
+  if (task.status !== "in_progress") return null;
+  const deadline = autoCompleteDeadlines.get(task.id);
+  const startedAtMs = task.startedAt ? Date.parse(task.startedAt) : Number.NaN;
+  if (!deadline || Number.isNaN(startedAtMs)) return null;
+  const total = Math.max(1, deadline - startedAtMs);
+  const elapsed = Math.min(total, Math.max(0, Date.now() - startedAtMs));
+  const remainingMs = Math.max(0, deadline - Date.now());
+  return {
+    ratio: elapsed / total,
+    remainingMs,
+  };
+}
+
+export function pauseRobotTask(id: string) {
+  const deadline = autoCompleteDeadlines.get(id);
+  const remaining = deadline ? Math.max(1, deadline - Date.now()) : randomAutoCompleteDelayMs();
+  setState({
+    tasks: state.tasks.map((t) => {
+      if (t.id !== id || t.status !== "in_progress") return t;
+      return {
+        ...t,
+        status: "paused",
+        startedAt: undefined,
+        autoCompleteRemainingMs: remaining,
+      };
+    }),
+    queueOrder: state.queueOrder.filter((x) => x !== id),
+  });
+}
+
+export function resumeRobotTask(id: string) {
+  const hasInProgress = state.tasks.some((t) => t.status === "in_progress" && t.id !== id);
+  setState({
+    tasks: state.tasks.map((t) => {
+      if (t.id !== id || t.status !== "paused") return t;
+      if (hasInProgress) {
+        return { ...t, status: "queued" };
+      }
+      return { ...t, status: "in_progress", startedAt: new Date().toISOString() };
+    }),
+    queueOrder: hasInProgress
+      ? [...state.queueOrder.filter((x) => x !== id), id]
+      : state.queueOrder.filter((x) => x !== id),
+  });
+}
+
+export function markTaskBookUnavailable(taskId: string) {
+  setState({
+    tasks: state.tasks.map((t) => {
+      if (t.id !== taskId) return t;
+      return { ...t, bookMarkedUnavailableAt: new Date().toISOString() };
+    }),
+    queueOrder: [...state.queueOrder],
   });
 }

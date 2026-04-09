@@ -106,6 +106,37 @@
   min-height: 52px;
 }
 
+.requests-book-search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  max-height: 180px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.requests-book-result {
+  text-align: left;
+  border: 1px solid rgba(24, 68, 104, 0.2);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text-dark);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.requests-book-result:hover {
+  background: rgba(24, 68, 104, 0.08);
+}
+
+.requests-book-result--selected {
+  border-color: var(--navy);
+  background: rgba(24, 68, 104, 0.14);
+}
+
 .requests-submit-btn {
   padding: 8px 18px;
   border-radius: 10px;
@@ -435,6 +466,30 @@
   font-weight: 600;
   color: var(--text-dark);
   margin-bottom: 8px;
+}
+
+.requests-progress {
+  margin: 0 0 8px;
+}
+
+.requests-progress-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(24, 68, 104, 0.16);
+  overflow: hidden;
+}
+
+.requests-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2563eb, #22c55e);
+  transition: width 0.9s linear;
+}
+
+.requests-progress-label {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
 .requests-side-actions {

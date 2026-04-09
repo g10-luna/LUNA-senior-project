@@ -27,8 +27,6 @@ export function useRobotStatus(clientOverride?: RobotServiceClient): UseRobotSta
 
   useEffect(() => {
     let isMounted = true;
-    setLoading(true);
-    setError(null);
 
     const unsubscribe = client.subscribeAllStatuses?.((next) => {
       if (!isMounted) return;
@@ -37,10 +35,15 @@ export function useRobotStatus(clientOverride?: RobotServiceClient): UseRobotSta
       setLoading(false);
     });
 
-    client
-      .getAllStatuses()
+    void Promise.resolve()
+      .then(() => {
+        if (!isMounted) return undefined;
+        setLoading(true);
+        setError(null);
+        return client.getAllStatuses();
+      })
       .then((next) => {
-        if (!isMounted) return;
+        if (!isMounted || next === undefined) return;
         setStatuses(next);
       })
       .catch((err) => {
