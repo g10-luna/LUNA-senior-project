@@ -176,6 +176,10 @@ class BookRequest(Base):
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     in_progress_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    student_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    auto_closed_without_confirm_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     notes: Mapped[str | None] = mapped_column(Text)
 
 

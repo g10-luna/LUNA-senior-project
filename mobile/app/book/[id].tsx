@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,22 +6,28 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Platform,
   Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { getBook, type Book, type BookStatus, BooksApiError } from '@/src/services/books';
-import { BookRequestApiError, createBookRequest } from '@/src/services/bookRequests';
+import {
+  BookRequestApiError,
+  createBookRequest,
+  listMyBookRequests,
+  type BookRequestItem,
+} from '@/src/services/bookRequests';
 import { getCoverUrl } from '@/src/utils/covers';
 import BottomTabBar, { BOTTOM_TAB_BAR_HEIGHT } from '@/components/BottomTabBar';
+import { useAuth } from '@/contexts/AuthContext';
 
 const HOWARD_BLUE = '#003A63';
 const AVAILABLE_GREEN = '#16a34a';
+
+const ACTIVE_REQUEST_STATUSES = new Set(['PENDING', 'APPROVED', 'IN_PROGRESS']);
 
 function statusLabel(status: BookStatus): string {
   switch (status) {
@@ -52,10 +58,8 @@ function statusColor(status: BookStatus): string {
   }
 }
 
-const HEADER_HEIGHT = 200;
-const COVER_WIDTH = 120;
-const COVER_HEIGHT = 180;
-const COVER_OVERLAP = 44;
+/** Single full-bleed cover hero (no duplicate thumbnail). */
+const HERO_HEIGHT = 280;
 
 export default function BookDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -67,6 +71,35 @@ export default function BookDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requesting, setRequesting] = useState(false);
+  const [existingRequest, setExistingRequest] = useState<BookRequestItem | null>(null);
+  const [requestCheckLoading, setRequestCheckLoading] = useState(true);
+  const { hasToken } = useAuth();
+
+  const checkExistingRequest = useCallback(async () => {
+    if (!id) {
+      setExistingRequest(null);
+      setRequestCheckLoading(false);
+      return;
+    }
+    setRequestCheckLoading(true);
+    try {
+      const { items } = await listMyBookRequests({ limit: 100 });
+      const active = items.find(
+        (r) => r.book_id === id && ACTIVE_REQUEST_STATUSES.has(r.status)
+      );
+      setExistingRequest(active ?? null);
+    } catch {
+      setExistingRequest(null);
+    } finally {
+      setRequestCheckLoading(false);
+    }
+  }, [id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void checkExistingRequest();
+    }, [checkExistingRequest])
+  );
 
   useEffect(() => {
     if (!id) {
@@ -98,6 +131,9 @@ export default function BookDetailScreen() {
     };
   }, [id]);
 
+  if (hasToken === null) return null;
+  if (!hasToken) return <Redirect href="/login" />;
+
   if (loading) {
     return (
       <View style={styles.pageWrap}>
@@ -127,9 +163,11 @@ export default function BookDetailScreen() {
 
   const hasCover = Boolean(book.cover_image_url?.trim());
   const isAvailable = book.status === 'AVAILABLE';
+  const hasActiveRequest = Boolean(existingRequest);
+  const canRequest = isAvailable && !hasActiveRequest && !requestCheckLoading;
 
   const onRequestBook = async () => {
-    if (!book || !isAvailable || requesting) return;
+    if (!book || !canRequest || requesting) return;
     setRequesting(true);
     try {
       await createBookRequest({
@@ -137,6 +175,7 @@ export default function BookDetailScreen() {
         requestLocation: 'Main desk pickup',
         notes: null,
       });
+      await checkExistingRequest();
       Alert.alert(
         'Request submitted',
         'Librarians will prepare this book for robot delivery. Track status on the Requests tab.',
@@ -156,7 +195,7 @@ export default function BookDetailScreen() {
   return (
     <View style={styles.pageWrap}>
       <View style={styles.container}>
-      <View style={[styles.headerWrap, { height: HEADER_HEIGHT + insets.top, paddingTop: insets.top }]}>
+      <View style={[styles.headerWrap, { height: HERO_HEIGHT + insets.top, paddingTop: insets.top }]}>
         <View style={StyleSheet.absoluteFill}>
           {hasCover ? (
             <Image
@@ -167,54 +206,37 @@ export default function BookDetailScreen() {
             />
           ) : (
             <LinearGradient
-              colors={[HOWARD_BLUE + '99', HOWARD_BLUE + '66']}
+              colors={[HOWARD_BLUE, HOWARD_BLUE + 'cc']}
               style={StyleSheet.absoluteFill}
             />
           )}
-          {Platform.OS === 'ios' ? (
-            <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFill} />
-          ) : (
-            <View style={[StyleSheet.absoluteFill, styles.androidBlur]} />
-          )}
+          {!hasCover ? (
+            <View style={styles.placeholderIconWrap} pointerEvents="none">
+              <FontAwesome name="book" size={56} color="rgba(255,255,255,0.35)" />
+            </View>
+          ) : null}
         </View>
         <View style={styles.headerRow}>
           <TouchableOpacity
-            style={styles.headerBack}
+            style={styles.headerBackPill}
             onPress={() => router.back()}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
           >
-            <FontAwesome name="arrow-left" size={22} color="#fff" />
+            <FontAwesome name="arrow-left" size={20} color={HOWARD_BLUE} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle} numberOfLines={1}>Book details</Text>
           <View style={styles.headerRight} />
-        </View>
-        <View style={[styles.coverOverlay, { bottom: -COVER_OVERLAP }]}>
-          <View style={[styles.coverCard, { width: COVER_WIDTH, height: COVER_HEIGHT }]}>
-            {hasCover ? (
-              <Image
-                source={{ uri: getCoverUrl(book.cover_image_url, 'full')! }}
-                style={StyleSheet.absoluteFill}
-                contentFit="cover"
-                transition={300}
-              />
-            ) : (
-              <LinearGradient
-                colors={[HOWARD_BLUE + '40', HOWARD_BLUE + '15']}
-                style={StyleSheet.absoluteFill}
-              >
-                <FontAwesome name="book" size={36} color={HOWARD_BLUE} />
-              </LinearGradient>
-            )}
-          </View>
         </View>
       </View>
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: COVER_OVERLAP + 16, paddingBottom: scrollBottomPadding }]}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: 16, paddingBottom: scrollBottomPadding }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.contentCard}>
+          <Text style={styles.screenEyebrow}>Book details</Text>
           <Text style={styles.title}>{book.title}</Text>
           <Text style={styles.author}>{book.author}</Text>
 
@@ -237,20 +259,41 @@ export default function BookDetailScreen() {
             <Text style={styles.infoText}>Robot delivery available · Arrives in ~5 min</Text>
           </View>
 
+          {hasActiveRequest ? (
+            <View style={styles.requestedBanner}>
+              <FontAwesome name="bookmark" size={16} color={HOWARD_BLUE} />
+              <View style={styles.requestedBannerTextWrap}>
+                <Text style={styles.requestedBannerTitle}>Book request</Text>
+                <Text style={styles.requestedBannerSub}>You already have an active request for this title.</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.viewRequestLinkBtn}
+                onPress={() => router.push(`/request/${existingRequest!.id}`)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.viewRequestLinkText}>View status</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
           <View style={styles.primaryButtons}>
             <TouchableOpacity
-              style={[styles.requestBookBtn, !isAvailable && styles.requestBookBtnDisabled]}
+              style={[styles.requestBookBtn, !canRequest && styles.requestBookBtnDisabled]}
               activeOpacity={0.85}
               onPress={() => void onRequestBook()}
-              disabled={!isAvailable || requesting}
+              disabled={!canRequest || requesting}
             >
               {requesting ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
-                <FontAwesome name="book" size={18} color={isAvailable ? '#fff' : '#94a3b8'} />
+                <FontAwesome name="book" size={18} color={canRequest ? '#fff' : '#94a3b8'} />
               )}
-              <Text style={[styles.requestBookBtnText, !isAvailable && styles.requestBookBtnTextDisabled]}>
-                {requesting ? 'Submitting…' : 'Request Book'}
+              <Text style={[styles.requestBookBtnText, !canRequest && styles.requestBookBtnTextDisabled]}>
+                {requesting
+                  ? 'Submitting…'
+                  : hasActiveRequest
+                    ? 'Book request'
+                    : 'Request Book'}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -347,47 +390,33 @@ const styles = StyleSheet.create({
     width: '100%',
     overflow: 'hidden',
   },
-  androidBlur: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
+  placeholderIconWrap: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
-  },
-  headerBack: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
     alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingTop: 4,
   },
-  headerTitle: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
-    textAlign: 'center',
+  headerBackPill: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.18,
+    shadowRadius: 3,
+    elevation: 3,
   },
   headerRight: {
-    width: 44,
-  },
-  coverOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  coverCard: {
-    borderRadius: 8,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
+    width: 40,
   },
   scroll: {
     flex: 1,
@@ -402,6 +431,14 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 24,
     marginHorizontal: 0,
+  },
+  screenEyebrow: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    color: '#94a3b8',
+    textTransform: 'uppercase',
+    marginBottom: 6,
   },
   title: {
     fontSize: 24,
@@ -428,6 +465,41 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 15,
     color: '#475569',
+  },
+  requestedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#e8f0fe',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 58, 99, 0.15)',
+  },
+  requestedBannerTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  requestedBannerTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  requestedBannerSub: {
+    fontSize: 13,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  viewRequestLinkBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
+  viewRequestLinkText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: HOWARD_BLUE,
   },
   primaryButtons: {
     flexDirection: 'row',

@@ -13,8 +13,9 @@ import {
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { getMe, updateMe, type MeUser } from '@/src/services/auth';
+import { useAuth } from '@/contexts/AuthContext';
 import BottomTabBar, { BOTTOM_TAB_BAR_HEIGHT } from '@/components/BottomTabBar';
 
 const HOWARD_BLUE = '#003A63';
@@ -22,6 +23,7 @@ const HOWARD_BLUE = '#003A63';
 export default function AccountInfoScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { hasToken } = useAuth();
   const [user, setUser] = useState<MeUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -75,6 +77,9 @@ export default function AccountInfoScreen() {
       setSaving(false);
     }
   };
+
+  if (hasToken === null) return null;
+  if (!hasToken) return <Redirect href="/login" />;
 
   if (loading) {
     return (

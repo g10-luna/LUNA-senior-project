@@ -129,6 +129,24 @@ export async function listBooks(
   return toBooksAndPagination(json);
 }
 
+/** Single book by id (GET /api/v1/books/{book_id}). */
+export async function getBookById(bookId: string): Promise<Book> {
+  const res = await apiFetch(`/api/v1/books/${encodeURIComponent(bookId)}`);
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const detail = readApiErrorDetail(json);
+    throw new Error(detail ?? messageFromStatus(res.status));
+  }
+  const top = asObject(json);
+  const data = top && "data" in top ? asObject(top.data as unknown) : null;
+  const raw = data && "book" in data ? data.book : null;
+  const book = toBook(raw);
+  if (!book) {
+    throw new Error("Invalid book response.");
+  }
+  return book;
+}
+
 export async function createBook(input: BookMutationInput): Promise<Book> {
   const payload = {
     title: input.title.trim(),

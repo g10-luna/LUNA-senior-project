@@ -1,7 +1,8 @@
 """Book request & delivery task persistence and state transitions."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import threading
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -15,6 +16,7 @@ from delivery.schemas import (
     DeliveryTaskResponse,
     TaskStatusEventResponse,
 )
+from shared.db import SessionLocal
 from shared.models import (
     BookRequest,
     DeliveryTask,
@@ -22,7 +24,14 @@ from shared.models import (
     TaskStatus,
     TaskStatusHistory,
     TaskType,
+    UserProfile,
 )
+
+
+# Robot pickup + delivery duration used when starting a demo delivery run from the dashboard.
+SIMULATED_DELIVERY_SECONDS = 240
+# After robot delivery completes, the student must confirm within this window or the request auto-closes.
+STUDENT_CONFIRM_MINUTES = 5
 
 
 class DeliveryError(Exception):
@@ -54,6 +63,12 @@ def _metadata_datetime(meta: dict, key: str) -> datetime | None:
         return None
 
 
+def _student_confirm_deadline_at(task: DeliveryTask) -> datetime | None:
+    if task.status != TaskStatus.COMPLETED or task.completed_at is None:
+        return None
+    return task.completed_at + timedelta(minutes=STUDENT_CONFIRM_MINUTES)
+
+
 def task_to_response(
     task: DeliveryTask,
     history: list[TaskStatusHistory] | None = None,
@@ -75,6 +90,9 @@ def task_to_response(
         completed_at=task.completed_at,
         book_placed=bool(meta.get("book_placed")),
         book_placed_at=_metadata_datetime(meta, "book_placed_at"),
+        delivery_eta_at=_metadata_datetime(meta, "delivery_eta_at")
+        or _metadata_datetime(meta, "simulated_eta_at"),
+        student_confirm_deadline_at=_student_confirm_deadline_at(task),
         status_history=hist_models,
     )
 
@@ -97,6 +115,59 @@ def _append_task_history(
             reason=reason,
         )
     )
+
+
+def _apply_auto_close_if_confirm_deadline_passed(db: Session, br: BookRequest, task: DeliveryTask) -> bool:
+    """Close the book request if the delivery task finished and the confirm window expired without confirmation."""
+    if br.status != RequestStatus.IN_PROGRESS:
+        return False
+    if task.status != TaskStatus.COMPLETED or task.completed_at is None:
+        return False
+    if br.student_confirmed_at is not None:
+        return False
+    now = datetime.now(timezone.utc)
+    deadline = task.completed_at + timedelta(minutes=STUDENT_CONFIRM_MINUTES)
+    if now < deadline:
+        return False
+    br.status = RequestStatus.COMPLETED
+    br.completed_at = now
+    br.auto_closed_without_confirm_at = now
+    db.commit()
+    db.refresh(br)
+    return True
+
+
+def ensure_book_request_auto_closed_if_stale(db: Session, br: BookRequest) -> BookRequest:
+    """If the robot run finished but the student never confirmed and the window passed, close the request.
+
+    Runs on read so list/detail stay correct when the in-process timer did not fire (server restart, etc.).
+    """
+    task = (
+        db.query(DeliveryTask)
+        .filter(DeliveryTask.request_id == br.id)
+        .order_by(DeliveryTask.created_at.desc())
+        .first()
+    )
+    if task is None:
+        return br
+    _apply_auto_close_if_confirm_deadline_passed(db, br, task)
+    return br
+
+
+def book_request_to_response(db: Session, br: BookRequest, viewer: UserResponse) -> BookRequestResponse:
+    """Serialize a book request; enrich with student + book labels for staff views."""
+    br = ensure_book_request_auto_closed_if_stale(db, br)
+    base = BookRequestResponse.model_validate(br)
+    data = base.model_dump()
+    book = get_book_by_id(db, br.book_id)
+    if book:
+        data["book_title"] = book.title
+    if viewer.role != UserRole.STUDENT:
+        prof = db.get(UserProfile, br.user_id)
+        if prof:
+            data["student_email"] = prof.email
+            data["student_display_name"] = f"{prof.first_name} {prof.last_name}".strip()
+    return BookRequestResponse(**data)
 
 
 def create_book_request(
@@ -168,7 +239,7 @@ def list_book_requests(
     )
 
     return BookRequestListResponse(
-        items=[BookRequestResponse.model_validate(r) for r in rows],
+        items=[book_request_to_response(db, r, user) for r in rows],
         page=page,
         limit=limit,
         total=total,
@@ -445,4 +516,160 @@ def update_delivery_task_status(
 
     db.commit()
     db.refresh(task)
+    if new_status == TaskStatus.COMPLETED:
+        _schedule_student_confirm_deadline_timer(task.id)
     return task
+
+
+def _complete_timed_delivery_task(task_id: UUID) -> None:
+    """Background completion for timed robot delivery runs (thread timer)."""
+    scheduled: UUID | None = None
+    db = SessionLocal()
+    try:
+        task = db.get(DeliveryTask, task_id)
+        if task is None:
+            return
+        meta = dict(task.task_metadata or {})
+        if not (meta.get("delivery_run") or meta.get("simulated_run")):
+            return
+        if task.status != TaskStatus.IN_PROGRESS:
+            return
+        old_status = task.status
+        task.status = TaskStatus.COMPLETED
+        now = datetime.now(timezone.utc)
+        task.completed_at = now
+        _append_task_history(
+            db,
+            task_id=task.id,
+            old_status=old_status,
+            new_status=TaskStatus.COMPLETED,
+            changed_by=None,
+            reason="robot_run_complete",
+        )
+        db.commit()
+        scheduled = task.id
+    finally:
+        db.close()
+    if scheduled is not None:
+        _schedule_student_confirm_deadline_timer(scheduled)
+
+
+def _auto_close_request_if_no_student_confirm(task_id: UUID) -> None:
+    """After STUDENT_CONFIRM_MINUTES, close the book request if the student never confirmed."""
+    db = SessionLocal()
+    try:
+        task = db.get(DeliveryTask, task_id)
+        if task is None or not task.request_id:
+            return
+        br = db.get(BookRequest, task.request_id)
+        if br is None:
+            return
+        _apply_auto_close_if_confirm_deadline_passed(db, br, task)
+    finally:
+        db.close()
+
+
+def _schedule_student_confirm_deadline_timer(task_id: UUID) -> None:
+    db = SessionLocal()
+    delay_sec: float | None = None
+    try:
+        task = db.get(DeliveryTask, task_id)
+        if task is None or task.status != TaskStatus.COMPLETED or not task.completed_at:
+            return
+        deadline = task.completed_at + timedelta(minutes=STUDENT_CONFIRM_MINUTES)
+        delay_sec = (deadline - datetime.now(timezone.utc)).total_seconds()
+    finally:
+        db.close()
+    if delay_sec is None:
+        return
+    if delay_sec < 0:
+        delay_sec = 0.0
+
+    def _fire() -> None:
+        _auto_close_request_if_no_student_confirm(task_id)
+
+    timer = threading.Timer(delay_sec, _fire)
+    timer.daemon = True
+    timer.start()
+
+
+def _schedule_timed_delivery_completion(task_id: UUID) -> None:
+    def _fire() -> None:
+        _complete_timed_delivery_task(task_id)
+
+    timer = threading.Timer(float(SIMULATED_DELIVERY_SECONDS), _fire)
+    timer.daemon = True
+    timer.start()
+
+
+def start_simulated_robot_delivery(db: Session, *, user: UserResponse, task_id: UUID) -> DeliveryTask:
+    """Move a queued, dispatchable task to IN_PROGRESS and complete it after SIMULATED_DELIVERY_SECONDS."""
+    if user.role not in (UserRole.LIBRARIAN, UserRole.ADMIN):
+        raise DeliveryError("Only librarians can start robot delivery.")
+
+    task = get_delivery_task(db, user=user, task_id=task_id)
+    if task.status != TaskStatus.QUEUED:
+        raise DeliveryError("Only queued tasks can start delivery.")
+    if not is_dispatchable(task):
+        raise DeliveryError("Book must be placed on the robot before starting delivery.")
+
+    old_status = task.status
+    meta = dict(task.task_metadata or {})
+    now = datetime.now(timezone.utc)
+    eta = now + timedelta(seconds=SIMULATED_DELIVERY_SECONDS)
+    meta["delivery_run"] = True
+    meta["delivery_eta_at"] = eta.isoformat()
+    meta["delivery_duration_sec"] = SIMULATED_DELIVERY_SECONDS
+    task.task_metadata = meta
+    task.status = TaskStatus.IN_PROGRESS
+    if task.started_at is None:
+        task.started_at = now
+    _append_task_history(
+        db,
+        task_id=task.id,
+        old_status=old_status,
+        new_status=TaskStatus.IN_PROGRESS,
+        changed_by=user.id,
+        reason="robot_run_started",
+    )
+    db.commit()
+    db.refresh(task)
+
+    _schedule_timed_delivery_completion(task.id)
+    return task
+
+
+def confirm_student_delivery(db: Session, *, user: UserResponse, request_id: UUID) -> BookRequest:
+    """Student confirms they received the book after the robot run completed."""
+    if user.role != UserRole.STUDENT:
+        raise DeliveryError("Only students can confirm delivery receipt.")
+
+    br = get_book_request(db, user=user, request_id=request_id)
+    if br.status != RequestStatus.IN_PROGRESS:
+        raise DeliveryError("This request is not awaiting your confirmation.")
+
+    task = (
+        db.query(DeliveryTask)
+        .filter(DeliveryTask.request_id == br.id)
+        .order_by(DeliveryTask.created_at.desc())
+        .first()
+    )
+    if task is None or task.status != TaskStatus.COMPLETED:
+        raise DeliveryError("Delivery is not complete yet.")
+
+    now = datetime.now(timezone.utc)
+    if not task.completed_at:
+        raise DeliveryError("Delivery is not complete yet.")
+    deadline = task.completed_at + timedelta(minutes=STUDENT_CONFIRM_MINUTES)
+    if now > deadline:
+        raise DeliveryError(
+            "The confirmation window has closed. The robot has returned to staff.",
+            status_code=400,
+        )
+
+    br.status = RequestStatus.COMPLETED
+    br.completed_at = now
+    br.student_confirmed_at = now
+    db.commit()
+    db.refresh(br)
+    return br

@@ -12,18 +12,18 @@ from sqlalchemy.orm import Session
 from delivery.schemas import (
     BookRequestCreate,
     BookRequestListResponse,
-    BookRequestResponse,
     DeliveryTaskCreate,
     DeliveryTaskListResponse,
-    DeliveryTaskResponse,
     DeliveryTaskStatusUpdate,
 )
 from auth.schemas import UserResponse
 from delivery.services import (
     DeliveryError,
     approve_book_request,
+    book_request_to_response,
     cancel_book_request,
     confirm_book_placed,
+    confirm_student_delivery,
     create_book_request,
     create_delivery_task_from_request,
     get_book_request,
@@ -32,6 +32,7 @@ from delivery.services import (
     is_dispatchable,
     list_book_requests,
     list_delivery_tasks,
+    start_simulated_robot_delivery,
     task_to_response,
     update_delivery_task_status,
 )
@@ -86,7 +87,9 @@ def create_request(
             request_location=body.request_location,
             notes=body.notes,
         )
-        return _success({"request": BookRequestResponse.model_validate(row).model_dump(mode="json")})
+        return _success(
+            {"request": book_request_to_response(db, row, user).model_dump(mode="json")}
+        )
     except DeliveryError as e:
         raise _handle_delivery_error(e) from e
 
@@ -118,7 +121,7 @@ def get_request(
 ):
     try:
         row = get_book_request(db, user=user, request_id=request_id)
-        return _success({"request": BookRequestResponse.model_validate(row).model_dump(mode="json")})
+        return _success({"request": book_request_to_response(db, row, user).model_dump(mode="json")})
     except DeliveryError as e:
         raise _handle_delivery_error(e) from e
 
@@ -134,7 +137,7 @@ def get_request_activity_route(
         br, task_payload = get_request_activity(db, user=user, request_id=request_id)
         return _success(
             {
-                "request": BookRequestResponse.model_validate(br).model_dump(mode="json"),
+                "request": book_request_to_response(db, br, user).model_dump(mode="json"),
                 "task": task_payload.model_dump(mode="json") if task_payload else None,
             }
         )
@@ -150,7 +153,7 @@ def approve_request(
 ):
     try:
         row = approve_book_request(db, user=user, request_id=request_id)
-        return _success({"request": BookRequestResponse.model_validate(row).model_dump(mode="json")})
+        return _success({"request": book_request_to_response(db, row, user).model_dump(mode="json")})
     except DeliveryError as e:
         raise _handle_delivery_error(e) from e
 
@@ -163,7 +166,21 @@ def cancel_request(
 ):
     try:
         row = cancel_book_request(db, user=user, request_id=request_id)
-        return _success({"request": BookRequestResponse.model_validate(row).model_dump(mode="json")})
+        return _success({"request": book_request_to_response(db, row, user).model_dump(mode="json")})
+    except DeliveryError as e:
+        raise _handle_delivery_error(e) from e
+
+
+@requests_router.post("/{request_id}/confirm-delivery")
+def confirm_delivery(
+    request_id: uuid.UUID,
+    user: UserResponse = Depends(get_current_user_dep),
+    db: Session = Depends(get_db),
+):
+    """Student confirms they received the book (closes the request after robot delivery)."""
+    try:
+        row = confirm_student_delivery(db, user=user, request_id=request_id)
+        return _success({"request": book_request_to_response(db, row, user).model_dump(mode="json")})
     except DeliveryError as e:
         raise _handle_delivery_error(e) from e
 
@@ -252,6 +269,26 @@ def post_book_placed(
     try:
         task = confirm_book_placed(db, user=user, task_id=task_id)
         return _success({"task": task_to_response(task).model_dump(mode="json")})
+    except DeliveryError as e:
+        raise _handle_delivery_error(e) from e
+
+
+@deliveries_router.post("/tasks/{task_id}/simulate-run")
+def post_simulate_robot_run(
+    task_id: uuid.UUID,
+    user: UserResponse = Depends(get_current_user_dep),
+    db: Session = Depends(get_db),
+):
+    """Start a robot pickup+delivery run (~4 minutes), then mark the task completed."""
+    try:
+        task = start_simulated_robot_delivery(db, user=user, task_id=task_id)
+        hist = (
+            db.query(TaskStatusHistory)
+            .filter(TaskStatusHistory.task_id == task.id)
+            .order_by(TaskStatusHistory.changed_at.asc())
+            .all()
+        )
+        return _success({"task": task_to_response(task, hist).model_dump(mode="json")})
     except DeliveryError as e:
         raise _handle_delivery_error(e) from e
 

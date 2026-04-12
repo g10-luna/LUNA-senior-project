@@ -76,6 +76,8 @@ def _request_row(uid, bid, status=RequestStatus.PENDING, location="Desk 3"):
         approved_at=None,
         in_progress_at=None,
         completed_at=None,
+        student_confirmed_at=None,
+        auto_closed_without_confirm_at=None,
         notes=None,
     )
 

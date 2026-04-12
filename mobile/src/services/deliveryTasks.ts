@@ -30,6 +30,12 @@ export interface DeliveryTaskItem {
   completed_at: string | null;
   book_placed: boolean;
   book_placed_at: string | null;
+  /** Expected completion time for an in-progress delivery run (server metadata). */
+  delivery_eta_at?: string | null;
+  /** Legacy API field; prefer `delivery_eta_at`. */
+  simulated_eta_at?: string | null;
+  /** After delivery completes, student must confirm by this time (server UTC). */
+  student_confirm_deadline_at?: string | null;
   /** Included on task detail & request activity; omitted or empty on list endpoint. */
   status_history?: TaskStatusEventItem[];
 }

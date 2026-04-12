@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import BottomTabBar from '@/components/BottomTabBar';
+import { useAuth } from '@/contexts/AuthContext';
 
 const HOWARD_RED = '#E31837';
 
@@ -14,6 +15,10 @@ function TabBarIcon(props: {
 }
 
 export default function TabLayout() {
+  const { hasToken } = useAuth();
+  if (hasToken === null) return null;
+  if (!hasToken) return <Redirect href="/login" />;
+
   return (
     <View style={styles.wrapper}>
       <Tabs

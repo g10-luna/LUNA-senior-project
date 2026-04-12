@@ -18,12 +18,12 @@ import { BOTTOM_TAB_BAR_HEIGHT } from '@/components/BottomTabBar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   BookRequestApiError,
-  formatRequestStatus,
+  formatRequestListLabel,
+  getRequestPillColors,
   listMyBookRequests,
   type BookRequestItem,
-  type RequestStatus,
 } from '@/src/services/bookRequests';
-import { getBook } from '@/src/services/books';
+import { getBook, type BookStatus } from '@/src/services/books';
 
 const HOWARD_BLUE = '#003A63';
 const HOWARD_RED = '#E31837';
@@ -44,7 +44,7 @@ function formatUpdatedLabel(iso: string | null): string {
   }
 }
 
-type BookSummary = { title: string; author: string };
+type BookSummary = { title: string; author: string; status: BookStatus };
 
 async function loadBookSummaries(bookIds: string[]): Promise<Record<string, BookSummary>> {
   const unique = [...new Set(bookIds)];
@@ -53,26 +53,24 @@ async function loadBookSummaries(bookIds: string[]): Promise<Record<string, Book
   results.forEach((r, i) => {
     const id = unique[i];
     if (r.status === 'fulfilled') {
-      map[id] = { title: r.value.title, author: r.value.author };
+      map[id] = { title: r.value.title, author: r.value.author, status: r.value.status };
     }
   });
   return map;
 }
 
-function statusPillColors(status: RequestStatus): { bg: string; text: string } {
+function formatBookStatusShort(status: BookStatus): string {
   switch (status) {
-    case 'PENDING':
-      return { bg: '#fef3c7', text: '#b45309' };
-    case 'APPROVED':
-      return { bg: '#dbeafe', text: '#1d4ed8' };
-    case 'IN_PROGRESS':
-      return { bg: '#ede9fe', text: '#6d28d9' };
-    case 'COMPLETED':
-      return { bg: '#dcfce7', text: '#15803d' };
-    case 'CANCELLED':
-      return { bg: '#f1f5f9', text: '#64748b' };
+    case 'AVAILABLE':
+      return 'Available';
+    case 'CHECKED_OUT':
+      return 'Checked out';
+    case 'RESERVED':
+      return 'Reserved';
+    case 'UNAVAILABLE':
+      return 'Unavailable';
     default:
-      return { bg: '#e0f2fe', text: '#0369a1' };
+      return String(status);
   }
 }
 
@@ -173,7 +171,7 @@ export default function RequestsScreen() {
         <View style={styles.heroCard}>
           <View style={styles.heroRow}>
             <View style={styles.heroIconWrap}>
-              <FontAwesome name="truck" size={24} color="#fff" />
+              <FontAwesome name="paper-plane-o" size={24} color="#fff" />
             </View>
             <View style={styles.heroTextCol}>
               <Text style={styles.heroEyebrow}>LUNA delivery</Text>
@@ -218,7 +216,7 @@ export default function RequestsScreen() {
 
         {items.map((req) => {
           const summary = bookSummaries[req.book_id];
-          const pill = statusPillColors(req.status);
+          const pill = getRequestPillColors(req);
           return (
             <Pressable
               key={req.id}
@@ -245,7 +243,7 @@ export default function RequestsScreen() {
                 <View style={styles.cardRightCol}>
                   <View style={[styles.statusPill, { backgroundColor: pill.bg }]}>
                     <Text style={[styles.statusPillText, { color: pill.text }]}>
-                      {formatRequestStatus(req.status)}
+                      {formatRequestListLabel(req)}
                     </Text>
                   </View>
                   <FontAwesome name="chevron-right" size={12} color="#cbd5e1" style={styles.cardChevron} />
@@ -261,6 +259,14 @@ export default function RequestsScreen() {
                   Requested {formatUpdatedLabel(req.requested_at)}
                 </Text>
               </View>
+              {summary ? (
+                <View style={styles.cardRow}>
+                  <FontAwesome name="book" size={14} color="#64748b" style={styles.cardRowIcon} />
+                  <Text style={styles.cardMetaSmall}>
+                    Book status: <Text style={styles.cardMetaEm}>{formatBookStatusShort(summary.status)}</Text>
+                  </Text>
+                </View>
+              ) : null}
               <View style={styles.cardFooterHint}>
                 <FontAwesome name="list-ul" size={12} color="#94a3b8" />
                 <Text style={styles.cardHint}>View activity and delivery status</Text>
@@ -403,6 +409,7 @@ const styles = StyleSheet.create({
   cardRowIcon: { marginRight: 8 },
   cardMeta: { fontSize: 14, color: '#475569', flex: 1 },
   cardMetaSmall: { fontSize: 12, color: '#94a3b8' },
+  cardMetaEm: { fontWeight: '700', color: '#475569' },
   cardFooterHint: {
     flexDirection: 'row',
     alignItems: 'center',

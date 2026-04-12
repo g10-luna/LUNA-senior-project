@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
+import { useAuth } from '@/contexts/AuthContext';
 import BottomTabBar, { BOTTOM_TAB_BAR_HEIGHT } from '@/components/BottomTabBar';
 import BookCard from '@/components/BookCard';
 import {
@@ -29,6 +30,7 @@ const PAGE_SIZE = 24;
 export default function DiscoverListScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { hasToken } = useAuth();
 
   const { width } = Dimensions.get('window');
   const columns = 2;
@@ -85,6 +87,9 @@ export default function DiscoverListScreen() {
       />
     </View>
   );
+
+  if (hasToken === null) return null;
+  if (!hasToken) return <Redirect href="/login" />;
 
   return (
     <View style={styles.container}>

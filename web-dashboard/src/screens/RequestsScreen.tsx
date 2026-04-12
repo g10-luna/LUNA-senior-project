@@ -11,6 +11,7 @@ import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from "@dnd-kit/utilities";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { StudentDeliveryRequestsPanel } from "../components/domain/StudentDeliveryRequestsPanel";
 import { listBooks, updateBook } from "../lib/catalogApi";
 import type { Book } from "../lib/catalogTypes";
 import { getCurrentQueuerProfile } from "../lib/queuedByProfile";
@@ -313,6 +314,8 @@ export default function RequestsScreen() {
           <span className={`requests-open-pill ${openCount > 0 ? "requests-open-pill--active" : ""}`}>{openCount} open</span>
         </div>
       </header>
+
+      <StudentDeliveryRequestsPanel />
 
       <form className="card requests-add-form" onSubmit={onSubmitManual}>
         <h2 className="requests-section-label">Add to queue</h2>

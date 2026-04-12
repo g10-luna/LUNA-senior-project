@@ -28,6 +28,12 @@ class BookRequestResponse(BaseModel):
     in_progress_at: datetime | None = None
     completed_at: datetime | None
     notes: str | None
+    student_confirmed_at: datetime | None = None
+    auto_closed_without_confirm_at: datetime | None = None
+    # Populated for librarians/admins (and book title for convenience in lists)
+    student_display_name: str | None = None
+    student_email: str | None = None
+    book_title: str | None = None
 
 
 class BookRequestListResponse(BaseModel):
@@ -68,6 +74,14 @@ class DeliveryTaskResponse(BaseModel):
     book_placed_at: datetime | None = Field(
         None,
         description="When staff confirmed the book on shelf (from task metadata), if recorded.",
+    )
+    delivery_eta_at: datetime | None = Field(
+        None,
+        description="Expected completion time for the in-progress delivery run (from task metadata), if set.",
+    )
+    student_confirm_deadline_at: datetime | None = Field(
+        None,
+        description="When the student must confirm receipt after delivery completes (server rule), if applicable.",
     )
     status_history: list[TaskStatusEventResponse] = Field(default_factory=list)
 

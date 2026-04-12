@@ -1,9 +1,16 @@
+import React from 'react';
 import { Redirect } from 'expo-router';
+import LoginView from '@/components/LoginView';
+import { useAuth } from '@/contexts/AuthContext';
 
 /**
- * Login is shown in the My Account tab.
- * This route redirects so deep links to /login still work.
+ * Full-screen sign-in (no tab bar). Deep links to /login land here.
  */
 export default function LoginScreen() {
-  return <Redirect href="/(tabs)/my-account" />;
+  const { hasToken, refreshAuth } = useAuth();
+
+  if (hasToken === null) return null;
+  if (hasToken) return <Redirect href="/(tabs)" />;
+
+  return <LoginView onSuccess={refreshAuth} />;
 }

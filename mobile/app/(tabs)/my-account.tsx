@@ -15,7 +15,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { clearTokens, getMe, type MeUser } from '@/src/services/auth';
 import { useAuth } from '@/contexts/AuthContext';
-import LoginView from '@/components/LoginView';
 import { BOTTOM_TAB_BAR_HEIGHT } from '@/components/BottomTabBar';
 
 const HOWARD_BLUE = '#003A63';
@@ -50,13 +49,10 @@ export default function MyAccountScreen() {
   const handleSignOut = async () => {
     await clearTokens();
     await refreshAuth();
+    router.replace('/login');
   };
 
   if (hasToken === null) return null;
-
-  if (!hasToken) {
-    return <LoginView onSuccess={refreshAuth} />;
-  }
 
   const bottomPadding = 24 + BOTTOM_TAB_BAR_HEIGHT + insets.bottom;
   const fullName = user ? `${user.first_name} ${user.last_name}`.trim() || 'My Account' : 'My Account';

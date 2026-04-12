@@ -21,6 +21,12 @@ export interface BookRequestItem {
   in_progress_at?: string | null;
   completed_at: string | null;
   notes: string | null;
+  /** Set when the student taps “I received my book” within the window. */
+  student_confirmed_at?: string | null;
+  /** Set when the 5-minute window expired without confirmation. */
+  auto_closed_without_confirm_at?: string | null;
+  /** Populated in some responses when catalog joins are available. */
+  book_title?: string | null;
 }
 
 export class BookRequestApiError extends Error {
@@ -87,6 +93,18 @@ export async function getBookRequest(requestId: string): Promise<BookRequestItem
   return data.request;
 }
 
+/** Student confirms they picked up the book after the robot run completed. */
+export async function confirmDeliveryReceipt(requestId: string): Promise<BookRequestItem> {
+  const res = await apiFetch(`/api/v1/requests/${encodeURIComponent(requestId)}/confirm-delivery`, {
+    method: 'POST',
+  });
+  const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) throw new BookRequestApiError(messageFromJson(res, json));
+  const data = json.data as { request?: BookRequestItem } | undefined;
+  if (!data?.request || json.success === false) throw new BookRequestApiError('Invalid response');
+  return data.request;
+}
+
 export async function createBookRequest(input: {
   bookId: string;
   requestLocation: string;
@@ -121,5 +139,38 @@ export function formatRequestStatus(status: RequestStatus): string {
       return 'Cancelled';
     default:
       return status;
+  }
+}
+
+/** List/detail badge label: distinguishes successful pickup vs auto-closed without confirmation. */
+export function formatRequestListLabel(req: BookRequestItem): string {
+  if (req.status === 'COMPLETED' && req.auto_closed_without_confirm_at) {
+    return 'Not picked up';
+  }
+  if (req.status === 'COMPLETED' && req.student_confirmed_at) {
+    return 'Picked up';
+  }
+  return formatRequestStatus(req.status);
+}
+
+/** Background/text colors for the status pill (list + detail). */
+export function getRequestPillColors(req: BookRequestItem): { bg: string; text: string } {
+  if (req.status === 'COMPLETED' && req.auto_closed_without_confirm_at) {
+    return { bg: '#fef3c7', text: '#b45309' };
+  }
+  if (req.status === 'COMPLETED') {
+    return { bg: '#dcfce7', text: '#15803d' };
+  }
+  switch (req.status) {
+    case 'PENDING':
+      return { bg: '#fef3c7', text: '#b45309' };
+    case 'APPROVED':
+      return { bg: '#dbeafe', text: '#1d4ed8' };
+    case 'IN_PROGRESS':
+      return { bg: '#ede9fe', text: '#6d28d9' };
+    case 'CANCELLED':
+      return { bg: '#f1f5f9', text: '#64748b' };
+    default:
+      return { bg: '#e0f2fe', text: '#0369a1' };
   }
 }

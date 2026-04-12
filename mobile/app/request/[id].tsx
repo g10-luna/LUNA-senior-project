@@ -1,5 +1,6 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   View,
   Text,
   StyleSheet,
@@ -11,21 +12,72 @@ import {
   type AppStateStatus,
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   BookRequestApiError,
+  confirmDeliveryReceipt,
   fetchRequestActivity,
-  formatRequestStatus,
+  formatRequestListLabel,
+  getRequestPillColors,
   type BookRequestItem,
 } from '@/src/services/bookRequests';
 import type { DeliveryTaskItem, TaskStatusEventItem } from '@/src/services/deliveryTasks';
-import { getBook } from '@/src/services/books';
+import { getBook, type BookStatus } from '@/src/services/books';
+import { useAuth } from '@/contexts/AuthContext';
 
 const HOWARD_BLUE = '#003A63';
 const HOWARD_RED = '#E31837';
 const POLL_MS = 12_000;
+const STUDENT_CONFIRM_MIN_MS = 5 * 60 * 1000;
+
+function getStudentConfirmDeadlineMs(task: DeliveryTaskItem | null): number | null {
+  if (!task?.completed_at) return null;
+  if (task.student_confirm_deadline_at) {
+    const d = new Date(task.student_confirm_deadline_at).getTime();
+    if (!Number.isNaN(d)) return d;
+  }
+  const t = new Date(task.completed_at).getTime();
+  if (Number.isNaN(t)) return null;
+  return t + STUDENT_CONFIRM_MIN_MS;
+}
+
+function formatCountdownTo(ms: number): string {
+  const left = Math.max(0, ms - Date.now());
+  const totalSec = Math.floor(left / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  if (m <= 0) return `${s}s`;
+  return `${m}m ${s.toString().padStart(2, '0')}s`;
+}
+
+function formatBookStatusLabel(status: BookStatus | null): string {
+  if (!status) return '—';
+  switch (status) {
+    case 'AVAILABLE':
+      return 'Available';
+    case 'CHECKED_OUT':
+      return 'Checked out';
+    case 'RESERVED':
+      return 'Reserved';
+    case 'UNAVAILABLE':
+      return 'Unavailable';
+    default:
+      return String(status);
+  }
+}
+
+function taskDeliveryEtaIso(task: DeliveryTaskItem): string | null | undefined {
+  return task.delivery_eta_at ?? task.simulated_eta_at ?? null;
+}
+
+/** User-facing line e.g. "ETA Dec 5, 3:45 PM" — not a countdown. */
+function formatDeliveryEtaLine(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const t = formatWhen(iso);
+  return t ? `ETA ${t}` : null;
+}
 
 function formatWhen(iso: string | null | undefined): string | null {
   if (!iso) return null;
@@ -54,6 +106,18 @@ interface ActivityLine {
 
 function historyEventCopy(ev: TaskStatusEventItem): { title: string; subtitle?: string } {
   const r = ev.reason ?? '';
+  if (r === 'robot_run_started' || r === 'simulated_robot_started') {
+    return {
+      title: 'Pickup in progress',
+      subtitle: 'Robot run started — pickup and delivery underway.',
+    };
+  }
+  if (r === 'robot_run_complete' || r === 'simulated_robot_complete') {
+    return {
+      title: 'Robot run finished',
+      subtitle: 'Your book should be at the pickup location.',
+    };
+  }
   if (r === 'task_created') {
     return {
       title: 'Pickup task created',
@@ -159,10 +223,13 @@ function syntheticTaskLines(task: DeliveryTaskItem): ActivityLine[] {
       state: 'complete',
     });
   } else if (task.status === 'IN_PROGRESS') {
+    const etaLine = formatDeliveryEtaLine(taskDeliveryEtaIso(task));
     lines.push({
       key: 'robot_transit',
-      title: 'Robot is on the way',
-      subtitle: 'Live ETA will appear when the robot reports it.',
+      title: 'Pickup in progress',
+      subtitle: etaLine
+        ? `${etaLine} for this delivery run.`
+        : 'An ETA will show here when the run is scheduled.',
       timeLabel: formatWhen(task.started_at ?? undefined),
       state: 'active',
     });
@@ -296,10 +363,13 @@ function buildActivityLines(req: BookRequestItem, task: DeliveryTaskItem | null)
           state: 'upcoming',
         });
       } else if (task.status === 'IN_PROGRESS' && !taskTerminal) {
+        const etaLine = formatDeliveryEtaLine(taskDeliveryEtaIso(task));
         lines.push({
           key: 'eta-ip',
-          title: 'Estimated arrival',
-          subtitle: 'Not available yet — ask the desk for a rough time.',
+          title: etaLine ? 'Delivery ETA' : 'Estimated arrival',
+          subtitle: etaLine
+            ? `${etaLine} for this delivery run.`
+            : 'Not available yet — ask the desk for a rough time.',
           timeLabel: null,
           state: 'upcoming',
         });
@@ -322,19 +392,37 @@ function buildActivityLines(req: BookRequestItem, task: DeliveryTaskItem | null)
   }
 
   if (req.status === 'COMPLETED') {
-    lines.push({
-      key: 'done',
-      title: 'Request completed',
-      subtitle: 'This delivery request is closed.',
-      timeLabel: formatWhen(req.completed_at ?? undefined),
-      state: 'complete',
-    });
+    if (req.student_confirmed_at) {
+      lines.push({
+        key: 'done',
+        title: 'You confirmed pickup',
+        subtitle: 'Thanks — staff can send the robot on its next run.',
+        timeLabel: formatWhen(req.student_confirmed_at),
+        state: 'complete',
+      });
+    } else if (req.auto_closed_without_confirm_at) {
+      lines.push({
+        key: 'done',
+        title: 'Request closed',
+        subtitle: 'You did not confirm in time. The robot returned to staff.',
+        timeLabel: formatWhen(req.auto_closed_without_confirm_at),
+        state: 'issue',
+      });
+    } else {
+      lines.push({
+        key: 'done',
+        title: 'Request completed',
+        subtitle: 'This delivery request is closed.',
+        timeLabel: formatWhen(req.completed_at ?? undefined),
+        state: 'complete',
+      });
+    }
   } else if (req.status === 'IN_PROGRESS' && task && task.status === 'COMPLETED') {
     lines.push({
       key: 'handoff',
       title: 'Pick up your book',
-      subtitle: 'Robot handoff is complete; grab it when you are ready.',
-      timeLabel: null,
+      subtitle: 'Robot handoff is complete. Confirm below once you have the book.',
+      timeLabel: formatWhen(task.completed_at ?? undefined),
       state: 'active',
     });
   }
@@ -353,6 +441,31 @@ export default function RequestActivityScreen() {
   const [request, setRequest] = useState<BookRequestItem | null>(null);
   const [task, setTask] = useState<DeliveryTaskItem | null>(null);
   const [bookTitle, setBookTitle] = useState<string | null>(null);
+  const [bookStatus, setBookStatus] = useState<BookStatus | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [, setNowTick] = useState(0);
+  const { hasToken } = useAuth();
+  /** Avoid showing the same delivery-complete alert on every poll. */
+  const deliveryPromptShownKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    deliveryPromptShownKeyRef.current = null;
+  }, [id]);
+
+  const showConfirmDelivery =
+    !!request &&
+    request.status === 'IN_PROGRESS' &&
+    task?.status === 'COMPLETED';
+
+  const confirmDeadlineMs = task ? getStudentConfirmDeadlineMs(task) : null;
+  const confirmWindowOpen =
+    showConfirmDelivery && confirmDeadlineMs != null && Date.now() < confirmDeadlineMs;
+
+  useEffect(() => {
+    if (!showConfirmDelivery || !confirmDeadlineMs) return;
+    const tickId = setInterval(() => setNowTick((n) => n + 1), 1000);
+    return () => clearInterval(tickId);
+  }, [showConfirmDelivery, confirmDeadlineMs]);
 
   const load = useCallback(async () => {
     if (!id) {
@@ -368,8 +481,10 @@ export default function RequestActivityScreen() {
       try {
         const b = await getBook(activity.request.book_id);
         setBookTitle(b.title);
+        setBookStatus(b.status);
       } catch {
         setBookTitle(null);
+        setBookStatus(null);
       }
     } catch (e) {
       const msg =
@@ -416,7 +531,54 @@ export default function RequestActivityScreen() {
     }
   }, [load]);
 
+  const onConfirmDelivery = useCallback(async () => {
+    if (!id) return;
+    setConfirming(true);
+    setError(null);
+    try {
+      await confirmDeliveryReceipt(id);
+      await load();
+    } catch (e) {
+      const msg =
+        e instanceof BookRequestApiError ? e.message : 'Could not confirm delivery.';
+      setError(msg);
+    } finally {
+      setConfirming(false);
+    }
+  }, [id, load]);
+
+  const onConfirmDeliveryRef = useRef(onConfirmDelivery);
+  onConfirmDeliveryRef.current = onConfirmDelivery;
+
+  useEffect(() => {
+    if (loading) return;
+    if (!request || !task) return;
+    if (request.status !== 'IN_PROGRESS' || task.status !== 'COMPLETED') return;
+    if (!confirmWindowOpen) return;
+
+    const key = task.id;
+    if (deliveryPromptShownKeyRef.current === key) return;
+    deliveryPromptShownKeyRef.current = key;
+
+    Alert.alert(
+      'Delivery complete',
+      'You have about 5 minutes to confirm that you picked up your book. If you do not confirm in time, the robot will return to staff and this request will close.',
+      [
+        { text: 'Not now', style: 'cancel' },
+        {
+          text: 'I received my book',
+          onPress: () => void onConfirmDeliveryRef.current(),
+        },
+      ],
+      { cancelable: true },
+    );
+  }, [loading, request, task, confirmWindowOpen]);
+
+  if (hasToken === null) return null;
+  if (!hasToken) return <Redirect href="/login" />;
+
   const lines = request ? buildActivityLines(request, task) : [];
+  const summaryPillStyle = request ? getRequestPillColors(request) : { bg: '#e8f0fe', text: HOWARD_BLUE };
   const bottomPad = 28 + insets.bottom;
 
   return (
@@ -469,14 +631,34 @@ export default function RequestActivityScreen() {
               {bookTitle ?? 'Your book'}
             </Text>
             <View style={styles.summaryPillRow}>
-              <View style={styles.summaryPill}>
-                <Text style={styles.summaryPillText}>{formatRequestStatus(request.status)}</Text>
+              <View style={[styles.summaryPill, { backgroundColor: summaryPillStyle.bg }]}>
+                <Text style={[styles.summaryPillText, { color: summaryPillStyle.text }]}>
+                  {formatRequestListLabel(request)}
+                </Text>
               </View>
               <Text style={styles.summaryLocation} numberOfLines={1}>
                 {request.request_location}
               </Text>
             </View>
+            <View style={styles.summaryBookStatusRow}>
+              <Text style={styles.summaryBookStatusLabel}>Book in catalog</Text>
+              <Text style={styles.summaryBookStatusValue}>{formatBookStatusLabel(bookStatus)}</Text>
+            </View>
           </View>
+
+          {showConfirmDelivery && confirmDeadlineMs != null ? (
+            <View style={styles.confirmUrgentBanner} accessibilityRole="alert">
+              <FontAwesome name="clock-o" size={18} color={HOWARD_RED} />
+              <View style={styles.confirmUrgentTextWrap}>
+                <Text style={styles.confirmUrgentTitle}>Confirm pickup</Text>
+                <Text style={styles.confirmUrgentBody}>
+                  {confirmWindowOpen
+                    ? `You have ${formatCountdownTo(confirmDeadlineMs)} left to confirm. If you don’t, the robot will return to staff.`
+                    : 'The confirmation window has ended. The robot has returned to staff.'}
+                </Text>
+              </View>
+            </View>
+          ) : null}
 
           <Text style={styles.sectionTitle}>Activity</Text>
           <View style={styles.timelineCard}>
@@ -516,6 +698,27 @@ export default function RequestActivityScreen() {
               </View>
             ))}
           </View>
+
+          {showConfirmDelivery ? (
+            <TouchableOpacity
+              style={[
+                styles.primaryConfirmBtn,
+                (confirming || !confirmWindowOpen) && styles.primaryConfirmBtnDisabled,
+              ]}
+              activeOpacity={0.88}
+              disabled={confirming || !confirmWindowOpen}
+              onPress={() => void onConfirmDelivery()}
+            >
+              <FontAwesome name="check-circle" size={18} color="#fff" style={styles.secondaryIcon} />
+              <Text style={styles.primaryConfirmText}>
+                {confirming
+                  ? 'Saving…'
+                  : confirmWindowOpen
+                    ? 'I received my book'
+                    : 'Confirmation closed'}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
 
           <TouchableOpacity
             style={styles.secondaryBtn}
@@ -598,6 +801,40 @@ const styles = StyleSheet.create({
   },
   summaryPillText: { fontSize: 12, fontWeight: '700', color: HOWARD_BLUE },
   summaryLocation: { flex: 1, minWidth: 120, fontSize: 14, color: '#64748b' },
+  summaryBookStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e8ecf1',
+  },
+  summaryBookStatusLabel: { fontSize: 12, fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase' },
+  summaryBookStatusValue: { fontSize: 14, fontWeight: '700', color: '#0f172a' },
+  confirmUrgentBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: '#fff1f2',
+    borderWidth: 1,
+    borderColor: 'rgba(227, 24, 55, 0.25)',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+  },
+  confirmUrgentTextWrap: { flex: 1 },
+  confirmUrgentTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 4,
+  },
+  confirmUrgentBody: {
+    fontSize: 14,
+    color: '#475569',
+    lineHeight: 20,
+  },
   sectionTitle: {
     fontSize: 15,
     fontWeight: '700',
@@ -655,5 +892,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: HOWARD_BLUE,
+  },
+  primaryConfirmBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: HOWARD_BLUE,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    borderRadius: 14,
+    marginBottom: 12,
+    gap: 8,
+  },
+  primaryConfirmBtnDisabled: { opacity: 0.65 },
+  primaryConfirmText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
   },
 });
