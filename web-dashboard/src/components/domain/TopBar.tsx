@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { fetchCurrentUser, logout } from "../../lib/authApi";
+import { displayNameFromCurrentUser, fetchCurrentUser, logout } from "../../lib/authApi";
 import { ROUTES } from "../../lib/routes";
+import {
+  CACHED_USER_DISPLAY_NAME_KEY,
+  getLibrarianDisplayName,
+  getStoredUserProfile,
+  hasLibrarianSessionHint,
+  USER_PROFILE_CHANGED_EVENT,
+} from "../../lib/sessionProfile";
 import "./TopBar.css";
-
-const USER_NAME_CACHE_KEY = "current_user_name";
 
 /** Logo next to the title. Put your image in web-dashboard/public/luna-logo.png (or .svg, .webp). */
 const LOGO_SRC = "/luna-logo.png";
@@ -14,25 +19,47 @@ export default function TopBar({ title }: { title?: string }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [profileOpen, setProfileOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
-  const [userDisplayName, setUserDisplayName] = useState(
-    () => localStorage.getItem(USER_NAME_CACHE_KEY) || "Librarian"
-  );
+  const [userDisplayName, setUserDisplayName] = useState(() => {
+    if (getStoredUserProfile()) {
+      return getLibrarianDisplayName();
+    }
+    const cached = localStorage.getItem(CACHED_USER_DISPLAY_NAME_KEY);
+    if (cached) return cached;
+    return hasLibrarianSessionHint() ? getLibrarianDisplayName() : "Librarian";
+  });
 
   useEffect(() => {
     let cancelled = false;
 
     const loadUser = async () => {
       const user = await fetchCurrentUser();
-      if (cancelled || !user) return;
-      const full = [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
-      const nextName = full || user.name || user.email || "Librarian";
-      setUserDisplayName(nextName);
-      localStorage.setItem(USER_NAME_CACHE_KEY, nextName);
+      if (cancelled) return;
+      if (user) {
+        const nextName = displayNameFromCurrentUser(user) || getLibrarianDisplayName();
+        setUserDisplayName(nextName);
+        localStorage.setItem(CACHED_USER_DISPLAY_NAME_KEY, nextName);
+        return;
+      }
+      if (hasLibrarianSessionHint()) {
+        setUserDisplayName(getLibrarianDisplayName());
+      }
     };
 
     void loadUser();
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const syncNameFromSession = () => {
+      const nextName = getLibrarianDisplayName();
+      setUserDisplayName(nextName);
+      localStorage.setItem(CACHED_USER_DISPLAY_NAME_KEY, nextName);
+    };
+    window.addEventListener(USER_PROFILE_CHANGED_EVENT, syncNameFromSession);
+    return () => {
+      window.removeEventListener(USER_PROFILE_CHANGED_EVENT, syncNameFromSession);
     };
   }, []);
 
@@ -96,10 +123,6 @@ export default function TopBar({ title }: { title?: string }) {
       </form>
 
       <div className="topbar-right">
-        <button type="button" className="topbar-notifications topbar-icon" title="Notifications" aria-label="Notifications">
-          <span className="topbar-bell-icon">🔔</span>
-          <span className="topbar-notification-badge" aria-hidden>1</span>
-        </button>
         <div className="topbar-profile-wrap">
           <button
             type="button"
@@ -127,7 +150,7 @@ export default function TopBar({ title }: { title?: string }) {
                   onClick={() => {
                     setProfileOpen(false);
                     logout();
-                    localStorage.removeItem(USER_NAME_CACHE_KEY);
+                    localStorage.removeItem(CACHED_USER_DISPLAY_NAME_KEY);
                     navigate(ROUTES.LOGIN, { replace: true });
                   }}
                   role="menuitem"

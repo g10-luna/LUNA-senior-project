@@ -26,29 +26,37 @@ export function useRobotStatus(clientOverride?: RobotServiceClient): UseRobotSta
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    setLoading(true);
-    setError(null);
+    let isMounted = true;
 
     const unsubscribe = client.subscribeAllStatuses?.((next) => {
+      if (!isMounted) return;
       setStatuses(next);
+      setError(null);
       setLoading(false);
     });
 
-    if (!unsubscribe) {
-      client
-        .getAllStatuses()
-        .then((next) => {
-          setStatuses(next);
-        })
-        .catch((err) => {
-          setError(err instanceof Error ? err : new Error("Failed to load robot status"));
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    }
+    void Promise.resolve()
+      .then(() => {
+        if (!isMounted) return undefined;
+        setLoading(true);
+        setError(null);
+        return client.getAllStatuses();
+      })
+      .then((next) => {
+        if (!isMounted || next === undefined) return;
+        setStatuses(next);
+      })
+      .catch((err) => {
+        if (!isMounted) return;
+        setError(err instanceof Error ? err : new Error("Failed to load robot status"));
+      })
+      .finally(() => {
+        if (!isMounted) return;
+        setLoading(false);
+      });
 
     return () => {
+      isMounted = false;
       if (unsubscribe) unsubscribe();
     };
   }, [client]);

@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { login } from "../lib/authApi";
+import { USE_MOCK_AUTH } from "../lib/appEnv";
+import { fetchCurrentUser, login, logout } from "../lib/authApi";
+import { setLibrarianEmailAfterLogin } from "../lib/sessionProfile";
 import { ROUTES } from "../lib/routes";
 import "./LoginScreen.css";
 import { loginSchema } from "../lib/loginSchema";
@@ -29,10 +31,16 @@ export default function LoginScreen() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [passwordResetBanner, setPasswordResetBanner] = useState(false);
 
   useEffect(() => {
     if (searchParams.get("session_expired") === "1") {
       setError("Session expired — please log in again.");
+      setSearchParams({}, { replace: true });
+      return;
+    }
+    if (searchParams.get("password_reset") === "1") {
+      setPasswordResetBanner(true);
       setSearchParams({}, { replace: true });
     }
   }, [searchParams, setSearchParams]);
@@ -51,9 +59,19 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       await login(result.data.email, result.data.password);
+      if (!USE_MOCK_AUTH) {
+        setLibrarianEmailAfterLogin(result.data.email);
+      }
+      const me = await fetchCurrentUser();
+      if (!USE_MOCK_AUTH && !me) {
+        logout();
+        throw new Error(
+          "Sign-in did not complete. Check that the API is running (port 8000), this email is registered, and the password is correct."
+        );
+      }
       navigate(ROUTES.DASHBOARD, { replace: true });
-    } catch {
-      setError("Invalid email or password");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Invalid email or password");
     } finally {
       setLoading(false);
     }
@@ -72,6 +90,18 @@ export default function LoginScreen() {
             <div className="login-app-tagline">Library utility and navigation assistant</div>
           </div>
         </div>
+        {USE_MOCK_AUTH && (
+          <div className="login-mock-banner" role="status">
+            <strong>Dev mode:</strong> mock authentication is on — any email and password (8+ characters) will sign you in.
+            Set <code>VITE_USE_MOCK_AUTH=false</code> in <code>web-dashboard/.env</code> and ensure{" "}
+            <code>printenv VITE_USE_MOCK_AUTH</code> is empty, then restart <code>npm run dev</code>.
+          </div>
+        )}
+        {passwordResetBanner && (
+          <div className="login-success" role="status">
+            Password updated. Sign in with your new password.
+          </div>
+        )}
         <form onSubmit={onSubmit} className="login-form">
           {FIELDS.map(({ key, type, label, placeholder, autoComplete }) => (
             <label key={key} className="login-label">
@@ -93,15 +123,13 @@ export default function LoginScreen() {
           </button>
         </form>
         <div className="login-links">
-          <a
-            href="#"
-            className="login-link"
-            onClick={(e) => {
-              e.preventDefault();
-            }}
+          <button
+            type="button"
+            className="login-link login-link-button"
+            onClick={() => navigate(ROUTES.FORGOT_PASSWORD)}
           >
-            Forgot Password?
-          </a>
+            Forgot password?
+          </button>
           <span className="login-signup-text">
             First time here?{" "}
             <a

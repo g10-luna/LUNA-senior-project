@@ -27,6 +27,12 @@ def get_redis() -> Redis:
     return _redis
 
 
+def reset_redis_client() -> None:
+    """Drop the cached client (e.g. after a failed connect so the next get_redis() retries)."""
+    global _redis
+    _redis = None
+
+
 def store_refresh_token(user_id: str, refresh_token: str) -> None:
     """Store refresh token in Redis for invalidation on logout."""
     r = get_redis()

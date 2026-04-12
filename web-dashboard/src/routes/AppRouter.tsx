@@ -10,6 +10,9 @@ import LoginScreen from "../screens/LoginScreen";
 import MaintenanceScreen from "../screens/MaintenanceScreen";
 import MapScreen from "../screens/MapScreen";
 import OptionsScreen from "../screens/OptionsScreen";
+import RequestsScreen from "../screens/RequestsScreen";
+import ForgotPasswordScreen from "../screens/ForgotPasswordScreen";
+import ResetPasswordScreen from "../screens/ResetPasswordScreen";
 import SetupAccountScreen from "../screens/SetupAccountScreen";
 
 const RootRedirect = () => <Navigate to={tokenStorage.isAuthenticated() ? ROUTES.DASHBOARD : ROUTES.LOGIN} replace />;
@@ -18,14 +21,17 @@ export default function AppRouter() {
   return (
     <Routes>
       <Route path="/" element={<RootRedirect />} />
+      <Route path={ROUTES.RESET_PASSWORD} element={<ResetPasswordScreen />} />
       <Route element={<PublicOnlyRoute />}>
         <Route path={ROUTES.LOGIN} element={<LoginScreen />} />
+        <Route path={ROUTES.FORGOT_PASSWORD} element={<ForgotPasswordScreen />} />
         <Route path={ROUTES.SETUP_ACCOUNT} element={<SetupAccountScreen />} />
       </Route>
       <Route element={<ProtectedRoute />}>
         <Route element={<TopBarLayout />}>
           <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />
           <Route path={ROUTES.CATALOG} element={<CatalogScreen />} />
+          <Route path={ROUTES.REQUESTS} element={<RequestsScreen />} />
           <Route path={ROUTES.MAINTENANCE} element={<MaintenanceScreen />} />
           <Route path={ROUTES.MAP} element={<MapScreen />} />
           <Route path={ROUTES.OPTIONS} element={<OptionsScreen />} />

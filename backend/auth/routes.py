@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, status
 
 from auth.schemas import (
     ChangePasswordRequest,
+    CompletePasswordRecoveryRequest,
     ForgotPasswordRequest,
     LoginRequest,
     RegisterRequest,
@@ -172,8 +173,14 @@ def refresh(req: RefreshRequest):
 def forgot_password(req: ForgotPasswordRequest):
     """Request password reset email."""
     from auth.supabase_client import get_supabase
+
+    redirect = os.getenv("PASSWORD_RESET_REDIRECT_URL", "").strip()
     try:
-        get_supabase().auth.reset_password_for_email(req.email)
+        supabase = get_supabase()
+        if redirect:
+            supabase.auth.reset_password_for_email(req.email, options={"redirect_to": redirect})
+        else:
+            supabase.auth.reset_password_for_email(req.email)
     except Exception:
         # Keep response generic to avoid user-enumeration; log for operators.
         logger.exception("Password reset email request failed")
@@ -192,6 +199,32 @@ def reset_password(req: ResetPasswordRequest):
         supabase.auth.update_user({"password": req.new_password})
     except Exception:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
+    return _success({"message": "Password has been reset."})
+
+
+@router.post("/complete-password-recovery")
+def complete_password_recovery(req: CompletePasswordRecoveryRequest):
+    """Set a new password using the recovery session from the email link (tokens in URL hash)."""
+    from supabase import create_client
+
+    url = os.getenv("SUPABASE_URL")
+    anon = os.getenv("SUPABASE_ANON_KEY")
+    if not url or not anon:
+        logger.error("complete_password_recovery: SUPABASE_URL or SUPABASE_ANON_KEY missing")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Server configuration error",
+        )
+    client = create_client(url, anon)
+    try:
+        client.auth.set_session(req.access_token, req.refresh_token)
+        client.auth.update_user({"password": req.new_password})
+    except Exception:
+        logger.exception("complete_password_recovery failed")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired recovery link. Request a new password reset email.",
+        )
     return _success({"message": "Password has been reset."})
 
 

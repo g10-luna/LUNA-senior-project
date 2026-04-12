@@ -28,6 +28,7 @@ export default function SetupAccountScreen() {
   const [loading, setLoading] = useState(false);
   const [successOpen, setSuccessOpen] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState("");
+  const [needsEmailConfirmation, setNeedsEmailConfirmation] = useState(false);
 
   const onChange =
     (key: keyof SetupFormState) =>
@@ -59,13 +60,14 @@ export default function SetupAccountScreen() {
 
     try {
       setLoading(true);
-      await registerAccount({
+      const { needsEmailConfirmation: confirmFirst } = await registerAccount({
         email: form.email,
         password: form.password,
         firstName: form.firstName,
         lastName: form.lastName,
         phone: form.phone,
       });
+      setNeedsEmailConfirmation(confirmFirst);
       setRegisteredEmail(form.email.trim());
       setForm((p) => ({
         ...p,
@@ -83,6 +85,7 @@ export default function SetupAccountScreen() {
   const goToLogin = () => {
     setSuccessOpen(false);
     setRegisteredEmail("");
+    setNeedsEmailConfirmation(false);
     setForm({
       firstName: "",
       lastName: "",
@@ -118,7 +121,14 @@ export default function SetupAccountScreen() {
               Account created
             </h2>
             <p className="setup-success-body">
-              Your LUNA account is ready. Use the email and password you just entered to sign in on the login screen.
+              {needsEmailConfirmation ? (
+                <>
+                  We sent a confirmation link to your email. <strong>Open that link</strong> to verify your account,
+                  then sign in with the same email and password. You cannot sign in until the email is confirmed.
+                </>
+              ) : (
+                <>Your LUNA account is ready. Use the email and password you just entered to sign in on the login screen.</>
+              )}
             </p>
             {registeredEmail && (
               <p className="setup-success-email">

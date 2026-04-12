@@ -109,7 +109,7 @@ async function parseJsonOrThrow<T>(res: Response, context: string): Promise<T> {
 export async function fetchBookList(
   params: BookListParams = {}
 ): Promise<BookListResponse> {
-  const url = `/api/v1/books${buildQuery(params)}`;
+  const url = `/api/v1/books/${buildQuery(params)}`;
   const res = await apiFetch(url);
   if (!res.ok) {
     const text = await res.text();
