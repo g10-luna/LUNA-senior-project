@@ -73,7 +73,7 @@ export default function MapScreen() {
         xPct: '62%',
         yPct: '42%',
         accent: '#E31837',
-        description: 'Deliveries land here for quick pickup.',
+        description: 'Matches "Robot Pickup Zone" when you request pickup in the app.',
       },
       {
         id: 'pickup-2',
@@ -82,7 +82,7 @@ export default function MapScreen() {
         xPct: '40%',
         yPct: '58%',
         accent: '#003A63',
-        description: 'Primary pickup for student requests.',
+        description: 'Default desk pickup — matches "Pickup Point (Main Desk)" in the app.',
       },
       {
         id: 'study-1',

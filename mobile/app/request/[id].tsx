@@ -108,43 +108,43 @@ function historyEventCopy(ev: TaskStatusEventItem): { title: string; subtitle?: 
   const r = ev.reason ?? '';
   if (r === 'robot_run_started' || r === 'simulated_robot_started') {
     return {
-      title: 'Pickup in progress',
-      subtitle: 'Robot run started — pickup and delivery underway.',
+      title: 'Simulated robot en route',
+      subtitle: 'Staff started the run — the robot is heading to your pickup point (demo ~4 min).',
     };
   }
   if (r === 'robot_run_complete' || r === 'simulated_robot_complete') {
     return {
-      title: 'Robot run finished',
-      subtitle: 'Your book should be at the pickup location.',
+      title: 'Robot arrived (simulated)',
+      subtitle: 'Your book should be at the pickup location. Confirm below that you have it.',
     };
   }
   if (r === 'task_created') {
     return {
-      title: 'Pickup task created',
-      subtitle: 'Library staff opened fulfillment for your book.',
+      title: 'Fulfillment started',
+      subtitle: 'Staff opened a pickup task for your book.',
     };
   }
   if (r === 'book_placed') {
     return {
-      title: 'Book ready in queue',
-      subtitle: 'Confirmed on shelf — entering the robot queue.',
+      title: 'Book loaded on robot',
+      subtitle: 'Staff confirmed the book is on the robot; it can be dispatched.',
     };
   }
   switch (ev.new_status) {
     case 'IN_PROGRESS':
       return {
-        title: 'Robot en route',
-        subtitle: 'The robot is moving your book toward pickup.',
+        title: 'Simulated delivery in progress',
+        subtitle: 'The robot is moving your book from the stacks to your pickup point.',
       };
     case 'COMPLETED':
       return {
-        title: 'Delivered to pickup point',
-        subtitle: 'Your book should be at the desk you selected.',
+        title: 'Handoff at pickup point',
+        subtitle: 'Simulated run finished — take your book and confirm receipt below.',
       };
     case 'QUEUED':
       return {
-        title: 'Queued for robot',
-        subtitle: 'Waiting for the next delivery run.',
+        title: 'Ready to dispatch',
+        subtitle: 'Book is on the robot — staff can start the simulated run.',
       };
     case 'ASSIGNED':
       return {
@@ -153,8 +153,8 @@ function historyEventCopy(ev: TaskStatusEventItem): { title: string; subtitle?: 
       };
     case 'PENDING':
       return {
-        title: 'Pickup task pending',
-        subtitle: 'Staff are preparing this job.',
+        title: 'Awaiting book on robot',
+        subtitle: 'Staff will load the book and confirm it on the robot.',
       };
     case 'FAILED':
       return {
@@ -178,8 +178,8 @@ function syntheticTaskLines(task: DeliveryTaskItem): ActivityLine[] {
   const lines: ActivityLine[] = [
     {
       key: 'task_created',
-      title: 'Pickup task opened',
-      subtitle: `${task.source_location} → ${task.destination_location}`,
+      title: 'Fulfillment task opened',
+      subtitle: `Route: ${task.source_location} → ${task.destination_location}`,
       timeLabel: formatWhen(task.created_at),
       state: 'complete',
     },
@@ -188,16 +188,16 @@ function syntheticTaskLines(task: DeliveryTaskItem): ActivityLine[] {
   if (!task.book_placed) {
     lines.push({
       key: 'book_prep',
-      title: 'Staff preparing your book',
-      subtitle: 'The book is being fetched and confirmed for robot pickup.',
+      title: 'Staff loading the robot',
+      subtitle: 'Wait for staff to place the book on the robot and confirm in their dashboard.',
       timeLabel: null,
       state: 'active',
     });
   } else {
     lines.push({
       key: 'book_placed',
-      title: 'Book confirmed for robot pickup',
-      subtitle: 'Your title is ready for the delivery run.',
+      title: 'Book confirmed on robot',
+      subtitle: 'Staff confirmed placement — the job can be dispatched.',
       timeLabel: formatWhen(task.book_placed_at ?? undefined),
       state: 'complete',
     });
@@ -217,8 +217,8 @@ function syntheticTaskLines(task: DeliveryTaskItem): ActivityLine[] {
   } else if (robotDone) {
     lines.push({
       key: 'robot_done',
-      title: 'Dropped off at pickup point',
-      subtitle: `Pickup: ${task.destination_location}`,
+      title: 'Robot at pickup point (simulated)',
+      subtitle: `Meet the robot at ${task.destination_location} and confirm receipt below.`,
       timeLabel: formatWhen(task.completed_at ?? undefined),
       state: 'complete',
     });
@@ -226,10 +226,10 @@ function syntheticTaskLines(task: DeliveryTaskItem): ActivityLine[] {
     const etaLine = formatDeliveryEtaLine(taskDeliveryEtaIso(task));
     lines.push({
       key: 'robot_transit',
-      title: 'Pickup in progress',
+      title: 'Simulated robot in transit',
       subtitle: etaLine
-        ? `${etaLine} for this delivery run.`
-        : 'An ETA will show here when the run is scheduled.',
+        ? `${etaLine} — demo run to your pickup location.`
+        : 'Estimated arrival will show when staff start the run.',
       timeLabel: formatWhen(task.started_at ?? undefined),
       state: 'active',
     });
@@ -244,16 +244,18 @@ function syntheticTaskLines(task: DeliveryTaskItem): ActivityLine[] {
   } else if (task.status === 'QUEUED') {
     lines.push({
       key: 'robot_queued',
-      title: 'In line for robot pickup',
-      subtitle: 'Your delivery is queued for the next available run.',
+      title: 'Ready for simulated run',
+      subtitle: 'Staff can start the robot to your pickup point when convenient.',
       timeLabel: null,
       state: 'active',
     });
   } else {
     lines.push({
       key: 'robot_pending',
-      title: 'Waiting for robot queue',
-      subtitle: 'Staff will release this job when the book is ready.',
+      title: 'Waiting on staff',
+      subtitle: task.book_placed
+        ? 'Book is on the robot — waiting for staff to start the run.'
+        : 'Staff will load the book on the robot next.',
       timeLabel: null,
       state: task.book_placed ? 'active' : 'upcoming',
     });
@@ -267,8 +269,8 @@ function buildActivityLines(req: BookRequestItem, task: DeliveryTaskItem | null)
 
   lines.push({
     key: 'submitted',
-    title: 'Request sent to library',
-    subtitle: 'We notified staff about your delivery request.',
+    title: 'Pickup request sent',
+    subtitle: 'Staff can review and approve; the robot leg is simulated in this demo.',
     timeLabel: formatWhen(req.requested_at),
     state: 'complete',
   });
@@ -288,14 +290,14 @@ function buildActivityLines(req: BookRequestItem, task: DeliveryTaskItem | null)
     lines.push({
       key: 'approval',
       title: 'Waiting for staff approval',
-      subtitle: 'A librarian will review and approve your request.',
+      subtitle: 'An admin or librarian approves before fulfillment starts.',
       timeLabel: null,
       state: 'active',
     });
     lines.push({
       key: 'robot_future',
-      title: 'Robot pickup',
-      subtitle: 'Updates appear here automatically as your delivery moves along.',
+      title: 'Simulated robot delivery',
+      subtitle: 'After approval, staff load the book, run the robot to you, and you confirm pickup.',
       timeLabel: null,
       state: 'upcoming',
     });
@@ -305,7 +307,7 @@ function buildActivityLines(req: BookRequestItem, task: DeliveryTaskItem | null)
   lines.push({
     key: 'approved',
     title: 'Staff approved your request',
-    subtitle: 'Your title is cleared for pickup preparation.',
+    subtitle: 'Fulfillment can begin: load the book on the robot, then the simulated run to you.',
     timeLabel: formatWhen(req.approved_at ?? undefined),
     state: 'complete',
   });
@@ -313,8 +315,8 @@ function buildActivityLines(req: BookRequestItem, task: DeliveryTaskItem | null)
   if (req.status === 'APPROVED' && !task) {
     lines.push({
       key: 'pre_pickup',
-      title: 'Pickup not started yet',
-      subtitle: 'Staff will create a robot pickup when the book is ready.',
+      title: 'Fulfillment not started yet',
+      subtitle: 'Staff will open a pickup task when they are ready to stage the book.',
       timeLabel: null,
       state: 'active',
     });
@@ -396,7 +398,7 @@ function buildActivityLines(req: BookRequestItem, task: DeliveryTaskItem | null)
       lines.push({
         key: 'done',
         title: 'You confirmed pickup',
-        subtitle: 'Thanks — staff can send the robot on its next run.',
+        subtitle: 'Thanks — this request is complete. Robot return to the dock is simulated in the demo.',
         timeLabel: formatWhen(req.student_confirmed_at),
         state: 'complete',
       });
@@ -420,8 +422,8 @@ function buildActivityLines(req: BookRequestItem, task: DeliveryTaskItem | null)
   } else if (req.status === 'IN_PROGRESS' && task && task.status === 'COMPLETED') {
     lines.push({
       key: 'handoff',
-      title: 'Pick up your book',
-      subtitle: 'Robot handoff is complete. Confirm below once you have the book.',
+      title: 'Robot is here (simulated)',
+      subtitle: 'The demo run finished — take your book from the pickup point and confirm below.',
       timeLabel: formatWhen(task.completed_at ?? undefined),
       state: 'active',
     });
@@ -561,8 +563,8 @@ export default function RequestActivityScreen() {
     deliveryPromptShownKeyRef.current = key;
 
     Alert.alert(
-      'Delivery complete',
-      'You have about 5 minutes to confirm that you picked up your book. If you do not confirm in time, the robot will return to staff and this request will close.',
+      'Robot arrived (simulated)',
+      'Staff ran the simulated delivery to your pickup point. You have about 5 minutes to confirm you have your book. If you do not confirm in time, we assume the handoff failed and this request will close (robot return is simulated).',
       [
         { text: 'Not now', style: 'cancel' },
         {
@@ -595,7 +597,7 @@ export default function RequestActivityScreen() {
           <FontAwesome name="arrow-left" size={22} color={HOWARD_BLUE} />
         </TouchableOpacity>
         <Text style={styles.topTitle} numberOfLines={1}>
-          Delivery progress
+          Pickup progress
         </Text>
         <View style={styles.topRight} />
       </View>
@@ -626,7 +628,7 @@ export default function RequestActivityScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryEyebrow}>LUNA delivery</Text>
+            <Text style={styles.summaryEyebrow}>LUNA pickup</Text>
             <Text style={styles.summaryTitle} numberOfLines={2}>
               {bookTitle ?? 'Your book'}
             </Text>
@@ -650,11 +652,11 @@ export default function RequestActivityScreen() {
             <View style={styles.confirmUrgentBanner} accessibilityRole="alert">
               <FontAwesome name="clock-o" size={18} color={HOWARD_RED} />
               <View style={styles.confirmUrgentTextWrap}>
-                <Text style={styles.confirmUrgentTitle}>Confirm pickup</Text>
+                <Text style={styles.confirmUrgentTitle}>Confirm you have the book</Text>
                 <Text style={styles.confirmUrgentBody}>
                   {confirmWindowOpen
-                    ? `You have ${formatCountdownTo(confirmDeadlineMs)} left to confirm. If you don’t, the robot will return to staff.`
-                    : 'The confirmation window has ended. The robot has returned to staff.'}
+                    ? `The simulated run finished — you have ${formatCountdownTo(confirmDeadlineMs)} left to confirm you have your book at ${request.request_location}.`
+                    : 'The confirmation window has ended. This request will close (simulated robot return to staff).'}
                 </Text>
               </View>
             </View>

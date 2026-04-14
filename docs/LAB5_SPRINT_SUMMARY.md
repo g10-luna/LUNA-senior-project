@@ -20,7 +20,7 @@
 | 5 | **Backlog (UX)** **Librarian auth + setup** (web) | Login + setup-account flows, Zod validation, auth API helpers, register without auto-login with post-submit success UX, copy aligned to librarian context | **Done** | Najaat | Branch `ui-refresh/frontend-auth`:`LoginScreen.tsx`, `LoginScreen.css`, `SetupAccountScreen.tsx`, `authApi.ts`, `loginSchema.ts`, `AppRouter.tsx` |
 | 6 | **Backlog (UX)** **Account settings** (web) | Replace `/account` placeholder with profile (name, email, role), session copy, sign-out; frosted panel aligned with dashboard | **Done** | Najaat | Branch `ui-refresh/frontend-auth`: `web-dashboard/src/screens/AccountSettingsScreen.tsx`, `AccountSettingsScreen.css`|
 
-**Traceability:** Map Section 1 rows and GitHub **#211** to your course requirement IDs (for example R2.a, R5.b) in the team **Requirements Traceability Matrix (RTM)**. Spreadsheet in repo: `docs/Traceablility Matrix.xlsx` (upload or link a copy for graders if the assignment asks for a URL.)
+**Traceability:** Map Section 1 rows and GitHub **#211** to your course requirement IDs (for example R2.a, R5.b) in the team **Requirements Traceability Matrix (RTM)**. Spreadsheet in repo: `docs/Traceablility Matrix.xlsx`.
 
 ---
 
@@ -40,7 +40,7 @@
 - **Robot and bridge:** Enforce book-placed (or agreed task phase) before dispatch; contract checks and documented simulation demo path.
 - **Hardening:** Published API notes or OpenAPI for delivery shapes and enums; integration tests against Docker Postgres; short one-pass demo runbook (student then librarian steps).
 - **Broader program:** FS-05 through FS-09 and other items in `SPRINT_PROGRAM.md` not covered above.
-- **Course-only:** GitHub Project board screenshot or export if required; pasteable **RTM URL** on the LMS (see Section 5).
+- **Course-only:** GitHub Project board screenshot or export if required.
 
 ---
 
@@ -57,7 +57,7 @@
 | Artifact | Location / notes |
 |----------|------------------|
 | Sprint summary | This file: `docs/LAB5_SPRINT_SUMMARY.md` |
-| Requirements Traceability Matrix | `docs/Traceablility Matrix.xlsx`; **LMS "RTM URL" field:** paste your team share link here before submit (Google Sheets, Drive, etc.) if required |
+| Requirements Traceability Matrix | `docs/Traceablility Matrix.xlsx` |
 | GitHub Project Board | Screenshot or PDF export if required |
 | Branch and PR | `lab5/sprint-ai-backlog`; open PR to `main`; reference **#211** until the epic is closed |
 | Sprint program | `docs/SPRINT_PROGRAM.md` |

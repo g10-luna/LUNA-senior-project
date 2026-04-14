@@ -20,6 +20,17 @@ import {
   listMyBookRequests,
   type BookRequestItem,
 } from '@/src/services/bookRequests';
+import {
+  BookReturnApiError,
+  createBookReturn,
+  listMyBookReturns,
+  type BookReturnItem,
+} from '@/src/services/bookReturns';
+import { getMe } from '@/src/services/auth';
+import {
+  DEFAULT_PICKUP_LOCATION_VALUE,
+  PICKUP_LOCATION_OPTIONS,
+} from '@/src/constants/pickupLocations';
 import { getCoverUrl } from '@/src/utils/covers';
 import BottomTabBar, { BOTTOM_TAB_BAR_HEIGHT } from '@/components/BottomTabBar';
 import { useAuth } from '@/contexts/AuthContext';
@@ -28,6 +39,15 @@ const HOWARD_BLUE = '#003A63';
 const AVAILABLE_GREEN = '#16a34a';
 
 const ACTIVE_REQUEST_STATUSES = new Set(['PENDING', 'APPROVED', 'IN_PROGRESS']);
+const ACTIVE_RETURN_STATUSES = new Set([
+  'PENDING',
+  'PICKUP_SCHEDULED',
+  'PICKED_UP',
+  'AWAITING_STUDENT_LOAD',
+  'READY_FOR_RETURN_LEG',
+  'RETURN_IN_TRANSIT',
+  'AWAITING_ADMIN_CONFIRM',
+]);
 
 function statusLabel(status: BookStatus): string {
   switch (status) {
@@ -71,25 +91,39 @@ export default function BookDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requesting, setRequesting] = useState(false);
+  const [returning, setReturning] = useState(false);
   const [existingRequest, setExistingRequest] = useState<BookRequestItem | null>(null);
+  const [existingReturn, setExistingReturn] = useState<BookReturnItem | null>(null);
   const [requestCheckLoading, setRequestCheckLoading] = useState(true);
+  const [userRole, setUserRole] = useState<'STUDENT' | 'LIBRARIAN' | 'ADMIN' | null>(null);
+  const [roleLoading, setRoleLoading] = useState(true);
+  const [pickupLocation, setPickupLocation] = useState(DEFAULT_PICKUP_LOCATION_VALUE);
   const { hasToken } = useAuth();
 
-  const checkExistingRequest = useCallback(async () => {
+  const checkExistingActivity = useCallback(async () => {
     if (!id) {
       setExistingRequest(null);
+      setExistingReturn(null);
       setRequestCheckLoading(false);
       return;
     }
     setRequestCheckLoading(true);
     try {
-      const { items } = await listMyBookRequests({ limit: 100 });
-      const active = items.find(
+      const [reqOut, retOut] = await Promise.all([
+        listMyBookRequests({ limit: 100 }),
+        listMyBookReturns({ limit: 100 }).catch(() => ({ items: [] as BookReturnItem[] })),
+      ]);
+      const active = reqOut.items.find(
         (r) => r.book_id === id && ACTIVE_REQUEST_STATUSES.has(r.status)
       );
       setExistingRequest(active ?? null);
+      const activeRet = retOut.items.find(
+        (r) => r.book_id === id && ACTIVE_RETURN_STATUSES.has(r.status)
+      );
+      setExistingReturn(activeRet ?? null);
     } catch {
       setExistingRequest(null);
+      setExistingReturn(null);
     } finally {
       setRequestCheckLoading(false);
     }
@@ -97,9 +131,33 @@ export default function BookDetailScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      void checkExistingRequest();
-    }, [checkExistingRequest])
+      void checkExistingActivity();
+    }, [checkExistingActivity])
   );
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      setRoleLoading(true);
+      getMe()
+        .then((u) => {
+          if (!cancelled) setUserRole(u.role);
+        })
+        .catch(() => {
+          if (!cancelled) setUserRole(null);
+        })
+        .finally(() => {
+          if (!cancelled) setRoleLoading(false);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, [])
+  );
+
+  useEffect(() => {
+    setPickupLocation(DEFAULT_PICKUP_LOCATION_VALUE);
+  }, [id]);
 
   useEffect(() => {
     if (!id) {
@@ -164,7 +222,27 @@ export default function BookDetailScreen() {
   const hasCover = Boolean(book.cover_image_url?.trim());
   const isAvailable = book.status === 'AVAILABLE';
   const hasActiveRequest = Boolean(existingRequest);
-  const canRequest = isAvailable && !hasActiveRequest && !requestCheckLoading;
+  const hasActiveReturn = Boolean(existingReturn);
+  const isCheckedOut = book.status === 'CHECKED_OUT';
+  const isStudent = userRole === 'STUDENT';
+  const canRequest =
+    isAvailable && !hasActiveRequest && !requestCheckLoading && !roleLoading && isStudent;
+  const canReturn =
+    isCheckedOut &&
+    !hasActiveReturn &&
+    !requestCheckLoading &&
+    !roleLoading &&
+    isStudent;
+  const showStaffOnlyNote = Boolean(
+    userRole && userRole !== 'STUDENT' && (isAvailable || isCheckedOut) && !hasActiveRequest && !hasActiveReturn
+  );
+  const showRoleVerifyError = Boolean(
+    !roleLoading &&
+      userRole === null &&
+      (isAvailable || isCheckedOut) &&
+      !hasActiveRequest &&
+      !hasActiveReturn
+  );
 
   const onRequestBook = async () => {
     if (!book || !canRequest || requesting) return;
@@ -172,13 +250,13 @@ export default function BookDetailScreen() {
     try {
       await createBookRequest({
         bookId: book.id,
-        requestLocation: 'Main desk pickup',
+        requestLocation: pickupLocation,
         notes: null,
       });
-      await checkExistingRequest();
+      await checkExistingActivity();
       Alert.alert(
-        'Request submitted',
-        'Librarians will prepare this book for robot delivery. Track status on the Requests tab.',
+        'Pickup request submitted',
+        `Librarians will prepare this book and the robot will bring it to ${pickupLocation}. Track status on the Requests tab.`,
         [{ text: 'OK' }]
       );
     } catch (e) {
@@ -189,6 +267,34 @@ export default function BookDetailScreen() {
       Alert.alert('Request failed', msg);
     } finally {
       setRequesting(false);
+    }
+  };
+
+  const onReturnBook = async () => {
+    if (!book || !canReturn || returning) return;
+    setReturning(true);
+    try {
+      const ret = await createBookReturn({
+        bookId: book.id,
+        pickupLocation,
+      });
+      await checkExistingActivity();
+      Alert.alert(
+        'Return submitted',
+        `Staff will schedule robot pickup from ${pickupLocation}. Track progress on the Requests tab.`,
+        [
+          { text: 'OK', style: 'cancel' },
+          { text: 'View status', onPress: () => router.push(`/return/${ret.id}` as any) },
+        ]
+      );
+    } catch (e) {
+      const msg =
+        e instanceof BookReturnApiError
+          ? e.message
+          : 'Could not start return. Try again or check your connection.';
+      Alert.alert('Return failed', msg);
+    } finally {
+      setReturning(false);
     }
   };
 
@@ -255,9 +361,85 @@ export default function BookDetailScreen() {
           )}
 
           <View style={styles.infoRow}>
-            <FontAwesome name="truck" size={16} color="#64748b" />
-            <Text style={styles.infoText}>Robot delivery available · Arrives in ~5 min</Text>
+            <FontAwesome name="map-marker" size={16} color="#64748b" />
+            <Text style={styles.infoText}>
+              For pickup you request a book; for returns you hand a checked-out book back to circulation the same way—staff approve, confirm
+              the book on the robot, a simulated run (~4 min) completes, and you confirm handoff. Robot return to the dock is simulated in the
+              demo.
+            </Text>
           </View>
+
+          {showStaffOnlyNote ? (
+            <View style={styles.staffNoteBanner}>
+              <FontAwesome name="info-circle" size={16} color="#92400e" />
+              <Text style={styles.staffNoteText}>
+                Student pickup and book returns are for student accounts. Librarians manage deliveries from the web dashboard.
+              </Text>
+            </View>
+          ) : null}
+
+          {showRoleVerifyError ? (
+            <View style={styles.verifyErrorBanner}>
+              <FontAwesome name="exclamation-circle" size={16} color="#991b1b" />
+              <Text style={styles.verifyErrorText}>
+                Could not verify your account. Check your connection, then open this screen again.
+              </Text>
+            </View>
+          ) : null}
+
+          {isAvailable && !hasActiveRequest && isStudent ? (
+            <View style={styles.pickupSection}>
+              <Text style={styles.pickupSectionLabel}>Pickup location</Text>
+              <Text style={styles.pickupSectionHint}>Where the robot will bring this book</Text>
+              <View style={styles.pickupChipsRow}>
+                {PICKUP_LOCATION_OPTIONS.map((opt) => {
+                  const active = pickupLocation === opt.value;
+                  return (
+                    <TouchableOpacity
+                      key={opt.id}
+                      style={[styles.pickupChip, active && styles.pickupChipActive]}
+                      onPress={() => setPickupLocation(opt.value)}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={[styles.pickupChipTitle, active && styles.pickupChipTitleActive]}>
+                        {opt.label}
+                      </Text>
+                      <Text style={styles.pickupChipSub} numberOfLines={2}>
+                        {opt.hint}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          ) : null}
+
+          {isCheckedOut && isStudent && !hasActiveReturn ? (
+            <View style={styles.pickupSection}>
+              <Text style={styles.pickupSectionLabel}>Return pickup location</Text>
+              <Text style={styles.pickupSectionHint}>Where the robot will collect this book from you</Text>
+              <View style={styles.pickupChipsRow}>
+                {PICKUP_LOCATION_OPTIONS.map((opt) => {
+                  const active = pickupLocation === opt.value;
+                  return (
+                    <TouchableOpacity
+                      key={opt.id}
+                      style={[styles.pickupChip, active && styles.pickupChipActive]}
+                      onPress={() => setPickupLocation(opt.value)}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={[styles.pickupChipTitle, active && styles.pickupChipTitleActive]}>
+                        {opt.label}
+                      </Text>
+                      <Text style={styles.pickupChipSub} numberOfLines={2}>
+                        {opt.hint}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          ) : null}
 
           {hasActiveRequest ? (
             <View style={styles.requestedBanner}>
@@ -276,30 +458,95 @@ export default function BookDetailScreen() {
             </View>
           ) : null}
 
+          {hasActiveReturn ? (
+            <View style={styles.requestedBanner}>
+              <FontAwesome name="reply" size={16} color={HOWARD_BLUE} />
+              <View style={styles.requestedBannerTextWrap}>
+                <Text style={styles.requestedBannerTitle}>Book return</Text>
+                <Text style={styles.requestedBannerSub}>You have an active return for this title.</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.viewRequestLinkBtn}
+                onPress={() => router.push(`/return/${existingReturn!.id}` as any)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.viewRequestLinkText}>View status</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
           <View style={styles.primaryButtons}>
-            <TouchableOpacity
-              style={[styles.requestBookBtn, !canRequest && styles.requestBookBtnDisabled]}
-              activeOpacity={0.85}
-              onPress={() => void onRequestBook()}
-              disabled={!canRequest || requesting}
-            >
-              {requesting ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <FontAwesome name="book" size={18} color={canRequest ? '#fff' : '#94a3b8'} />
-              )}
-              <Text style={[styles.requestBookBtnText, !canRequest && styles.requestBookBtnTextDisabled]}>
-                {requesting
-                  ? 'Submitting…'
-                  : hasActiveRequest
-                    ? 'Book request'
-                    : 'Request Book'}
-              </Text>
-            </TouchableOpacity>
+            {isAvailable ? (
+              <TouchableOpacity
+                style={[styles.requestBookBtn, !canRequest && styles.requestBookBtnDisabled]}
+                activeOpacity={0.85}
+                onPress={() => void onRequestBook()}
+                disabled={!canRequest || requesting}
+              >
+                {requesting ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <FontAwesome name="hand-o-right" size={18} color={canRequest ? '#fff' : '#94a3b8'} />
+                )}
+                <Text style={[styles.requestBookBtnText, !canRequest && styles.requestBookBtnTextDisabled]}>
+                  {requesting
+                    ? 'Submitting…'
+                    : hasActiveRequest
+                      ? 'Pickup requested'
+                      : roleLoading
+                        ? 'Checking account…'
+                        : 'Request pickup'}
+                </Text>
+              </TouchableOpacity>
+            ) : isCheckedOut && isStudent ? (
+              <TouchableOpacity
+                style={[styles.requestBookBtn, !canReturn && styles.requestBookBtnDisabled]}
+                activeOpacity={0.85}
+                onPress={() => void onReturnBook()}
+                disabled={!canReturn || returning}
+              >
+                {returning ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <FontAwesome name="reply" size={18} color={canReturn ? '#fff' : '#94a3b8'} />
+                )}
+                <Text style={[styles.requestBookBtnText, !canReturn && styles.requestBookBtnTextDisabled]}>
+                  {returning
+                    ? 'Submitting…'
+                    : hasActiveReturn
+                      ? 'Return in progress'
+                      : roleLoading
+                        ? 'Checking account…'
+                        : 'Return book'}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[styles.requestBookBtn, !canRequest && styles.requestBookBtnDisabled]}
+                activeOpacity={0.85}
+                onPress={() => void onRequestBook()}
+                disabled={!canRequest || requesting}
+              >
+                {requesting ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <FontAwesome name="hand-o-right" size={18} color={canRequest ? '#fff' : '#94a3b8'} />
+                )}
+                <Text style={[styles.requestBookBtnText, !canRequest && styles.requestBookBtnTextDisabled]}>
+                  {requesting
+                    ? 'Submitting…'
+                    : hasActiveRequest
+                      ? 'Pickup requested'
+                      : roleLoading
+                        ? 'Checking account…'
+                        : 'Request pickup'}
+                </Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               style={styles.trackRobotBtn}
               activeOpacity={0.85}
-              onPress={() => {}}
+              onPress={() => router.push('/(tabs)/map')}
             >
               <FontAwesome name="map-marker" size={18} color={HOWARD_BLUE} />
               <Text style={styles.trackRobotBtnText}>Track Robot Delivery</Text>
@@ -500,6 +747,88 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: HOWARD_BLUE,
+  },
+  staffNoteBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: '#fffbeb',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(180, 83, 9, 0.2)',
+  },
+  staffNoteText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#92400e',
+    lineHeight: 19,
+  },
+  verifyErrorBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: '#fef2f2',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(153, 27, 27, 0.2)',
+  },
+  verifyErrorText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#991b1b',
+    lineHeight: 19,
+  },
+  pickupSection: {
+    marginBottom: 14,
+  },
+  pickupSectionLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#334155',
+    marginBottom: 2,
+  },
+  pickupSectionHint: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginBottom: 10,
+  },
+  pickupChipsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  pickupChip: {
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#f8fafc',
+  },
+  pickupChipActive: {
+    borderColor: HOWARD_BLUE,
+    backgroundColor: '#e8f0fe',
+  },
+  pickupChipTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#334155',
+    marginBottom: 4,
+  },
+  pickupChipTitleActive: {
+    color: HOWARD_BLUE,
+  },
+  pickupChipSub: {
+    fontSize: 11,
+    color: '#64748b',
+    lineHeight: 15,
   },
   primaryButtons: {
     flexDirection: 'row',

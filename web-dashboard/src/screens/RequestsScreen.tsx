@@ -12,6 +12,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { StudentDeliveryRequestsPanel } from "../components/domain/StudentDeliveryRequestsPanel";
+import { StudentReturnsPanel } from "../components/domain/StudentReturnsPanel";
 import { listBooks, updateBook } from "../lib/catalogApi";
 import type { Book } from "../lib/catalogTypes";
 import { getCurrentQueuerProfile } from "../lib/queuedByProfile";
@@ -316,6 +317,7 @@ export default function RequestsScreen() {
       </header>
 
       <StudentDeliveryRequestsPanel />
+      <StudentReturnsPanel />
 
       <form className="card requests-add-form" onSubmit={onSubmitManual}>
         <h2 className="requests-section-label">Add to queue</h2>

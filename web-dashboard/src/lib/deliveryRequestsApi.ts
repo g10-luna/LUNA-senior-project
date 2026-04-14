@@ -32,6 +32,8 @@ export type DeliveryTaskStatus =
 export interface DeliveryTaskRow {
   id: string;
   request_id: string | null;
+  return_id?: string | null;
+  task_type?: string;
   status: DeliveryTaskStatus;
   source_location: string;
   destination_location: string;
@@ -42,6 +44,36 @@ export interface DeliveryTaskRow {
   book_placed_at: string | null;
   delivery_eta_at: string | null;
   student_confirm_deadline_at?: string | null;
+  return_pickup_leg?: string | null;
+}
+
+export type BookReturnStatus =
+  | "PENDING"
+  | "PICKUP_SCHEDULED"
+  | "PICKED_UP"
+  | "AWAITING_STUDENT_LOAD"
+  | "READY_FOR_RETURN_LEG"
+  | "RETURN_IN_TRANSIT"
+  | "AWAITING_ADMIN_CONFIRM"
+  | "COMPLETED"
+  | "CANCELLED";
+
+export interface BookReturnRow {
+  id: string;
+  user_id: string;
+  book_id: string;
+  pickup_location: string;
+  status: BookReturnStatus;
+  initiated_at: string;
+  picked_up_at?: string | null;
+  completed_at: string | null;
+  student_confirmed_at?: string | null;
+  student_book_loaded_at?: string | null;
+  admin_receipt_confirmed_at?: string | null;
+  auto_closed_without_confirm_at?: string | null;
+  student_display_name?: string | null;
+  student_email?: string | null;
+  book_title?: string | null;
 }
 
 function readDetail(json: unknown): string {
@@ -98,6 +130,33 @@ export async function createPickupTask(requestId: string): Promise<DeliveryTaskR
   return data.task;
 }
 
+export async function listBookReturnsForStaff(params?: { page?: number; limit?: number }): Promise<{
+  items: BookReturnRow[];
+  total: number;
+}> {
+  const page = params?.page ?? 1;
+  const limit = params?.limit ?? 80;
+  const q = new URLSearchParams({ page: String(page), limit: String(limit) });
+  const res = await apiFetch(`/api/v1/returns/?${q.toString()}`);
+  const data = await parseEnvelope<{ items: BookReturnRow[]; pagination: { total: number } }>(res);
+  return { items: data.items ?? [], total: data.pagination?.total ?? 0 };
+}
+
+export async function approveStudentReturn(returnId: string): Promise<BookReturnRow> {
+  const res = await apiFetch(`/api/v1/returns/${encodeURIComponent(returnId)}/approve`, { method: "POST" });
+  const data = await parseEnvelope<{ return: BookReturnRow }>(res);
+  return data.return;
+}
+
+export async function createReturnPickupTask(returnId: string): Promise<DeliveryTaskRow> {
+  const res = await apiFetch("/api/v1/deliveries/tasks", {
+    method: "POST",
+    body: JSON.stringify({ return_id: returnId }),
+  });
+  const data = await parseEnvelope<{ task: DeliveryTaskRow }>(res);
+  return data.task;
+}
+
 export async function confirmBookPlacedOnRobot(taskId: string): Promise<DeliveryTaskRow> {
   const res = await apiFetch(`/api/v1/deliveries/tasks/${encodeURIComponent(taskId)}/book-placed`, {
     method: "POST",
@@ -112,4 +171,12 @@ export async function startDeliveryRun(taskId: string): Promise<DeliveryTaskRow>
   });
   const data = await parseEnvelope<{ task: DeliveryTaskRow }>(res);
   return data.task;
+}
+
+export async function confirmAdminReturnReceipt(returnId: string): Promise<BookReturnRow> {
+  const res = await apiFetch(`/api/v1/returns/${encodeURIComponent(returnId)}/confirm-receipt`, {
+    method: "POST",
+  });
+  const data = await parseEnvelope<{ return: BookReturnRow }>(res);
+  return data.return;
 }

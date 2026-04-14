@@ -36,6 +36,8 @@ export interface DeliveryTaskItem {
   simulated_eta_at?: string | null;
   /** After delivery completes, student must confirm by this time (server UTC). */
   student_confirm_deadline_at?: string | null;
+  /** Return tasks: "outbound" (robot to student) or "return" (robot to desk). */
+  return_pickup_leg?: string | null;
   /** Included on task detail & request activity; omitted or empty on list endpoint. */
   status_history?: TaskStatusEventItem[];
 }

@@ -526,14 +526,6 @@
   margin-bottom: 14px;
 }
 
-.sdreq-sub {
-  margin: 6px 0 0;
-  font-size: 13px;
-  color: var(--text-muted);
-  line-height: 1.45;
-  max-width: 720px;
-}
-
 .sdreq-refresh {
   border: 1px solid rgba(24, 68, 104, 0.2);
   background: #fff;
@@ -631,6 +623,16 @@
 .sdreq-pill--in_progress {
   background: #e0e7ff;
   color: #3730a3;
+}
+
+.sdreq-pill--pickup_scheduled {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.sdreq-pill--picked_up {
+  background: #ede9fe;
+  color: #5b21b6;
 }
 
 .sdreq-student {

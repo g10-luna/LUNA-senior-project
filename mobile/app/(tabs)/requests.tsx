@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Pressable,
+  Modal,
   AppState,
+  useWindowDimensions,
   type AppStateStatus,
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -23,12 +25,40 @@ import {
   listMyBookRequests,
   type BookRequestItem,
 } from '@/src/services/bookRequests';
+import {
+  formatReturnListLabel,
+  getReturnPillColors,
+  listMyBookReturns,
+  type BookReturnItem,
+} from '@/src/services/bookReturns';
 import { getBook, type BookStatus } from '@/src/services/books';
 
 const HOWARD_BLUE = '#003A63';
 const HOWARD_RED = '#E31837';
 const LIST_POLL_MS = 20_000;
+const ADD_MENU_MAX_WIDTH = 300;
+const ADD_MENU_GAP = 8;
+/** Rough height for flip-above logic when near bottom */
+const ADD_MENU_EST_HEIGHT = 268;
 
+type AddMenuAnchor = { top: number; left: number; width: number; height: number };
+
+function computeAddMenuPopover(
+  anchor: AddMenuAnchor,
+  windowWidth: number,
+  windowHeight: number,
+  bottomSafeReserve: number,
+): { top: number; left: number; width: number } {
+  const menuWidth = Math.min(ADD_MENU_MAX_WIDTH, windowWidth - 24);
+  let left = anchor.left + anchor.width - menuWidth;
+  left = Math.max(12, Math.min(left, windowWidth - menuWidth - 12));
+  let top = anchor.top + anchor.height + ADD_MENU_GAP;
+  if (top + ADD_MENU_EST_HEIGHT > windowHeight - bottomSafeReserve) {
+    top = anchor.top - ADD_MENU_EST_HEIGHT - ADD_MENU_GAP;
+    if (top < 12) top = 12;
+  }
+  return { top, left, width: menuWidth };
+}
 function formatUpdatedLabel(iso: string | null): string {
   if (!iso) return 'Not loaded yet';
   try {
@@ -74,29 +104,61 @@ function formatBookStatusShort(status: BookStatus): string {
   }
 }
 
+type MergedRow =
+  | { kind: 'pickup'; item: BookRequestItem; sort: number }
+  | { kind: 'return'; item: BookReturnItem; sort: number };
+
 /**
- * Requests tab: book delivery requests with titles, status, and navigation to activity timeline.
+ * Requests tab: pickup + book returns with navigation to activity timelines.
  */
 export default function RequestsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [items, setItems] = useState<BookRequestItem[]>([]);
+  const [returnItems, setReturnItems] = useState<BookReturnItem[]>([]);
   const [bookSummaries, setBookSummaries] = useState<Record<string, BookSummary>>({});
   const [summariesLoading, setSummariesLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [addMenuAnchor, setAddMenuAnchor] = useState<AddMenuAnchor | null>(null);
+  const addMenuBtnRef = useRef<View>(null);
   const refreshLocked = useRef(false);
+
+  const mergedRows = useMemo((): MergedRow[] => {
+    const pickups: MergedRow[] = items.map((item) => ({
+      kind: 'pickup' as const,
+      item,
+      sort: new Date(item.requested_at).getTime(),
+    }));
+    const returns: MergedRow[] = returnItems.map((item) => ({
+      kind: 'return' as const,
+      item,
+      sort: new Date(item.initiated_at).getTime(),
+    }));
+    return [...pickups, ...returns].sort((a, b) => b.sort - a.sort);
+  }, [items, returnItems]);
 
   const load = useCallback(async () => {
     setLoadError(null);
     try {
       const out = await listMyBookRequests({ limit: 50 });
       setItems(out.items);
+
+      let ret: BookReturnItem[] = [];
+      try {
+        const rout = await listMyBookReturns({ limit: 50 });
+        ret = rout.items;
+      } catch {
+        ret = [];
+      }
+      setReturnItems(ret);
       setLastUpdated(new Date().toISOString());
 
-      const ids = out.items.map((r) => r.book_id);
+      const ids = [...new Set([...out.items.map((r) => r.book_id), ...ret.map((r) => r.book_id)])];
       if (ids.length > 0) {
         setSummariesLoading(true);
         try {
@@ -115,6 +177,7 @@ export default function RequestsScreen() {
           : 'Could not load requests. Check connection and API URL.';
       setLoadError(msg);
       setItems([]);
+      setReturnItems([]);
       setBookSummaries({});
     } finally {
       setLoading(false);
@@ -158,6 +221,38 @@ export default function RequestsScreen() {
   const bottomPad = 24 + BOTTOM_TAB_BAR_HEIGHT + insets.bottom;
   const topPad = Math.max(insets.top, 12) + 8;
 
+  const closeAddMenu = useCallback(() => {
+    setAddMenuOpen(false);
+    setAddMenuAnchor(null);
+  }, []);
+
+  const openAddMenu = useCallback(() => {
+    addMenuBtnRef.current?.measureInWindow((x, y, width, height) => {
+      setAddMenuAnchor({ top: y, left: x, width, height });
+      setAddMenuOpen(true);
+    });
+  }, []);
+
+  const goRequestPickup = useCallback(() => {
+    closeAddMenu();
+    router.push('/(tabs)/search');
+  }, [router, closeAddMenu]);
+
+  const goReturnBook = useCallback(() => {
+    closeAddMenu();
+    router.push('/return' as any);
+  }, [router, closeAddMenu]);
+
+  const addMenuPopoverLayout =
+    addMenuAnchor != null
+      ? computeAddMenuPopover(
+          addMenuAnchor,
+          windowWidth,
+          windowHeight,
+          BOTTOM_TAB_BAR_HEIGHT + insets.bottom + 8,
+        )
+      : null;
+
   return (
     <View style={styles.page}>
       <StatusBar style="dark" />
@@ -169,6 +264,18 @@ export default function RequestsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.heroCard}>
+          <View ref={addMenuBtnRef} collapsable={false} style={styles.heroAddBtnHitArea}>
+            <TouchableOpacity
+              style={styles.heroAddBtn}
+              activeOpacity={0.75}
+              onPress={openAddMenu}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityRole="button"
+              accessibilityLabel="Add — request pickup or return a book"
+            >
+              <FontAwesome name="plus" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
           <View style={styles.heroRow}>
             <View style={styles.heroIconWrap}>
               <FontAwesome name="paper-plane-o" size={24} color="#fff" />
@@ -177,8 +284,8 @@ export default function RequestsScreen() {
               <Text style={styles.heroEyebrow}>LUNA delivery</Text>
               <Text style={styles.title}>Your requests</Text>
               <Text style={styles.sub}>
-                Staff approve and prepare books for pickup. This list also refreshes automatically while you stay on
-                this tab — pull down anytime for an immediate update.
+                Pickup requests and book returns appear here. Tap <Text style={styles.subEm}>+</Text> to request pickup or start a return.
+                Staff approve, the robot run is simulated, then you confirm handoff. Pull down to refresh.
               </Text>
             </View>
           </View>
@@ -195,36 +302,107 @@ export default function RequestsScreen() {
           </View>
         ) : null}
 
-        {!loading && !loadError && items.length === 0 ? (
+        {!loading && !loadError && mergedRows.length === 0 ? (
           <View style={styles.emptyCard}>
             <View style={styles.emptyIconCircle}>
               <FontAwesome name="inbox" size={32} color={HOWARD_BLUE} />
             </View>
-            <Text style={styles.emptyTitle}>No requests yet</Text>
+            <Text style={styles.emptyTitle}>No delivery activity yet</Text>
             <Text style={styles.emptySub}>
-              Browse the catalog and tap <Text style={styles.emptyBold}>Request Book</Text> on any available title to start a delivery.
+              Tap <Text style={styles.emptyBold}>+</Text> at the top to <Text style={styles.emptyBold}>request pickup</Text> (browse the catalog)
+              or <Text style={styles.emptyBold}>return a book</Text> (choose from books we have checked out to you).
             </Text>
           </View>
         ) : null}
 
-        {items.length > 0 ? (
+        {mergedRows.length > 0 ? (
           <View style={styles.listHeaderRow}>
-            <Text style={styles.listHeader}>Your requests ({items.length})</Text>
+            <Text style={styles.listHeader}>Your activity ({mergedRows.length})</Text>
             {summariesLoading ? <ActivityIndicator size="small" color={HOWARD_BLUE} /> : null}
           </View>
         ) : null}
 
-        {items.map((req) => {
+        {mergedRows.map((row) => {
+          if (row.kind === 'pickup') {
+            const req = row.item;
+            const summary = bookSummaries[req.book_id];
+            const pill = getRequestPillColors(req);
+            return (
+              <Pressable
+                key={`p-${req.id}`}
+                style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+                onPress={() => router.push(`/request/${req.id}`)}
+                accessibilityRole="button"
+                accessibilityLabel={`Pickup: ${summary?.title ?? 'request'}`}
+              >
+                <View style={styles.kindBadgeRow}>
+                  <View style={styles.kindBadgePickup}>
+                    <Text style={styles.kindBadgeText}>Pickup</Text>
+                  </View>
+                </View>
+                <View style={styles.cardTop}>
+                  <View style={styles.cardTitleBlock}>
+                    <Text style={styles.cardTitle} numberOfLines={2}>
+                      {summary?.title ?? 'Book'}
+                    </Text>
+                    {summary ? (
+                      <Text style={styles.cardAuthor} numberOfLines={1}>
+                        {summary.author}
+                      </Text>
+                    ) : summariesLoading ? (
+                      <Text style={styles.cardAuthorMuted}>Loading title…</Text>
+                    ) : (
+                      <Text style={styles.cardAuthorMuted}>Book ID {req.book_id.slice(0, 8)}…</Text>
+                    )}
+                  </View>
+                  <View style={styles.cardRightCol}>
+                    <View style={[styles.statusPill, { backgroundColor: pill.bg }]}>
+                      <Text style={[styles.statusPillText, { color: pill.text }]}>
+                        {formatRequestListLabel(req)}
+                      </Text>
+                    </View>
+                    <FontAwesome name="chevron-right" size={12} color="#cbd5e1" style={styles.cardChevron} />
+                  </View>
+                </View>
+                <View style={styles.cardRow}>
+                  <FontAwesome name="map-marker" size={14} color="#64748b" style={styles.cardRowIcon} />
+                  <Text style={styles.cardMeta}>{req.request_location}</Text>
+                </View>
+                <View style={styles.cardRow}>
+                  <FontAwesome name="clock-o" size={14} color="#94a3b8" style={styles.cardRowIcon} />
+                  <Text style={styles.cardMetaSmall}>Requested {formatUpdatedLabel(req.requested_at)}</Text>
+                </View>
+                {summary ? (
+                  <View style={styles.cardRow}>
+                    <FontAwesome name="book" size={14} color="#64748b" style={styles.cardRowIcon} />
+                    <Text style={styles.cardMetaSmall}>
+                      Book status: <Text style={styles.cardMetaEm}>{formatBookStatusShort(summary.status)}</Text>
+                    </Text>
+                  </View>
+                ) : null}
+                <View style={styles.cardFooterHint}>
+                  <FontAwesome name="list-ul" size={12} color="#94a3b8" />
+                  <Text style={styles.cardHint}>View pickup activity</Text>
+                </View>
+              </Pressable>
+            );
+          }
+          const req = row.item;
           const summary = bookSummaries[req.book_id];
-          const pill = getRequestPillColors(req);
+          const pill = getReturnPillColors(req);
           return (
             <Pressable
-              key={req.id}
+              key={`r-${req.id}`}
               style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-              onPress={() => router.push(`/request/${req.id}`)}
+              onPress={() => router.push(`/return/${req.id}` as any)}
               accessibilityRole="button"
-              accessibilityLabel={`Delivery progress for ${summary?.title ?? 'request'}`}
+              accessibilityLabel={`Return: ${summary?.title ?? 'book'}`}
             >
+              <View style={styles.kindBadgeRow}>
+                <View style={styles.kindBadgeReturn}>
+                  <Text style={styles.kindBadgeText}>Return</Text>
+                </View>
+              </View>
               <View style={styles.cardTop}>
                 <View style={styles.cardTitleBlock}>
                   <Text style={styles.cardTitle} numberOfLines={2}>
@@ -242,22 +420,18 @@ export default function RequestsScreen() {
                 </View>
                 <View style={styles.cardRightCol}>
                   <View style={[styles.statusPill, { backgroundColor: pill.bg }]}>
-                    <Text style={[styles.statusPillText, { color: pill.text }]}>
-                      {formatRequestListLabel(req)}
-                    </Text>
+                    <Text style={[styles.statusPillText, { color: pill.text }]}>{formatReturnListLabel(req)}</Text>
                   </View>
                   <FontAwesome name="chevron-right" size={12} color="#cbd5e1" style={styles.cardChevron} />
                 </View>
               </View>
               <View style={styles.cardRow}>
                 <FontAwesome name="map-marker" size={14} color="#64748b" style={styles.cardRowIcon} />
-                <Text style={styles.cardMeta}>{req.request_location}</Text>
+                <Text style={styles.cardMeta}>{req.pickup_location}</Text>
               </View>
               <View style={styles.cardRow}>
                 <FontAwesome name="clock-o" size={14} color="#94a3b8" style={styles.cardRowIcon} />
-                <Text style={styles.cardMetaSmall}>
-                  Requested {formatUpdatedLabel(req.requested_at)}
-                </Text>
+                <Text style={styles.cardMetaSmall}>Started {formatUpdatedLabel(req.initiated_at)}</Text>
               </View>
               {summary ? (
                 <View style={styles.cardRow}>
@@ -269,20 +443,11 @@ export default function RequestsScreen() {
               ) : null}
               <View style={styles.cardFooterHint}>
                 <FontAwesome name="list-ul" size={12} color="#94a3b8" />
-                <Text style={styles.cardHint}>View activity and delivery status</Text>
+                <Text style={styles.cardHint}>View return activity</Text>
               </View>
             </Pressable>
           );
         })}
-
-        <TouchableOpacity
-          style={styles.primaryBtn}
-          activeOpacity={0.85}
-          onPress={() => router.push('/(tabs)/search')}
-        >
-          <FontAwesome name="search" size={18} color="#fff" style={styles.primaryBtnIcon} />
-          <Text style={styles.primaryBtnText}>Find books</Text>
-        </TouchableOpacity>
 
         <View style={styles.metaRow}>
           <FontAwesome name="clock-o" size={14} color="#94a3b8" style={styles.metaIcon} />
@@ -296,6 +461,75 @@ export default function RequestsScreen() {
           </View>
         ) : null}
       </ScrollView>
+
+      <Modal
+        visible={addMenuOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={closeAddMenu}
+      >
+        <View style={styles.addMenuRoot}>
+          <Pressable style={styles.addMenuBackdrop} onPress={closeAddMenu} />
+          {addMenuPopoverLayout ? (
+            <View
+              style={[
+                styles.addMenuPopover,
+                {
+                  top: addMenuPopoverLayout.top,
+                  left: addMenuPopoverLayout.left,
+                  width: addMenuPopoverLayout.width,
+                },
+              ]}
+            >
+              <View style={styles.addMenuSheet}>
+                <Text style={styles.addMenuTitle}>Start something new</Text>
+                <TouchableOpacity
+                  style={styles.addMenuRow}
+                  activeOpacity={0.85}
+                  onPress={goRequestPickup}
+                  accessibilityRole="button"
+                  accessibilityLabel="Request pickup — browse catalog for available books"
+                >
+                  <View style={[styles.addMenuIconWrap, styles.addMenuIconPickup]}>
+                    <FontAwesome name="hand-o-right" size={20} color={HOWARD_BLUE} />
+                  </View>
+                  <View style={styles.addMenuTextCol}>
+                    <Text style={styles.addMenuRowTitle}>Request pickup</Text>
+                    <Text style={styles.addMenuRowSub}>Find an available book and have it delivered to you</Text>
+                  </View>
+                  <FontAwesome name="chevron-right" size={14} color="#cbd5e1" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.addMenuRow, styles.addMenuRowDivider]}
+                  activeOpacity={0.85}
+                  onPress={goReturnBook}
+                  accessibilityRole="button"
+                  accessibilityLabel="Return a book — books checked out to you"
+                >
+                  <View style={[styles.addMenuIconWrap, styles.addMenuIconReturn]}>
+                    <FontAwesome name="reply" size={20} color="#b45309" />
+                  </View>
+                  <View style={styles.addMenuTextCol}>
+                    <Text style={styles.addMenuRowTitle}>Return a book</Text>
+                    <Text style={styles.addMenuRowSub}>
+                      Pick from books we delivered to you, then tap Return book on the book page
+                    </Text>
+                  </View>
+                  <FontAwesome name="chevron-right" size={14} color="#cbd5e1" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.addMenuCancel}
+                  onPress={closeAddMenu}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel"
+                >
+                  <Text style={styles.addMenuCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : null}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -308,6 +542,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
   },
   heroCard: {
+    position: 'relative',
     backgroundColor: '#fff',
     borderRadius: 20,
     padding: 18,
@@ -319,6 +554,25 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 12,
     elevation: 3,
+  },
+  heroAddBtnHitArea: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    zIndex: 4,
+  },
+  heroAddBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: HOWARD_BLUE,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: HOWARD_BLUE,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.28,
+    shadowRadius: 6,
+    elevation: 5,
   },
   heroRow: {
     flexDirection: 'row',
@@ -382,6 +636,22 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   listHeader: { fontSize: 15, fontWeight: '700', color: '#0f172a' },
+  kindBadgeRow: { marginBottom: 8 },
+  kindBadgePickup: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#e0f2fe',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  kindBadgeReturn: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  kindBadgeText: { fontSize: 11, fontWeight: '800', color: '#334155', letterSpacing: 0.6 },
   card: {
     backgroundColor: '#fff',
     borderRadius: 18,
@@ -431,25 +701,65 @@ const styles = StyleSheet.create({
     color: '#64748b',
     lineHeight: 22,
   },
-  primaryBtn: {
+  subEm: { fontWeight: '800', color: HOWARD_BLUE },
+  addMenuRoot: { flex: 1 },
+  addMenuBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15, 23, 42, 0.48)',
+  },
+  addMenuPopover: {
+    position: 'absolute',
+    zIndex: 2,
+  },
+  addMenuSheet: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  addMenuTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#64748b',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+    marginLeft: 6,
+  },
+  addMenuRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'stretch',
-    justifyContent: 'center',
-    backgroundColor: HOWARD_BLUE,
-    paddingVertical: 15,
-    paddingHorizontal: 22,
-    borderRadius: 14,
-    marginTop: 4,
-    marginBottom: 20,
-    shadowColor: HOWARD_BLUE,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    gap: 12,
   },
-  primaryBtnIcon: { marginRight: 8 },
-  primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  addMenuRowDivider: {
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    marginTop: 4,
+    paddingTop: 16,
+  },
+  addMenuIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addMenuIconPickup: { backgroundColor: '#e8f0fe' },
+  addMenuIconReturn: { backgroundColor: '#fef3c7' },
+  addMenuTextCol: { flex: 1, minWidth: 0 },
+  addMenuRowTitle: { fontSize: 16, fontWeight: '700', color: '#0f172a' },
+  addMenuRowSub: { fontSize: 13, color: '#64748b', marginTop: 3, lineHeight: 18 },
+  addMenuCancel: { alignItems: 'center', paddingVertical: 12, marginTop: 2 },
+  addMenuCancelText: { fontSize: 16, fontWeight: '600', color: HOWARD_BLUE },
   metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   metaIcon: { marginRight: 6 },
   metaText: { fontSize: 13, color: '#94a3b8' },

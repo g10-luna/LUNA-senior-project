@@ -68,7 +68,11 @@ class RequestStatus(str, enum.Enum):
 class ReturnStatus(str, enum.Enum):
     PENDING = "PENDING"
     PICKUP_SCHEDULED = "PICKUP_SCHEDULED"
-    PICKED_UP = "PICKED_UP"
+    PICKED_UP = "PICKED_UP"  # legacy returns (pre two-leg workflow)
+    AWAITING_STUDENT_LOAD = "AWAITING_STUDENT_LOAD"
+    READY_FOR_RETURN_LEG = "READY_FOR_RETURN_LEG"
+    RETURN_IN_TRANSIT = "RETURN_IN_TRANSIT"
+    AWAITING_ADMIN_CONFIRM = "AWAITING_ADMIN_CONFIRM"
     COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
 
@@ -208,6 +212,16 @@ class BookReturn(Base):
     )
     picked_up_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    student_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    auto_closed_without_confirm_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    student_book_loaded_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    admin_receipt_confirmed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
 
 class Robot(Base, TimestampMixin):

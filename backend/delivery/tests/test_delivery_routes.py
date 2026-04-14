@@ -23,7 +23,7 @@ from shared.auth_dependencies import get_current_user_dep
 
 def _mock_db_override():
     yield MagicMock()
-from shared.models import BookStatus, RequestStatus, TaskStatus, TaskType
+from shared.models import BookStatus, RequestStatus, ReturnStatus, TaskStatus, TaskType
 
 
 def _student() -> UserResponse:
@@ -82,7 +82,28 @@ def _request_row(uid, bid, status=RequestStatus.PENDING, location="Desk 3"):
     )
 
 
+def _return_row(uid, bid, status=ReturnStatus.PENDING, location="Desk 3"):
+    return SimpleNamespace(
+        id=uuid4(),
+        user_id=uid,
+        book_id=bid,
+        pickup_location=location,
+        status=status,
+        initiated_at=datetime.now(timezone.utc),
+        picked_up_at=None,
+        completed_at=None,
+        student_confirmed_at=None,
+        auto_closed_without_confirm_at=None,
+    )
+
+
+def _patch_no_book_lookup(monkeypatch):
+    """MagicMock db makes get_book_by_id return a MagicMock; book.title breaks Pydantic."""
+    monkeypatch.setattr(delivery_services, "get_book_by_id", lambda db, bid: None)
+
+
 def test_create_request_student_success(monkeypatch):
+    _patch_no_book_lookup(monkeypatch)
     user = _student()
     book = _book()
     created = _request_row(user.id, book.id)
@@ -125,7 +146,80 @@ def test_create_request_rejects_non_student():
         app.dependency_overrides.clear()
 
 
+def test_create_return_student_success(monkeypatch):
+    _patch_no_book_lookup(monkeypatch)
+    user = _student()
+    book = _book()
+    created = _return_row(user.id, book.id)
+
+    def _fake_create(db, **kwargs):
+        assert kwargs["user"].id == user.id
+        assert kwargs["book_id"] == book.id
+        return created
+
+    monkeypatch.setattr(delivery_routes, "create_book_return", _fake_create)
+
+    app.dependency_overrides[get_current_user_dep] = lambda: user
+    app.dependency_overrides[delivery_routes.get_db] = _mock_db_override
+    client = TestClient(app)
+    try:
+        res = client.post(
+            "/api/v1/returns/",
+            json={"book_id": str(book.id), "pickup_location": "North study hall"},
+        )
+        assert res.status_code == 200
+        body = res.json()
+        assert body["success"] is True
+        assert body["data"]["return"]["id"] == str(created.id)
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_create_return_rejects_non_student():
+    user = _librarian()
+    app.dependency_overrides[get_current_user_dep] = lambda: user
+    app.dependency_overrides[delivery_routes.get_db] = _mock_db_override
+    client = TestClient(app)
+    try:
+        res = client.post(
+            "/api/v1/returns/",
+            json={"book_id": str(uuid4()), "pickup_location": "Here"},
+        )
+        assert res.status_code == 400
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_get_return_activity_returns_return_and_task_payload(monkeypatch):
+    _patch_no_book_lookup(monkeypatch)
+    user = _student()
+    book = _book()
+    br = _return_row(user.id, book.id, status=ReturnStatus.PICKUP_SCHEDULED)
+
+    def _activity(db, *, user, return_id):
+        assert return_id == br.id
+        return br, None, []
+
+    monkeypatch.setattr(delivery_routes, "get_return_activity", _activity)
+
+    app.dependency_overrides[get_current_user_dep] = lambda: user
+    app.dependency_overrides[delivery_routes.get_db] = _mock_db_override
+    client = TestClient(app)
+    try:
+        res = client.get(f"/api/v1/returns/{br.id}/activity")
+        assert res.status_code == 200
+        body = res.json()
+        assert body["success"] is True
+        assert body["data"]["return"]["id"] == str(br.id)
+        assert body["data"]["return"]["status"] == "PICKUP_SCHEDULED"
+        assert body["data"]["task"] is None
+        assert body["data"]["tasks"] == []
+    finally:
+        app.dependency_overrides.clear()
+
+
 def test_get_request_activity_returns_request_and_task_payload(monkeypatch):
+    _patch_no_book_lookup(monkeypatch)
     user = _student()
     book = _book()
     br = _request_row(user.id, book.id, status=RequestStatus.APPROVED)

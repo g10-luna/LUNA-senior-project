@@ -4,9 +4,9 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from shared.models import RequestStatus, TaskStatus, TaskType
+from shared.models import RequestStatus, ReturnStatus, TaskStatus, TaskType
 
 
 class BookRequestCreate(BaseModel):
@@ -43,8 +43,49 @@ class BookRequestListResponse(BaseModel):
     total: int
 
 
+class BookReturnCreate(BaseModel):
+    book_id: UUID
+    pickup_location: str = Field(..., min_length=1, max_length=120)
+
+
+class BookReturnResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    user_id: UUID
+    book_id: UUID
+    pickup_location: str
+    status: ReturnStatus
+    initiated_at: datetime
+    picked_up_at: datetime | None = None
+    completed_at: datetime | None
+    student_confirmed_at: datetime | None = None
+    auto_closed_without_confirm_at: datetime | None = None
+    student_book_loaded_at: datetime | None = None
+    admin_receipt_confirmed_at: datetime | None = None
+    student_display_name: str | None = None
+    student_email: str | None = None
+    book_title: str | None = None
+
+
+class BookReturnListResponse(BaseModel):
+    items: list[BookReturnResponse]
+    page: int
+    limit: int
+    total: int
+
+
 class DeliveryTaskCreate(BaseModel):
-    request_id: UUID
+    request_id: UUID | None = None
+    return_id: UUID | None = None
+
+    @model_validator(mode="after")
+    def exactly_one_fk(self) -> "DeliveryTaskCreate":
+        has_req = self.request_id is not None
+        has_ret = self.return_id is not None
+        if has_req == has_ret:
+            raise ValueError("Exactly one of request_id or return_id must be set.")
+        return self
 
 
 class TaskStatusEventResponse(BaseModel):
@@ -82,6 +123,10 @@ class DeliveryTaskResponse(BaseModel):
     student_confirm_deadline_at: datetime | None = Field(
         None,
         description="When the student must confirm receipt after delivery completes (server rule), if applicable.",
+    )
+    return_pickup_leg: str | None = Field(
+        None,
+        description="For return tasks: 'outbound' (robot to student) or 'return' (robot to desk).",
     )
     status_history: list[TaskStatusEventResponse] = Field(default_factory=list)
 

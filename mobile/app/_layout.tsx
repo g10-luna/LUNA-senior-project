@@ -58,6 +58,9 @@ function RootLayoutNav() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="book/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="request/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="return/index" options={{ headerShown: false }} />
+        <Stack.Screen name="return/start/[bookId]" options={{ headerShown: false }} />
+        <Stack.Screen name="return/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="home/discover" options={{ headerShown: false }} />
         <Stack.Screen name="home/new-arrivals" options={{ headerShown: false }} />
         <Stack.Screen name="home/available-now" options={{ headerShown: false }} />
