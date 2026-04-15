@@ -2,7 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { ProtectedRoute, PublicOnlyRoute } from "../layouts/ProtectedRoute";
 import TopBarLayout from "../layouts/TopBarLayout";
 import { ROUTES } from "../lib/routes";
-import { tokenStorage } from "../lib/tokenStorage";
+import { getRootRedirectPath } from "../lib/authSession";
 import AccountSettingsScreen from "../screens/AccountSettingsScreen";
 import CatalogScreen from "../screens/CatalogScreen";
 import Dashboard from "../screens/Dashboard";
@@ -11,7 +11,7 @@ import MaintenanceScreen from "../screens/MaintenanceScreen";
 import MapScreen from "../screens/MapScreen";
 import OptionsScreen from "../screens/OptionsScreen";
 
-const RootRedirect = () => <Navigate to={tokenStorage.isAuthenticated() ? ROUTES.DASHBOARD : ROUTES.LOGIN} replace />;
+const RootRedirect = () => <Navigate to={getRootRedirectPath()} replace />;
 
 export default function AppRouter() {
   return (

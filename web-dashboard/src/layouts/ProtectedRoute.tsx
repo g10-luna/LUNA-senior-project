@@ -1,11 +1,11 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { ROUTES } from "../lib/routes";
-import { tokenStorage } from "../lib/tokenStorage";
+import { isAuthenticated } from "../lib/authSession";
 
 export function ProtectedRoute() {
-  return tokenStorage.isAuthenticated() ? <Outlet /> : <Navigate to={ROUTES.LOGIN} replace />;
+  return isAuthenticated() ? <Outlet /> : <Navigate to={ROUTES.LOGIN} replace />;
 }
 
 export function PublicOnlyRoute() {
-  return tokenStorage.isAuthenticated() ? <Navigate to={ROUTES.DASHBOARD} replace /> : <Outlet />;
+  return isAuthenticated() ? <Navigate to={ROUTES.DASHBOARD} replace /> : <Outlet />;
 }
