@@ -36,6 +36,14 @@ _raw_backend = os.getenv("REDIS_CELERY_RESULT_BACKEND") or os.getenv(
 )
 result_backend = _celery_rediss_url(normalize_upstash_redis_url(_raw_backend))
 
+# Celery's Settings.broker_url / result_backend read CELERY_BROKER_URL and
+# CELERY_RESULT_BACKEND from the environment FIRST, overriding the constructor.
+# Render often sets those to the raw Upstash URL (.../1); force normalized URLs.
+os.environ["CELERY_BROKER_URL"] = broker_url
+os.environ["CELERY_RESULT_BACKEND"] = result_backend
+os.environ.pop("CELERY_BROKER_READ_URL", None)
+os.environ.pop("CELERY_BROKER_WRITE_URL", None)
+
 celery_app = Celery(
     "luna",
     broker=broker_url,
