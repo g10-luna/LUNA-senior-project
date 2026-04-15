@@ -15,6 +15,7 @@ load_dotenv(_env_path, override=False)
 from fastapi import FastAPI
 
 from auth.routes import router as auth_router
+from shared.cors import add_cors
 from shared.env_bootstrap import ensure_local_jwt_secret
 
 
@@ -59,6 +60,8 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+add_cors(app)
 
 app.include_router(auth_router)
 

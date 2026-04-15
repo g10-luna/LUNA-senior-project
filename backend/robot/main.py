@@ -4,11 +4,15 @@ Base path: /api/v1/robot
 """
 from fastapi import FastAPI
 
+from shared.cors import add_cors
+
 app = FastAPI(
     title="LUNA Robot Service",
     description="Robot integration and task service",
     version="0.1.0",
 )
+
+add_cors(app)
 
 
 @app.get("/")

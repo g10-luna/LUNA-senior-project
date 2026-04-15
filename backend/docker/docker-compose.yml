@@ -7,8 +7,8 @@ x-backend-env: &backend-env
   SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-SUPABASE_SERVICE_ROLE_KEY_PLACEHOLDER}
   SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-SUPABASE_ANON_KEY_PLACEHOLDER}
   SUPABASE_WEBHOOK_SECRET: ${SUPABASE_WEBHOOK_SECRET:-SUPABASE_WEBHOOK_SECRET_PLACEHOLDER}
-  DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://luna_user:luna_password@postgres:5432/luna_db}
-  DATABASE_URL_SYNC: ${DATABASE_URL_SYNC:-postgresql://luna_user:luna_password@postgres:5432/luna_db}
+  # DATABASE_URL / DATABASE_URL_SYNC come only from env_file ../.env so Supabase URLs are not
+  # overridden by compose-time defaults (there is no backend/docker/.env for ${DATABASE_URL:-...}).
   REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
   REDIS_CELERY_BROKER_URL: ${REDIS_CELERY_BROKER_URL:-redis://redis:6379/1}
   ENVIRONMENT: ${ENVIRONMENT:-development}
@@ -56,7 +56,9 @@ services:
       dockerfile: Dockerfile
     container_name: luna-migrate
     env_file: ../.env
-    command: alembic upgrade head
+    # Supabase direct host is often IPv6-only; Docker may not reach it. Run `alembic upgrade head` on the host instead.
+    command: >
+      sh -c 'if [ "$${SKIP_CONTAINER_MIGRATE:-}" = "true" ]; then echo "skip: migrations applied on host (Supabase)"; exit 0; fi; alembic upgrade head'
     depends_on:
       postgres:
         condition: service_healthy

@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+.git
+.gitignore
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+.pytest_cache
+.ruff_cache
+.mypy_cache
+*.egg-info
+.DS_Store
+docker/postgres_data
+**/node_modules

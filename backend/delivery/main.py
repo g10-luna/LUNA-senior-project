@@ -12,6 +12,7 @@ load_dotenv(_env_path, override=False)
 from fastapi import FastAPI
 
 from delivery.routes import deliveries_router, requests_router, returns_router
+from shared.cors import add_cors
 
 
 app = FastAPI(
@@ -19,6 +20,8 @@ app = FastAPI(
     description="Book requests, book returns, and delivery tasks",
     version="0.3.0",
 )
+
+add_cors(app)
 
 app.include_router(requests_router)
 app.include_router(returns_router)

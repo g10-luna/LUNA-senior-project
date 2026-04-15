@@ -23,6 +23,9 @@ load_dotenv(_env_path, override=False)
 
 database_url = os.getenv("DATABASE_URL_SYNC")
 if database_url:
+    # Alembic runs synchronously; accept accidental asyncpg URLs from .env
+    if database_url.startswith("postgresql+asyncpg://"):
+        database_url = database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
     config.set_main_option("sqlalchemy.url", database_url)
 
 

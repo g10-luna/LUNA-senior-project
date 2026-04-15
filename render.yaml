@@ -1,0 +1,18 @@
+# Render Blueprint (optional): set env vars in the dashboard; do not commit secrets.
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: luna-api
+    runtime: docker
+    region: virginia
+    plan: free
+    dockerfilePath: ./backend/Dockerfile.render
+    dockerContext: ./backend
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: RUN_MIGRATIONS_ON_START
+        value: "true"
+      # Add in dashboard: DATABASE_URL, DATABASE_URL_SYNC, REDIS_*, SUPABASE_*, JWT_SECRET_KEY,
+      # API_BASE_URL, PASSWORD_RESET_REDIRECT_URL, CORS_ALLOW_ORIGINS, etc.
