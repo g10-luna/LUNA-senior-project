@@ -73,7 +73,7 @@ VITE_API_BASE_URL=http://localhost:8000
 ```
 
 - Ensure the backend/API is running and reachable at your configured `VITE_API_BASE_URL`.  
-- For non-local environments, add/update the corresponding `VITE_API_BASE_URL` entry as needed (TODO: document environment-specific values).
+- Production builds load `web-dashboard/.env.production` (Render API: `https://luna-senior-project.onrender.com`). Override in Vercel env if the API URL changes.
 
 If you change `.env`, stop and restart `npm run dev` so Vite picks up the new environment variables.
 

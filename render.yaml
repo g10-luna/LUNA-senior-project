@@ -1,4 +1,5 @@
 # Render Blueprint (optional): set env vars in the dashboard; do not commit secrets.
+# Public API (when deployed): https://luna-senior-project.onrender.com
 # https://render.com/docs/blueprint-spec
 services:
   - type: web
