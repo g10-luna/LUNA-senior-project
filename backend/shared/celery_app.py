@@ -10,6 +10,8 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from celery import Celery
 from dotenv import load_dotenv
 
+from shared.redis_url import normalize_upstash_redis_url
+
 _env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(_env_path, override=True)
 
@@ -26,9 +28,13 @@ def _celery_rediss_url(url: str) -> str:
     return urlunparse(parsed._replace(query=urlencode(pairs)))
 
 
-broker_url = _celery_rediss_url(os.getenv("REDIS_CELERY_BROKER_URL", "redis://redis:6379/1"))
-_raw_backend = os.getenv("REDIS_CELERY_RESULT_BACKEND") or os.getenv("REDIS_CELERY_BROKER_URL", "redis://redis:6379/1")
-result_backend = _celery_rediss_url(_raw_backend)
+broker_url = _celery_rediss_url(
+    normalize_upstash_redis_url(os.getenv("REDIS_CELERY_BROKER_URL", "redis://redis:6379/1"))
+)
+_raw_backend = os.getenv("REDIS_CELERY_RESULT_BACKEND") or os.getenv(
+    "REDIS_CELERY_BROKER_URL", "redis://redis:6379/1"
+)
+result_backend = _celery_rediss_url(normalize_upstash_redis_url(_raw_backend))
 
 celery_app = Celery(
     "luna",

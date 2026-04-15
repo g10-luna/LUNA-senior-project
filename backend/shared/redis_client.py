@@ -8,6 +8,8 @@ from redis import Redis
 
 from dotenv import load_dotenv
 
+from shared.redis_url import normalize_upstash_redis_url
+
 load_dotenv()
 
 _redis: Redis | None = None
@@ -22,7 +24,7 @@ def get_redis() -> Redis:
     """Get Redis client. Requires REDIS_URL in env."""
     global _redis
     if _redis is None:
-        url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+        url = normalize_upstash_redis_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
         _redis = Redis.from_url(url, decode_responses=True)
     return _redis
 
