@@ -3,8 +3,6 @@ Auth API routes - System Design Section 6.1.1.
 Base path: /api/v1/auth
 """
 import logging
-import uuid
-from datetime import datetime, timezone
 import os
 from typing import Any
 
@@ -33,27 +31,14 @@ from auth.services import (
     update_user_profile,
 )
 from shared.auth_dependencies import get_access_token, get_current_user_dep
+from shared.response_utils import api_success
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
 
 
-def _success(data: dict) -> dict:
-    """Standard success response per Section 6.2.2."""
-    return {
-        "success": True,
-        "data": data,
-        "meta": {"timestamp": datetime.now(timezone.utc).isoformat(), "request_id": str(uuid.uuid4())[:8]},
-    }
-
-
-def _error(code: str, message: str, details: dict | None = None) -> dict:
-    """Standard error response per Section 6.2.2."""
-    return {
-        "success": False,
-        "error": {"code": code, "message": message, "details": details or {}},
-        "meta": {"timestamp": datetime.now(timezone.utc).isoformat(), "request_id": str(uuid.uuid4())[:8]},
-    }
+# _success / _error have been promoted to shared.response_utils.api_success / api_error
+# See: backend/shared/response_utils.py (VIBE Refactor – Lab 2)
 
 
 def _extract_deleted_user_id(payload: dict[str, Any]) -> str | None:
@@ -110,11 +95,11 @@ def register(req: RegisterRequest):
             detail=detail,
         )
     if access_token is None:
-        return _success({
+        return api_success({
             "user": user.model_dump(mode="json"),
             "message": "Registration successful. Please check your email to confirm your account.",
         })
-    return _success({
+    return api_success({
         "user": user.model_dump(mode="json"),
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -138,7 +123,7 @@ def login(req: LoginRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Login failed due to an internal error",
         )
-    return _success({
+    return api_success({
         "user": user.model_dump(mode="json"),
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -151,7 +136,7 @@ def login(req: LoginRequest):
 def logout(user: UserResponse = Depends(get_current_user_dep)):
     """Logout and invalidate refresh token."""
     logout_user(str(user.id))
-    return _success({"message": "Logged out successfully"})
+    return api_success({"message": "Logged out successfully"})
 
 
 @router.post("/refresh")
@@ -161,7 +146,7 @@ def refresh(req: RefreshRequest):
         access_token, new_refresh_token, expires_in = refresh_tokens(req.refresh_token)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
-    return _success({
+    return api_success({
         "access_token": access_token,
         "refresh_token": new_refresh_token,
         "expires_in": expires_in,
@@ -184,7 +169,7 @@ def forgot_password(req: ForgotPasswordRequest):
     except Exception:
         # Keep response generic to avoid user-enumeration; log for operators.
         logger.exception("Password reset email request failed")
-    return _success({"message": "If the email exists, a password reset link has been sent."})
+    return api_success({"message": "If the email exists, a password reset link has been sent."})
 
 
 @router.post("/reset-password")
@@ -199,7 +184,7 @@ def reset_password(req: ResetPasswordRequest):
         supabase.auth.update_user({"password": req.new_password})
     except Exception:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
-    return _success({"message": "Password has been reset."})
+    return api_success({"message": "Password has been reset."})
 
 
 @router.post("/complete-password-recovery")
@@ -225,13 +210,13 @@ def complete_password_recovery(req: CompletePasswordRecoveryRequest):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired recovery link. Request a new password reset email.",
         )
-    return _success({"message": "Password has been reset."})
+    return api_success({"message": "Password has been reset."})
 
 
 @router.get("/me", response_model=dict)
 def get_me(user: UserResponse = Depends(get_current_user_dep)):
     """Get current user profile."""
-    return _success({"user": user.model_dump(mode="json")})
+    return api_success({"user": user.model_dump(mode="json")})
 
 
 @router.put("/me")
@@ -250,7 +235,7 @@ def update_me(
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    return _success({"user": updated.model_dump(mode="json")})
+    return api_success({"user": updated.model_dump(mode="json")})
 
 
 @router.put("/change-password")
@@ -264,7 +249,7 @@ def change_pwd(
         change_password(token, req.current_password, req.new_password)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    return _success({"message": "Password changed successfully"})
+    return api_success({"message": "Password changed successfully"})
 
 
 @router.delete("/me")
@@ -274,7 +259,7 @@ def delete_me(user: UserResponse = Depends(get_current_user_dep)):
         delete_user_account(str(user.id))
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    return _success({"message": "User account deleted"})
+    return api_success({"message": "User account deleted"})
 
 
 @router.post("/webhooks/supabase-user-deleted")
@@ -298,7 +283,7 @@ def supabase_user_deleted_webhook(
     user_id = _extract_deleted_user_id(payload)
     if not user_id:
         # Acknowledge unrelated/unsupported events so webhook retries do not pile up.
-        return _success({"handled": False, "reason": "No supported user deletion payload found"})
+        return api_success({"handled": False, "reason": "No supported user deletion payload found"})
 
     deleted = delete_local_user_profile(user_id)
-    return _success({"handled": True, "user_id": user_id, "deleted": deleted})
+    return api_success({"handled": True, "user_id": user_id, "deleted": deleted})
