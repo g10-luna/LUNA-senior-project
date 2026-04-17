@@ -5,9 +5,9 @@
 - Course Module: Lab 6 - Lovable.dev Feature Extension
 - Repository: `g10-luna/LUNA-senior-project`
 - Branch: `lab6/lovable-delivery-queue-extension`
-- PR Link: `<ADD_PR_LINK_HERE>`
+- PR Link: `https://github.com/g10-luna/LUNA-senior-project/pull/257`
 - Team Reviewers: `<ADD_NAMES_HERE>`
-- Date Submitted: `<ADD_DATE_HERE>`
+- Date Submitted: `2026-04-17`
 
 ---
 
@@ -70,7 +70,7 @@ To ensure clean sync from Lovable.dev to GitHub:
 Use this checklist and complete before merging:
 
 - [ ] Web dashboard builds successfully
-- [ ] Lint/type checks pass
+- [x] Lint/type checks pass (`cd web-dashboard && npm run lint`)
 - [ ] Login/session behavior unchanged
 - [ ] Queue renders with loading, empty, success, and error states
 - [ ] Filter/search/sort interactions work correctly
