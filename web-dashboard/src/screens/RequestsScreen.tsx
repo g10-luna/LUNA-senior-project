@@ -13,6 +13,12 @@ import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { getCurrentQueuerProfile } from "../lib/queuedByProfile";
 import {
+  formatRobotTaskCreatedAt,
+  selectCompletedTasks,
+  selectInProgressTasks,
+  selectQueuedOrderedTasks,
+} from "../lib/robotTaskSelectors";
+import {
   addRobotTaskToQueue,
   moveQueuedTask,
   removeRobotTask,
@@ -22,20 +28,6 @@ import {
   useRobotTasksState,
 } from "../lib/robotTasksStore";
 import "./RequestsScreen.css";
-
-function formatCreated(iso: string) {
-  try {
-    const d = new Date(iso);
-    return new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    }).format(d);
-  } catch {
-    return "";
-  }
-}
 
 function QueuedByAside({ name, initials, compact }: { name: string; initials: string; compact?: boolean }) {
   return (
@@ -77,13 +69,7 @@ function SortableQueueRow({
 
   return (
     <li ref={setNodeRef} style={style} className={`requests-queue-row${isDragging ? " requests-queue-row--dragging" : ""}`}>
-      <button
-        type="button"
-        className="requests-drag-handle"
-        aria-label={`Drag to reprioritize: ${task.title}`}
-        {...attributes}
-        {...listeners}
-      >
+      <button type="button" className="requests-drag-handle" aria-label={`Drag to reprioritize: ${task.title}`} {...attributes} {...listeners}>
         <span aria-hidden>⠿</span>
       </button>
       <div className="requests-queue-body">
@@ -91,7 +77,7 @@ function SortableQueueRow({
         {task.description ? <div className="requests-queue-detail">{task.description}</div> : null}
         <div className="requests-queue-meta">
           {task.source === "robot_api" ? "Auto-queued · " : null}
-          {formatCreated(task.createdAt)}
+          {formatRobotTaskCreatedAt(task.createdAt)}
         </div>
       </div>
       <QueuedByAside name={task.queuedByName} initials={task.queuedByInitials} />
@@ -120,16 +106,11 @@ export default function RequestsScreen() {
   const store = useRobotTasksState();
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
-
   const queuerPreview = getCurrentQueuerProfile();
 
-  const queuedOrdered = useMemo(() => {
-    const byId = new Map(store.tasks.map((t) => [t.id, t]));
-    return store.queueOrder.map((id) => byId.get(id)).filter((t): t is RobotTask => !!t && t.status === "queued");
-  }, [store.tasks, store.queueOrder]);
-
-  const inProgress = useMemo(() => store.tasks.filter((t) => t.status === "in_progress"), [store.tasks]);
-  const completed = useMemo(() => store.tasks.filter((t) => t.status === "completed"), [store.tasks]);
+  const queuedOrdered = useMemo(() => selectQueuedOrderedTasks(store), [store]);
+  const inProgress = useMemo(() => selectInProgressTasks(store), [store]);
+  const completed = useMemo(() => selectCompletedTasks(store), [store]);
 
   useEffect(() => {
     const id = location.hash.replace(/^#/, "");
