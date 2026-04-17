@@ -83,6 +83,9 @@ export function StudentDeliveryRequestsPanel() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [, setTick] = useState(0);
   const [bookStatusById, setBookStatusById] = useState<Record<string, BookStatus | string>>({});
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "PENDING" | "APPROVED" | "IN_PROGRESS">("ALL");
+  const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
+  const [query, setQuery] = useState("");
 
   const taskByRequestId = useMemo(() => {
     const m = new Map<string, DeliveryTaskRow>();
@@ -162,7 +165,24 @@ export function StudentDeliveryRequestsPanel() {
     }
   };
 
-  const open = requests.filter((q) => q.status !== "COMPLETED" && q.status !== "CANCELLED");
+  const open = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    const filtered = requests.filter((q) => {
+      if (q.status === "COMPLETED" || q.status === "CANCELLED") return false;
+      if (statusFilter !== "ALL" && q.status !== statusFilter) return false;
+      if (!normalizedQuery) return true;
+      const haystack = `${q.book_title ?? ""} ${q.student_display_name ?? ""} ${q.student_email ?? ""} ${q.request_location ?? ""}`
+        .toLowerCase()
+        .trim();
+      return haystack.includes(normalizedQuery);
+    });
+    filtered.sort((a, b) => {
+      const ta = new Date(a.requested_at).getTime();
+      const tb = new Date(b.requested_at).getTime();
+      return sortBy === "newest" ? tb - ta : ta - tb;
+    });
+    return filtered;
+  }, [requests, statusFilter, query, sortBy]);
 
   return (
     <section className="card sdreq-panel" aria-labelledby="sdreq-heading">
@@ -175,6 +195,35 @@ export function StudentDeliveryRequestsPanel() {
         </button>
       </div>
 
+      <div className="sdreq-controls" role="group" aria-label="Filter and sort student requests">
+        <label className="sdreq-control">
+          <span className="sdreq-control-label">Status</span>
+          <select className="sdreq-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}>
+            <option value="ALL">All open</option>
+            <option value="PENDING">Pending</option>
+            <option value="APPROVED">Approved</option>
+            <option value="IN_PROGRESS">In progress</option>
+          </select>
+        </label>
+        <label className="sdreq-control">
+          <span className="sdreq-control-label">Sort</span>
+          <select className="sdreq-select" value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+          </select>
+        </label>
+        <label className="sdreq-control sdreq-control--search">
+          <span className="sdreq-control-label">Search</span>
+          <input
+            type="search"
+            className="sdreq-search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Book, student, email, or location"
+          />
+        </label>
+      </div>
+
       {error ? (
         <p className="sdreq-error" role="alert">
           {error}
@@ -183,7 +232,11 @@ export function StudentDeliveryRequestsPanel() {
 
       {loading ? <p className="sdreq-muted">Loading…</p> : null}
 
-      {!loading && open.length === 0 ? <p className="sdreq-muted">No active student requests. New submissions from the app appear here.</p> : null}
+      {!loading && open.length === 0 ? (
+        <p className="sdreq-muted">
+          No requests match these filters. Try clearing search or selecting <strong>All open</strong>.
+        </p>
+      ) : null}
 
       {!loading && open.length > 0 ? (
         <ul className="sdreq-list">
