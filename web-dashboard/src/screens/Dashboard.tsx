@@ -62,11 +62,17 @@ export default function DashboardScreen() {
 
   const availablePct = (availableBooks / totalForChart) * 100;
   const checkedOutPct = (checkedOutBooks / totalForChart) * 100;
-  const inventoryChartBackground = `conic-gradient(
-    #181e2437 0 ${availablePct}%,
-    #e53e3e ${availablePct}% ${availablePct + checkedOutPct}%,
-    #092fad ${availablePct + checkedOutPct}% 100%
-  )`;
+  
+  // SVG Donut Chart Logic (Lovable UI Extension)
+  const radius = 58;
+  const circumference = 2 * Math.PI * radius;
+  
+  const availableDash = (availablePct / 100) * circumference;
+  const checkedOutDash = (checkedOutPct / 100) * circumference;
+  
+  const availableOffset = 0;
+  const checkedOutOffset = -availableDash;
+  const reservedOffset = -(availableDash + checkedOutDash);
   const currentTask =
     robot?.currentTaskSummary?.trim() || "Charging";
   const battery = robot?.batteryPercent ?? 90;
@@ -171,11 +177,11 @@ export default function DashboardScreen() {
                 <div className="dashboard-pill-label-sub">Active</div>
               </div>
             </div>
-            <div className="dashboard-pill">
-              <span className="dashboard-pill-dot blue" />
+            <div className="dashboard-pill dashboard-pill--live">
+              <span className="pulse-dot" />
               <div>
-                <div className="dashboard-pill-label-strong">Robot</div>
-                <div className="dashboard-pill-label-sub">Running mock tasks</div>
+                <div className="dashboard-pill-label-strong">Robot Live</div>
+                <div className="dashboard-pill-label-sub">{robot?.currentTaskSummary ? 'Executing operations' : 'Running mock tasks'}</div>
               </div>
             </div>
           </div>
@@ -311,10 +317,50 @@ export default function DashboardScreen() {
           </div>
           <div className="dashboard-inventory">
             <div
-              className="dashboard-inventory-chart"
-              style={{ backgroundImage: inventoryChartBackground }}
+              className="dashboard-inventory-chart-modern"
               aria-hidden
             >
+              <svg width="140" height="140" viewBox="0 0 140 140" className="dashboard-donut-svg">
+                <circle
+                  cx="70"
+                  cy="70"
+                  r={radius}
+                  fill="none"
+                  stroke="#38a169"
+                  strokeWidth="12"
+                  strokeDasharray={`${availableDash} ${circumference}`}
+                  strokeDashoffset={availableOffset}
+                  strokeLinecap="round"
+                  transform="rotate(-90 70 70)"
+                  className="dashboard-donut-segment dashboard-donut-available"
+                />
+                <circle
+                  cx="70"
+                  cy="70"
+                  r={radius}
+                  fill="none"
+                  stroke="#e53e3e"
+                  strokeWidth="12"
+                  strokeDasharray={`${checkedOutDash} ${circumference}`}
+                  strokeDashoffset={checkedOutOffset}
+                  strokeLinecap="round"
+                  transform="rotate(-90 70 70)"
+                  className="dashboard-donut-segment dashboard-donut-checkedout"
+                />
+                <circle
+                  cx="70"
+                  cy="70"
+                  r={radius}
+                  fill="none"
+                  stroke="#3182ce"
+                  strokeWidth="12"
+                  strokeDasharray={`${circumference} ${circumference}`}
+                  strokeDashoffset={reservedOffset}
+                  strokeLinecap="round"
+                  transform="rotate(-90 70 70)"
+                  className="dashboard-donut-segment dashboard-donut-reserved"
+                />
+              </svg>
               <div className="dashboard-inventory-chart-inner">
                 <div className="dashboard-inventory-total">
                   {totalBooks.toLocaleString()}
@@ -325,7 +371,7 @@ export default function DashboardScreen() {
             <div className="dashboard-inventory-metrics" aria-label="Book inventory breakdown">
               <div className="dashboard-inventory-item dashboard-inventory-item--available">
                 <span className="dashboard-inventory-label">
-                  <span className="dashboard-inventory-dot available" /> Available
+                  <span className="dashboard-inventory-dot available" style={{ background: '#38a169' }} /> Available
                 </span>
                 <span className="dashboard-inventory-value">{availableBooks}</span>
               </div>
