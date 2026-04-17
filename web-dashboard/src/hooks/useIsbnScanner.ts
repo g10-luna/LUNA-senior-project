@@ -76,8 +76,8 @@ export type UseIsbnScannerReturn = {
   scannerHint: string | null;
   setScannerHint: (hint: string | null) => void;
   setCameraScanOpen: (open: boolean) => void;
-  videoRef: React.RefObject<HTMLVideoElement>;
-  isbnInputRef: React.RefObject<HTMLInputElement>;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
+  isbnInputRef: React.RefObject<HTMLInputElement | null>;
   openCameraScanner: () => void;
   focusExternalBarcodeScanner: () => void;
   runIsbnLookup: (isbnRaw: string) => Promise<void>;

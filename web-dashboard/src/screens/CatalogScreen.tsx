@@ -8,7 +8,7 @@
  * Refactor: Lab 3 – AI-Assisted Refactoring (Separation of Concerns)
  */
 
-import { useCatalog, getStatusFlags, getBookIcon, STATUS_FILTERS, PAGE_SIZE } from "../hooks/useCatalog";
+import { useCatalog, getStatusFlags, getBookIcon, STATUS_FILTERS } from "../hooks/useCatalog";
 import { useIsbnScanner } from "../hooks/useIsbnScanner";
 import { normalizeIsbnForLookup } from "../lib/isbnMetadataLookup";
 import "./Catalog.css";
